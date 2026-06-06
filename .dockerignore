@@ -1,0 +1,12 @@
+.env
+.venv
+.git
+.gitignore
+.dockerignore
+__pycache__
+.pytest_cache
+.ruff_cache
+private.pem
+public.pem
+Makefile
+README.md
