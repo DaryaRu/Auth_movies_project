@@ -4,6 +4,7 @@ from typing import Any
 import pytest
 from aiohttp import ClientSession
 from functional.settings import test_settings
+from functional.utils.check_methods import assert_status_return_json
 
 
 class TestRegistration:
@@ -23,11 +24,7 @@ class TestRegistration:
             self.URL,
             json=payload,
         )
-
-        assert response.status == HTTPStatus.CREATED
-
-        data = await response.json()
-
+        data = await assert_status_return_json(response, HTTPStatus.CREATED)
         assert "id" in data
         assert data["email"] == payload["email"]
         assert data["is_staff"] is False
@@ -46,10 +43,7 @@ class TestRegistration:
                 "password": active_user_data["password"],
             },
         )
-
-        assert response.status == HTTPStatus.BAD_REQUEST
-
-        data = await response.json()
+        data = await assert_status_return_json(response, HTTPStatus.BAD_REQUEST)
 
         assert "detail" in data
         assert "error" in data["detail"]
@@ -72,10 +66,7 @@ class TestRegistration:
             self.URL,
             json=payload,
         )
-
-        assert response.status == HTTPStatus.UNPROCESSABLE_ENTITY
-
-        data = await response.json()
+        data = await assert_status_return_json(response, HTTPStatus.UNPROCESSABLE_ENTITY)
 
         assert "detail" in data
 
@@ -96,10 +87,7 @@ class TestLogin:
                 "password": active_user_data["password"],
             },
         )
-
-        assert response.status == HTTPStatus.OK
-
-        data = await response.json()
+        data = await assert_status_return_json(response, HTTPStatus.OK)
 
         assert "access_token" in data
         assert data["token_type"] == "bearer"
@@ -121,10 +109,7 @@ class TestLogin:
                 "password": "password",
             },
         )
-
-        assert response.status == HTTPStatus.NOT_FOUND
-
-        data = await response.json()
+        data = await assert_status_return_json(response, HTTPStatus.NOT_FOUND)
 
         assert "detail" in data
         assert "error" in data["detail"]
@@ -142,10 +127,7 @@ class TestLogin:
                 "password": "wrong_password",
             },
         )
-
-        assert response.status == HTTPStatus.UNAUTHORIZED
-
-        data = await response.json()
+        data = await assert_status_return_json(response, HTTPStatus.UNAUTHORIZED)
 
         assert "detail" in data
         assert "error" in data["detail"]
@@ -168,10 +150,7 @@ class TestLogin:
             self.URL,
             json=payload,
         )
-
-        assert response.status == HTTPStatus.UNPROCESSABLE_ENTITY
-
-        data = await response.json()
+        data = await assert_status_return_json(response, HTTPStatus.UNPROCESSABLE_ENTITY)
 
         assert "detail" in data
 
@@ -185,9 +164,6 @@ class TestPublicKey:
         http_client: ClientSession,
     ):
         response = await http_client.get(self.URL)
-
-        assert response.status == HTTPStatus.OK
-
-        data = await response.json()
+        data = await assert_status_return_json(response, HTTPStatus.OK)
 
         assert "public_key" in data
