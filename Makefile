@@ -1,10 +1,12 @@
 init: keys build up
 
+rebuild: down build up
+
 build:
 	docker compose build
 
 up:
-	docker compose up -d
+	docker compose up -d --remove-orphans
 
 down:
 	docker compose down
