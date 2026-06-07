@@ -18,7 +18,7 @@ migrate:
 	docker compose exec app alembic upgrade head
 
 superuser:
-	docker compose exec app python src/commands/create_superuser.py
+	docker compose exec app python src/cli.py superuser create
 
 revision:
 	docker compose exec app alembic revision --autogenerate -m "$(name)"
