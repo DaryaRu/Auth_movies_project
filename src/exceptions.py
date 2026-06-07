@@ -64,3 +64,11 @@ class DecodeTokenHTTPException(AuthServiceHTTPException):
 
 class TokenKeysHTTPException(AuthServiceHTTPException):
     status_code = 403
+
+
+class InvalidTokenError(AuthServiceHTTPException):
+    status_code = 401
+
+
+class TokenExpiredError(AuthServiceHTTPException):
+    status_code = 401

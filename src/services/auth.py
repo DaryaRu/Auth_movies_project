@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
@@ -5,6 +6,8 @@ from src.exceptions import (
     UserAlreadyexistsException,
     UserNotFoundError,
     VerifyPasswordError,
+    InvalidTokenError,
+    TokenExpiredError,
 )
 from src.models.users import UserORM
 from src.schemas.users import UserRequestScheme
@@ -22,7 +25,10 @@ class AuthService(BaseService):
     - поиск пользователя по email;
     - аутентификация пользователя.
     """
-    def __init__(self, hash_service: BaseHashService, token_service: JWTTokenService, db: DBManager) -> None:
+    def __init__(self, hash_service: BaseHashService,
+                 token_service: JWTTokenService,
+                 db: DBManager
+                 ) -> None:
         super().__init__(db)
         self._hash_service: BaseHashService = hash_service
         self._token_service: JWTTokenService = token_service
@@ -54,7 +60,11 @@ class AuthService(BaseService):
         hash_password = self._hash_service.create_hash_password(
             user.password
         )
-        new_user = await self._db.users.create_user(email=user.email, hashed_password=hash_password, is_superuser=is_superuser)
+        new_user = await self._db.users.create_user(
+            email=user.email,
+            hashed_password=hash_password,
+            is_superuser=is_superuser,
+        )
         return new_user
 
     async def get_one_by_email(self, email: str) -> UserORM:
@@ -70,7 +80,12 @@ class AuthService(BaseService):
             raise UserNotFoundError()
         return user
 
-    async def authenticate_user(self, auth_user: UserRequestScheme) -> tuple[str, str]:
+    async def authenticate_user(
+            self,
+            auth_user: UserRequestScheme,
+            ip_address: str,
+            user_agent: str
+            ) -> tuple[str, str]:
         """
         Аутентифицирует пользователя по email и паролю.
         - Проверяет, существует ли пользователь.
@@ -78,8 +93,9 @@ class AuthService(BaseService):
         - В случае ошибок выбрасывает исключения.
         Args:
             auth_user (UserRequestScheme): Данные для входа (email и пароль).
-        Returns:
-            tuple[str, str]: Токены доступа.
+            ip_address (str): IP-адрес клиента.
+            user_agent (str): Строка User-Agent клиентского устройства.
+
         Raises:
             UserNotFoundError: Если пользователь с указанным email не найден.
             VerifyPasswordError: Если пароль введён неверно.
@@ -91,8 +107,20 @@ class AuthService(BaseService):
             auth_user.password, user.hashed_password
         ):
             raise VerifyPasswordError()
-        access_token, refresh_token = self._token_service.create_access_and_refresh_tokens(
-            {"sub": str(user.id), "is_superuser": user.is_superuser}
+        access_token, refresh_token = (
+            self._token_service.create_access_and_refresh_tokens(
+                {"sub": str(user.id), "is_superuser": user.is_superuser}
+            )
+        )
+        payload = self.decode_token(refresh_token)
+        expires_at = datetime.fromtimestamp(payload["exp"], tz=timezone.utc)
+
+        await self._db.refresh_tokens.create_refresh_token(
+            token=refresh_token,
+            user_id=user.id,
+            expires_at=expires_at,
+            ip_address=ip_address,
+            user_agent=user_agent,
         )
         return access_token, refresh_token
 
@@ -110,6 +138,113 @@ class AuthService(BaseService):
         if user is None:
             raise UserNotFoundError()
         return user
-    
+
     def decode_token(self, token: str) -> dict[str, Any]:
+        """Декодировать JWT токен."""
         return self._token_service.decode_jwt_token(token)
+
+    async def refresh_tokens(self, old_refresh_token: str) -> tuple[str, str]:
+        """
+        Выполняет ротацию токенов (Token Rotation).
+
+        - Проверяет структуру и тип старого refresh-токена.
+        - Ищет токен в базе данных и проверяет срок его действия.
+        - Удаляет старый токен, генерирует и сохраняет новую пару токенов.
+        - Сохраняет метаданные сессии (IP, User-Agent) при обновлении.
+
+        Args:
+            old_refresh_token (str): Текущий refresh-токен пользователя из кук.
+
+        Raises:
+            InvalidTokenError: Если токен невалиден или отсутствует в БД.
+            TokenExpiredError: Если срок действия токена истек.
+
+        Returns:
+            tuple[str, str]: Кортеж из нового
+            (access_token, new_refresh_token).
+        """
+        try:
+            payload = self.decode_token(old_refresh_token)
+
+            if payload.get("type") != "refresh":
+                raise InvalidTokenError()
+
+        except Exception:
+            await self._db.refresh_tokens.delete_refresh_token(
+                token=old_refresh_token
+                )
+            raise InvalidTokenError()
+
+        db_token = await self._db.refresh_tokens.get_one_or_none_by_token(
+            token=old_refresh_token
+        )
+        if not db_token:
+            raise InvalidTokenError()
+
+        if (
+            db_token.expires_at.replace(tzinfo=None)
+            < datetime.now(timezone.utc).replace(tzinfo=None)
+        ):
+            await self._db.refresh_tokens.delete_refresh_token(
+                token=old_refresh_token
+            )
+            raise TokenExpiredError()
+
+        is_superuser = payload.get("is_superuser", False)
+
+        new_access_token, new_refresh_token = (
+            self._token_service.create_access_and_refresh_tokens(
+                {
+                    "sub": str(db_token.user_id),
+                    "is_superuser": is_superuser
+                }
+            )
+        )
+
+        new_payload = self.decode_token(new_refresh_token)
+        new_expires_at = datetime.fromtimestamp(
+            new_payload["exp"], tz=timezone.utc
+            )
+
+        await self._db.refresh_tokens.delete_refresh_token(
+            token=old_refresh_token
+            )
+        await self._db.refresh_tokens.create_refresh_token(
+            token=new_refresh_token,
+            user_id=db_token.user_id,
+            expires_at=new_expires_at,
+            ip_address=getattr(db_token, "ip_address", None),
+            user_agent=getattr(db_token, "user_agent", None),
+        )
+
+        return new_access_token, new_refresh_token
+
+    async def revoke_refresh_token(self, refresh_token: str) -> None:
+        """
+        Отзывает (удаляет) refresh-токен из базы данных.
+        Используется при выходе пользователя из системы
+        (logout) для инвалидации сессии.
+
+        Args:
+            refresh_token (str): Токен, который необходимо отозвать.
+        """
+        await self._db.refresh_tokens.delete_refresh_token(token=refresh_token)
+
+    async def get_user_history(self, user_id: UUID) -> list[Any]:
+        """
+        Возвращает историю активных сессий (refresh-токенов) пользователя.
+        Перед получением истории проверяет
+        существование пользователя в системе.
+
+        Args:
+            user_id (UUID): Уникальный идентификатор пользователя.
+
+        Returns:
+            list[Any]: Список объектов активных сессий
+            пользователя из базы данных.
+        """
+        await self.get_one(id=user_id)
+
+        return await self._db.refresh_tokens.get_all_by_user_id(
+            user_id=user_id
+            )

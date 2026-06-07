@@ -1,4 +1,7 @@
-from src.repositories.users import UsersPostgreSQLRepository
+from src.repositories.users import (
+    UsersPostgreSQLRepository,
+    RefreshTokenPostgreSQLRepository,
+)
 
 
 class DBManager:
@@ -8,6 +11,7 @@ class DBManager:
     async def __aenter__(self):
         self.session = self.session_factory()
         self.users = UsersPostgreSQLRepository(self.session)
+        self.refresh_tokens = RefreshTokenPostgreSQLRepository(self.session)
         return self
 
     async def __aexit__(self, exc_type, exc, tb):
