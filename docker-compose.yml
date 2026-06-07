@@ -1,0 +1,70 @@
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: >
+      redis-server
+      --maxclients 20000
+      --timeout 300
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+
+  migrate:
+    image: auth-image
+    env_file: .env
+    command: alembic upgrade head
+    depends_on:
+      db:
+        condition: service_healthy
+
+  app:
+    build: .
+    image: auth-image
+    restart: unless-stopped
+    env_file: .env
+    command: >
+      sh -c "gunicorn src.main:app
+      --workers 4
+      --worker-class uvicorn.workers.UvicornWorker
+      --bind 0.0.0.0:8000
+      --forwarded-allow-ips=*
+      --timeout 120
+      --error-logfile -"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./private.pem:/app/keys/private.pem:ro
+      - ./public.pem:/app/keys/public.pem:ro
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+volumes:
+  pg_data:
+  redis_data:
