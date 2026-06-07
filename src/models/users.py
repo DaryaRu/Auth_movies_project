@@ -12,5 +12,5 @@ class UserORM(Base, BaseORM):
 
     email: Mapped[str] = mapped_column(String(255))
     hashed_password: Mapped[str] = mapped_column(String(255))
-    is_staff: Mapped[bool] = mapped_column(default=False)
+    is_superuser: Mapped[bool] = mapped_column(default=False)
     is_active: Mapped[bool] = mapped_column(default=True)

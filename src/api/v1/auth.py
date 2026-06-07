@@ -93,7 +93,7 @@ async def login(
 
 
 @router.get("/jwt.key/")
-def get_public_key():
+def get_public_key() -> dict[str, str]:
     """
     Получение публичного ключа для верификации JWT.
 
