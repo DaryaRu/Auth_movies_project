@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:15
+    image: postgres:17
     restart: unless-stopped
     env_file: .env
     volumes:
@@ -27,6 +27,14 @@ services:
       timeout: 3s
       retries: 5
 
+  migrate:
+    image: auth-image
+    env_file: .env
+    command: alembic upgrade head
+    depends_on:
+      db:
+        condition: service_healthy
+
   app:
     build: .
     image: auth-image
@@ -52,8 +60,8 @@ services:
       retries: 3
       start_period: 30s
     depends_on:
-      db:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
 

@@ -1,4 +1,4 @@
-init: keys build up migrate superuser
+init: keys build up
 
 build:
 	docker compose build
