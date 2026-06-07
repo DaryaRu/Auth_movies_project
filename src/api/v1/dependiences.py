@@ -1,14 +1,19 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, Request, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 
 from src.databases.pg import async_session_maker
+from src.exceptions import (
+    DecodeTokenException,
+    DecodeTokenHTTPException,
+    TokenKeysException,
+    TokenKeysHTTPException,
+)
 from src.services.auth import AuthService
-from src.exceptions import DecodeTokenException, DecodeTokenHTTPException, TokenKeysException, TokenKeysHTTPException
-from src.utils.tokens import JWTTokenService
 from src.utils.db_manager import DBManager
-from src.utils.hashes import HashBcryptService
+from src.utils.hashes import HashArgon2Service
+from src.utils.tokens import JWTTokenService
 
 
 def get_token(request: Request) -> str:
@@ -34,7 +39,7 @@ DBDep = Annotated[DBManager, Depends(get_db)]
         
         
 def get_auth_service(db: DBDep) -> AuthService:
-    return AuthService(HashBcryptService(), JWTTokenService(), db)
+    return AuthService(HashArgon2Service(), JWTTokenService(), db)
 
 
 def get_current_user_id(token: str = Depends(get_token), auth_service: AuthService = Depends(get_auth_service)) -> UUID:

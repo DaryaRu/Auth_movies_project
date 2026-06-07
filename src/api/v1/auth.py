@@ -4,8 +4,16 @@ from fastapi import APIRouter, Response, status
 
 from src.api.v1.dependiences import AuthServiceDep
 from src.core.config import settings
-from src.schemas.users import JWTAccessToken, UserRequestScheme, UserResponseScheme
-from src.exceptions import UserAlreadyexistsException, UserAlreadyexistsHTTPException, UserNotFoundError, UserNotFoundHTTPException, VerifyPasswordError, VerifyPasswordHTTPException
+from src.exceptions import (
+    UserAlreadyexistsException,
+    UserAlreadyexistsHTTPException,
+    UserNotFoundError,
+    UserNotFoundHTTPException,
+    VerifyPasswordError,
+    VerifyPasswordHTTPException,
+)
+from src.schemas.tokens import JWTAccessToken
+from src.schemas.users import UserRequestScheme, UserResponseScheme
 
 router = APIRouter(prefix="/api/v1", tags=["Auth"])
 
@@ -84,7 +92,7 @@ async def login(
     )
 
 
-@router.get("/jwt.key")
+@router.get("/jwt.key/")
 def get_public_key():
     """
     Получение публичного ключа для верификации JWT.

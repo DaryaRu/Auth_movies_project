@@ -1,7 +1,7 @@
-from sqlalchemy import String, Index
+from sqlalchemy import Index, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.databases.pg import Base, BaseORM 
+from src.databases.pg import Base, BaseORM
 
 
 class UserORM(Base, BaseORM):

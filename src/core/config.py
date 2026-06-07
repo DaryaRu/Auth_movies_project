@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     PROJECT_NAME: str
     REDIS_HOST: str
     REDIS_PORT: int
+    HASH_TIME_COST: int
+    HASH_MEMORY_COST: int
+    HASH_PARALLELISM: int
 
     @property
     def DB_URL(self):

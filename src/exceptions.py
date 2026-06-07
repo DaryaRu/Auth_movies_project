@@ -55,7 +55,7 @@ class UserNotFoundHTTPException(AuthServiceHTTPException):
     
     
 class VerifyPasswordHTTPException(AuthServiceHTTPException):
-    status_code = 400
+    status_code = 401
     
     
 class DecodeTokenHTTPException(AuthServiceHTTPException):
