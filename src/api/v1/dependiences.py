@@ -26,6 +26,16 @@ def get_token(request: Request) -> str:
     return token
 
 
+def get_refresh_token(request: Request) -> str:
+    token = request.cookies.get("refresh_token")
+    if token is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"error": "Refresh-токен не обнаружен"},
+        )
+    return token
+
+
 def get_db_manager():
     return DBManager(session_factory=async_session_maker)
 
@@ -33,16 +43,18 @@ def get_db_manager():
 async def get_db():
     async with get_db_manager() as db:
         yield db
-        
-        
+
+
 DBDep = Annotated[DBManager, Depends(get_db)]
-        
-        
+
+
 def get_auth_service(db: DBDep) -> AuthService:
     return AuthService(HashArgon2Service(), JWTTokenService(), db)
 
 
-def get_current_user_id(token: str = Depends(get_token), auth_service: AuthService = Depends(get_auth_service)) -> UUID:
+def get_current_user_id(
+        token: str = Depends(get_token),
+        auth_service: AuthService = Depends(get_auth_service)) -> UUID:
     try:
         data = auth_service.decode_token(token)
     except DecodeTokenException as exc:
@@ -54,3 +66,4 @@ def get_current_user_id(token: str = Depends(get_token), auth_service: AuthServi
 
 UserIDDep = Annotated[UUID, Depends(get_current_user_id)]
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
+RefreshTokenDep = Annotated[str, Depends(get_refresh_token)]

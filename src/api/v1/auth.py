@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Response, status
+from fastapi import APIRouter, Response,  Request, status
 
-from src.api.v1.dependiences import AuthServiceDep
+from src.api.v1.dependiences import AuthServiceDep, RefreshTokenDep, UserIDDep
 from src.core.config import settings
 from src.exceptions import (
     UserAlreadyexistsException,
@@ -11,9 +11,14 @@ from src.exceptions import (
     UserNotFoundHTTPException,
     VerifyPasswordError,
     VerifyPasswordHTTPException,
+    InvalidTokenError,
 )
 from src.schemas.tokens import JWTAccessToken
-from src.schemas.users import UserRequestScheme, UserResponseScheme
+from src.schemas.users import (
+    UserRequestScheme,
+    UserResponseScheme,
+    LoginHistoryResponseScheme
+)
 
 router = APIRouter(prefix="/api/v1", tags=["Auth"])
 
@@ -48,6 +53,7 @@ async def create_user(
 @router.post("/login/")
 async def login(
     response: Response,
+    request: Request,
     user: UserRequestScheme,
     auth_service: AuthServiceDep,
 ) -> JWTAccessToken:
@@ -58,6 +64,7 @@ async def login(
     - Сохраняет refresh token в cookie `refresh_token`.
     Args:
         response (Response): Объект FastAPI Response для установки cookie.
+        request (Request): Объект запроса для извлечения IP и User-Agent.
         user (UserRequestScheme): Данные пользователя.
         auth_service (AuthService): Сервис пользователей.
     Raises:
@@ -65,8 +72,15 @@ async def login(
     Returns:
         JWTAccessToken: Access токен с временем жизни.
     """
+    ip_address = request.client.host if request.client else "unknown"
+    user_agent = request.headers.get("user-agent", "unknown")
+
     try:
-        access_token, refresh_token = await auth_service.authenticate_user(user)
+        access_token, refresh_token = await auth_service.authenticate_user(
+            user,
+            ip_address=ip_address,
+            user_agent=user_agent
+            )
     except UserNotFoundError as exc:
         raise UserNotFoundHTTPException(detail=exc.detail)
     except VerifyPasswordError as exc:
@@ -77,7 +91,19 @@ async def login(
         value=refresh_token,
         httponly=True,
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
-        secure=True,
+        # secure=True,
+        secure=False,
+        samesite="lax",
+        path="/",
+    )
+
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        # secure=True,
+        secure=False,
         samesite="lax",
         path="/",
     )
@@ -101,3 +127,137 @@ def get_public_key() -> dict[str, str]:
         dict: Словарь с публичным ключом {"public_key": str}.
     """
     return {"public_key": settings.PUBLIC_KEY}
+
+
+@router.post("/refresh/")
+async def refresh_token(
+    request: Request,
+    response: Response,
+    auth_service: AuthServiceDep,
+) -> JWTAccessToken:
+    """
+    Обновление пары JWT-токенов (Access и Refresh).
+    - Извлекает старый refresh-токен из HTTP-кук.
+    - Выполняет процедуру ротации токенов в сервисе.
+    - Перезаписывает новые куки в HTTP-ответ.
+
+    Args:
+        request (Request): Объект запроса для извлечения старой куки.
+        response (Response): Объект ответа для установки новых кук.
+        auth_service (AuthServiceDep): Зависимость сервиса аутентификации.
+
+    Raises:
+        HTTPException: Если refresh-токен отсутствует, невалиден или протух.
+
+    Returns:
+        JWTAccessToken: Новый Access токен со временем жизни.
+    """
+    old_refresh_token = request.cookies.get("refresh_token")
+    if not old_refresh_token:
+        raise InvalidTokenError()
+
+    try:
+        new_access_token, new_refresh_token = (
+            await auth_service.refresh_tokens(
+                old_refresh_token=old_refresh_token
+            )
+        )
+    except Exception:
+        raise InvalidTokenError()
+
+    response.set_cookie(
+        key="refresh_token",
+        value=new_refresh_token,
+        httponly=True,
+        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+        # secure=True,
+        secure=False,
+        samesite="lax",
+        path="/",
+    )
+
+    response.set_cookie(
+        key="access_token",
+        value=new_access_token,
+        httponly=True,
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        # secure=True,
+        secure=False,
+        samesite="lax",
+        path="/",
+    )
+
+    expire_time = datetime.now(timezone.utc) + timedelta(
+        minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+    )
+
+    return JWTAccessToken(
+        access_token=new_access_token,
+        access_token_expire=expire_time,
+    )
+
+
+@router.post("/logout/",
+             status_code=status.HTTP_204_NO_CONTENT)
+async def logout(
+    response: Response,
+    refresh_token: RefreshTokenDep,
+    auth_service: AuthServiceDep,
+):
+    """
+    Выход пользователя из аккаунта с отзывом текущей сессии.
+    - Удаляет запись о текущем refresh-токене из базы данных.
+    - Стирает авторизационные куки (access_token и refresh_token) на клиенте.
+
+    Args:
+        response (Response): Объект ответа FastAPI для очистки кук.
+        refresh_token (RefreshTokenDep): Зависимость,
+        извлекающая текущий refresh-токен.
+        auth_service (AuthServiceDep): Зависимость сервиса аутентификации.
+
+    Returns:
+        Response: Пустой ответ со статусом HTTP 204 No Content.
+    """
+    await auth_service.revoke_refresh_token(refresh_token=refresh_token)
+
+    cookies_to_delete = ["refresh_token", "access_token"]
+
+    for cookie_key in cookies_to_delete:
+        response.delete_cookie(
+            key=cookie_key,
+            httponly=True,
+            # secure=True,
+            secure=False,
+            samesite="lax",
+            path="/",
+        )
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/history/", response_model=list[LoginHistoryResponseScheme])
+async def get_login_history(
+    auth_service: AuthServiceDep,
+    user_id: UserIDDep,
+) -> list[LoginHistoryResponseScheme]:
+    """
+    Получение истории активных сессий (входов) текущего пользователя.
+    Запрашивает из базы данных список всех актуальных или прошлых
+    refresh-токенов, привязанных к конкретному пользователю.
+
+    Args:
+        auth_service (AuthServiceDep): Зависимость сервиса аутентификации.
+        user_id (UserIDDep): Зависимость, возвращающая
+        ID текущего пользователя из JWT.
+
+    Raises:
+        HTTPException: Если пользователь с данным ID не найден в системе.
+
+    Returns:
+        list[LoginHistoryResponseScheme]: Список схем с информацией о сессиях.
+    """
+    try:
+        history = await auth_service.get_user_history(user_id=user_id)
+        return history
+    except UserNotFoundError as exc:
+        raise UserNotFoundHTTPException(detail=exc.detail)

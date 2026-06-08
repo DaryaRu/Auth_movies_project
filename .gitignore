@@ -5,3 +5,5 @@ __pycache__
 private.pem
 public.pem
 .ruff_cache
+.vscode/
+cookies.txt
