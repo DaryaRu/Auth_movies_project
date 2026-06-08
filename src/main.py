@@ -1,10 +1,10 @@
 import hashlib
 import logging
-from pathlib import Path
 import sys
 import time
 from contextlib import asynccontextmanager
 from logging import config as logging_config
+from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Tuple
 from urllib.parse import parse_qsl, urlencode, urlparse
 
@@ -19,8 +19,8 @@ from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 sys.path.append(str(Path(__file__).parent.parent))
 
 from src.api.v1.auth import router as auth_router
-from src.core.config import settings
 from src.core import logger
+from src.core.config import settings
 from src.databases import redis
 
 logging_config.dictConfig(logger.LOGGING)

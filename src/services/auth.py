@@ -1,13 +1,17 @@
 from typing import Any
 from uuid import UUID
 
-from src.exceptions import UserAlreadyexistsException, UserNotFoundError, VerifyPasswordError
+from src.exceptions import (
+    UserAlreadyexistsException,
+    UserNotFoundError,
+    VerifyPasswordError,
+)
+from src.models.users import UserORM
 from src.schemas.users import UserRequestScheme
 from src.services.base import BaseService
-from src.models.users import UserORM
 from src.utils.db_manager import DBManager
-from src.utils.tokens import JWTTokenService
 from src.utils.hashes import BaseHashService
+from src.utils.tokens import JWTTokenService
 
 
 class AuthService(BaseService):

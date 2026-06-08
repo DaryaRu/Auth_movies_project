@@ -9,11 +9,11 @@ if __name__ == "__main__":
     sys.path.append(str(pathlib.Path(__file__).parent.parent.parent))
 
     from src.databases.pg import async_session_maker
+    from src.schemas.users import UserRequestScheme
     from src.services.auth import AuthService
     from src.utils.db_manager import DBManager
-    from src.utils.hashes import HashBcryptService
+    from src.utils.hashes import HashArgon2Service
     from src.utils.tokens import JWTTokenService
-    from src.schemas.users import UserRequestScheme
 
 
 async def create_admin():
@@ -45,7 +45,7 @@ async def create_admin():
     try:
         admin = UserRequestScheme(email=email, password=password)
         async with DBManager(session_factory=async_session_maker) as db:
-            await AuthService(HashBcryptService(), JWTTokenService(), db).create_admin(admin)
+            await AuthService(HashArgon2Service(), JWTTokenService(), db).create_admin(admin)
         rich.print(f"[green]Администратор {email} успешно создан")
     except Exception as e:
         logging.error(e)

@@ -1,7 +1,6 @@
-from datetime import datetime
 from uuid import UUID
 
-from pydantic import EmailStr, BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, EmailStr
 
 
 class UserRequestScheme(BaseModel):
@@ -30,17 +29,3 @@ class UserResponseScheme(BaseModel):
     is_active: bool
     
     model_config = ConfigDict(from_attributes=True)
-
-
-class JWTAccessToken(BaseModel):
-    """
-    Схема ответа при успешной авторизации пользователя.
-    Атрибуты:
-        access_token (str): JWT access токен.
-        access_token_expire (datetime): Дата и время истечения срока действия токена.
-        token_type (str): Тип токена. По умолчанию "bearer".
-    """
-
-    access_token: str
-    access_token_expire: datetime
-    token_type: str = "bearer"
