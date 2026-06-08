@@ -2,6 +2,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import Depends, HTTPException, Request, status
+from fastapi.security import HTTPAuthorizationCredentials
 
 from src.databases.pg import async_session_maker
 from src.exceptions import (
@@ -13,17 +14,20 @@ from src.exceptions import (
 from src.services.auth import AuthService
 from src.utils.db_manager import DBManager
 from src.utils.hashes import HashArgon2Service
+from src.utils.security import CustomHTTPBearer
 from src.utils.tokens import JWTTokenService
 
+security = CustomHTTPBearer(auto_error=False)
 
-def get_token(request: Request) -> str:
-    token = request.cookies.get("access_token")
-    if token is None:
+
+def get_token(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
+    if credentials is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={"error": "Токен доступа не обнаружен"},
         )
-    return token
+
+    return credentials.credentials
 
 
 def get_refresh_token(request: Request) -> str:
