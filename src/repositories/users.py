@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import delete
+from sqlalchemy import delete, update
 
 from src.models.users import RefreshTokenORM, UserORM
 from src.repositories.base import BasePostgreSQLRepository
@@ -52,6 +52,23 @@ class UsersAbstractRepository(ABC):
         """
         raise NotImplementedError
 
+    @abstractmethod
+    async def update_user_credentials(
+        self,
+        user_id: UUID,
+        **kwargs
+    ) -> UserORM:
+        """
+        Получает пользователя по его идентификатору.
+
+        Args:
+            id (UUID): Идентификатор пользователя.
+
+        Returns:
+            Optional[User]: Пользователь или None, если не найден.
+        """
+        raise NotImplementedError
+
 
 class UsersPostgreSQLRepository(UsersAbstractRepository, BasePostgreSQLRepository):
     """
@@ -67,6 +84,20 @@ class UsersPostgreSQLRepository(UsersAbstractRepository, BasePostgreSQLRepositor
     
     async def get_one_or_none_by_id(self, id: UUID) -> UserORM | None:
         return await self.get_one_or_none(id=id)
+
+    async def update_user_credentials(
+            self,
+            user_id: UUID,
+            **kwargs
+    ) -> UserORM:
+        query = (
+            update(self.model)
+            .where(self.model.id == user_id)
+            .values(**kwargs)
+            .returning(self.model)
+        )
+        result = await self._session.execute(query)
+        return result.scalar_one()
 
 
 class RefreshTokensAbstractRepository(ABC):
@@ -143,6 +174,11 @@ class RefreshTokensAbstractRepository(ABC):
         """
         raise NotImplementedError
 
+    @abstractmethod
+    async def delete_all_by_user_id(self, user_id: UUID) -> None:
+        """Удаление всех refresh-токенов пользователя."""
+        raise NotImplementedError
+
 
 class RefreshTokenPostgreSQLRepository(
     RefreshTokensAbstractRepository,
@@ -186,3 +222,7 @@ class RefreshTokenPostgreSQLRepository(
         query = select(self.model).where(self.model.user_id == user_id)
         result = await self._session.execute(query)
         return list(result.scalars().all())
+
+    async def delete_all_by_user_id(self, user_id: UUID) -> None:
+        query = delete(self.model).where(self.model.user_id == user_id)
+        await self._session.execute(query)

@@ -15,9 +15,11 @@ from src.exceptions import (
 )
 from src.schemas.tokens import JWTAccessToken
 from src.schemas.users import (
+    ChangeEmailRequestScheme,
+    ChangePasswordRequestScheme,
     UserRequestScheme,
     UserResponseScheme,
-    LoginHistoryResponseScheme
+    LoginHistoryResponseScheme,
 )
 
 router = APIRouter(prefix="/api/v1", tags=["Auth"])
@@ -91,19 +93,7 @@ async def login(
         value=refresh_token,
         httponly=True,
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
-        # secure=True,
-        secure=False,
-        samesite="lax",
-        path="/",
-    )
-
-    response.set_cookie(
-        key="access_token",
-        value=access_token,
-        httponly=True,
-        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        # secure=True,
-        secure=False,
+        secure=True,
         samesite="lax",
         path="/",
     )
@@ -170,19 +160,7 @@ async def refresh_token(
         value=new_refresh_token,
         httponly=True,
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
-        # secure=True,
-        secure=False,
-        samesite="lax",
-        path="/",
-    )
-
-    response.set_cookie(
-        key="access_token",
-        value=new_access_token,
-        httponly=True,
-        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        # secure=True,
-        secure=False,
+        secure=True,
         samesite="lax",
         path="/",
     )
@@ -207,7 +185,7 @@ async def logout(
     """
     Выход пользователя из аккаунта с отзывом текущей сессии.
     - Удаляет запись о текущем refresh-токене из базы данных.
-    - Стирает авторизационные куки (access_token и refresh_token) на клиенте.
+    - Стирает авторизационные куки (refresh_token) на клиенте.
 
     Args:
         response (Response): Объект ответа FastAPI для очистки кук.
@@ -220,17 +198,13 @@ async def logout(
     """
     await auth_service.revoke_refresh_token(refresh_token=refresh_token)
 
-    cookies_to_delete = ["refresh_token", "access_token"]
-
-    for cookie_key in cookies_to_delete:
-        response.delete_cookie(
-            key=cookie_key,
-            httponly=True,
-            # secure=True,
-            secure=False,
-            samesite="lax",
-            path="/",
-        )
+    response.delete_cookie(
+        key="refresh_token",
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        path="/",
+    )
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -261,3 +235,81 @@ async def get_login_history(
         return history
     except UserNotFoundError as exc:
         raise UserNotFoundHTTPException(detail=exc.detail)
+
+
+@router.patch("/change-email/", response_model=UserResponseScheme)
+async def change_email(
+    data: ChangeEmailRequestScheme,
+    auth_service: AuthServiceDep,
+    user_id: UserIDDep,
+) -> UserResponseScheme:
+    """
+    Смена email пользователя после проверки пароля.
+
+    - Проверяет существование пользователя в системе.
+    - Гарантирует уникальность нового email адреса.
+    - Верифицирует текущий пароль для подтверждения личности.
+
+    Args:
+        user_id (UUID): Уникальный идентификатор пользователя.
+        data (ChangeEmailRequestScheme): Схема с новым email и паролем.
+
+    Raises:
+        UserNotFoundError: Если пользователь с таким ID не найден.
+        UserAlreadyexistsException: Если новый email уже занят.
+        VerifyPasswordError: Если текущий пароль введен неверно.
+
+    Returns:
+        UserORM: Обновленный объект пользователя из базы данных.
+    """
+    try:
+        updated_user = await auth_service.change_user_email(
+            user_id=user_id, data=data
+        )
+        return updated_user
+    except UserAlreadyexistsException as exc:
+        raise UserAlreadyexistsHTTPException(detail=exc.detail)
+    except UserNotFoundError as exc:
+        raise UserNotFoundHTTPException(detail=exc.detail)
+    except VerifyPasswordError as exc:
+        raise VerifyPasswordHTTPException(detail=exc.detail)
+
+
+@router.patch("/change-password/", status_code=status.HTTP_204_NO_CONTENT)
+async def change_password(
+    data: ChangePasswordRequestScheme,
+    response: Response,
+    auth_service: AuthServiceDep,
+    user_id: UserIDDep,
+):
+    """
+    Смена пароля пользователя и отзыв всех его текущих сессий.
+
+    - Проверяет существование пользователя в системе.
+    - Верифицирует старый пароль перед внесением изменений.
+    - Удаляет абсолютно все активные сессии из базы данных.
+
+    Args:
+        user_id (UUID): Уникальный идентификатор пользователя.
+        data (ChangePasswordRequestScheme): Схема со старым и новым паролями.
+
+    Raises:
+        UserNotFoundError: Если пользователь с таким ID не найден.
+        VerifyPasswordError: Если текущий старый пароль введен неверно.
+    """
+    try:
+        await auth_service.change_user_password(user_id=user_id, data=data)
+
+        response.delete_cookie(
+            key="refresh_token",
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            path="/",
+        )
+
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    except UserNotFoundError as exc:
+        raise UserNotFoundHTTPException(detail=exc.detail)
+    except VerifyPasswordError as exc:
+        raise VerifyPasswordHTTPException(detail=exc.detail)
