@@ -38,9 +38,9 @@ class AuthService(BaseService):
         is_exsist_user = await self._db.users.get_one_or_none_by_email(user.email)
         if is_exsist_user:
             raise UserAlreadyexistsException()
-        await self.add_one(user, is_staff=True)
+        await self.add_one(user, is_superuser=True)
 
-    async def add_one(self, user: UserRequestScheme, is_staff: bool = False) -> UserORM:
+    async def add_one(self, user: UserRequestScheme, is_superuser: bool = False) -> UserORM:
         """
         Добавляет нового пользователя.
         - Пароль пользователя хэшируется.
@@ -54,7 +54,7 @@ class AuthService(BaseService):
         hash_password = self._hash_service.create_hash_password(
             user.password
         )
-        new_user = await self._db.users.create_user(email=user.email, hashed_password=hash_password, is_staff=is_staff)
+        new_user = await self._db.users.create_user(email=user.email, hashed_password=hash_password, is_superuser=is_superuser)
         return new_user
 
     async def get_one_by_email(self, email: str) -> UserORM:
@@ -92,7 +92,7 @@ class AuthService(BaseService):
         ):
             raise VerifyPasswordError()
         access_token, refresh_token = self._token_service.create_access_and_refresh_tokens(
-            {"sub": str(user.id)}
+            {"sub": str(user.id), "is_superuser": user.is_superuser}
         )
         return access_token, refresh_token
 

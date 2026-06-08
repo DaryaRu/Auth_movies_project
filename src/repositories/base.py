@@ -1,5 +1,5 @@
 import logging
-from typing import Generic, TypeVar
+from typing import Generic, Iterable, TypeVar
 
 from asyncpg import ForeignKeyViolationError, UniqueViolationError
 from sqlalchemy import insert, select
@@ -22,7 +22,7 @@ class BasePostgreSQLRepository(Generic[ModelT]):
         result = await self._session.execute(query)
         return result.scalars().one_or_none()
         
-    async def get_all(self) -> list[ModelT]:
+    async def get_all(self) -> Iterable[ModelT]:
         query = select(self.model)
         result = await self._session.execute(query)
         return result.scalars().all()

@@ -15,7 +15,7 @@ class UsersAbstractRepository(ABC):
     """
 
     @abstractmethod
-    async def create_user(self, email: str, hashed_password: str, is_staff: bool = False) -> UserORM:
+    async def create_user(self, email: str, hashed_password: str, is_superuser: bool = False) -> UserORM:
         """
         Добавляет нового пользователя.
         Args:
@@ -56,8 +56,8 @@ class UsersPostgreSQLRepository(UsersAbstractRepository, BasePostgreSQLRepositor
     """
     model = UserORM
     
-    async def create_user(self, email: str, hashed_password: str, is_staff: bool = False) -> UserORM:
-        return await self.add_one(email=email, hashed_password=hashed_password, is_staff=is_staff)
+    async def create_user(self, email: str, hashed_password: str, is_superuser: bool = False) -> UserORM:
+        return await self.add_one(email=email, hashed_password=hashed_password, is_superuser=is_superuser)
 
     async def get_one_or_none_by_email(self, email: str) -> UserORM | None:
         return await self.get_one_or_none(email=email)
