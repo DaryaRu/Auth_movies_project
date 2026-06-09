@@ -31,7 +31,7 @@ router = APIRouter(prefix="/api/v1", tags=["Auth"])
 )
 async def create_user(
     user: UserRequestScheme,
-    user_service: AuthServiceDep,
+    auth_service: AuthServiceDep,
 ) -> UserResponseScheme:
     """
     Регистрация нового пользователя.
@@ -39,14 +39,14 @@ async def create_user(
     Хэширует пароль и сохраняет пользователя в базе данных.
     Args:
         user (UserRequestScheme): Данные пользователя (email, password).
-        user_service (UserService): Сервис для работы с пользователями.
+        auth_service (AuthServiceDep): Сервис для работы с пользователями.
     Raises:
         HTTPException: Если пользователь с таким email уже существует.
     Returns:
         UserResponseScheme: Данные пользователя.
     """
     try:
-        created_user = await user_service.register_user(user)
+        created_user = await auth_service.register_user(user)
     except UserAlreadyexistsException as exc:
         raise UserAlreadyexistsHTTPException(detail=exc.detail)
     return created_user
@@ -68,7 +68,7 @@ async def login(
         response (Response): Объект FastAPI Response для установки cookie.
         request (Request): Объект запроса для извлечения IP и User-Agent.
         user (UserRequestScheme): Данные пользователя.
-        auth_service (AuthService): Сервис пользователей.
+        auth_service (AuthServiceDep): Сервис пользователей.
     Raises:
         HTTPException: Если email или пароль некорректны.
     Returns:
@@ -93,7 +93,8 @@ async def login(
         value=refresh_token,
         httponly=True,
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
-        secure=True,
+        # secure=True,
+        secure=False,
         samesite="lax",
         path="/",
     )
@@ -160,7 +161,8 @@ async def refresh_token(
         value=new_refresh_token,
         httponly=True,
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
-        secure=True,
+        # secure=True,
+        secure=False,
         samesite="lax",
         path="/",
     )
@@ -201,7 +203,8 @@ async def logout(
     response.delete_cookie(
         key="refresh_token",
         httponly=True,
-        secure=True,
+        # secure=True,
+        secure=False,
         samesite="lax",
         path="/",
     )
