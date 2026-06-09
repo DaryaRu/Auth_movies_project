@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class UserRequestScheme(BaseModel):
@@ -57,3 +57,15 @@ class LoginHistoryResponseScheme(BaseModel):
     expires_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ChangeEmailRequestScheme(BaseModel):
+    """Схема для смены email."""
+    new_email: EmailStr
+    password: str = Field(..., description="Текущий пароль для подтверждения")
+
+
+class ChangePasswordRequestScheme(BaseModel):
+    """Схема для смены пароля."""
+    current_password: str = Field(..., description="Текущий пароль")
+    new_password: str = Field(..., description="Новый пароль")

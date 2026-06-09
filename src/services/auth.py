@@ -10,7 +10,11 @@ from src.exceptions import (
     TokenExpiredError,
 )
 from src.models.users import UserORM
-from src.schemas.users import UserRequestScheme
+from src.schemas.users import (
+    UserRequestScheme,
+    ChangeEmailRequestScheme,
+    ChangePasswordRequestScheme
+)
 from src.services.base import BaseService
 from src.utils.db_manager import DBManager
 from src.utils.hashes import BaseHashService
@@ -248,3 +252,80 @@ class AuthService(BaseService):
         return await self._db.refresh_tokens.get_all_by_user_id(
             user_id=user_id
             )
+
+    async def change_user_email(
+        self, user_id: UUID, data: ChangeEmailRequestScheme
+    ) -> UserORM:
+        """
+        Смена email пользователя после проверки пароля.
+        Проверяет существование пользователя, уникальность нового email
+        и корректность текущего пароля.
+
+        Args:
+            user_id (UUID): Уникальный идентификатор пользователя.
+            data (ChangeEmailRequestScheme): Данные для смены email.
+
+        Raises:
+            UserNotFoundError: Если пользователь не найден.
+            UserAlreadyexistsException: Если новый email уже занят.
+            VerifyPasswordError: Если пароль введен неверно.
+
+        Returns:
+            UserORM: Обновленный объект пользователя из базы данных.
+        """
+        user = await self._db.users.get_one_or_none_by_id(id=user_id)
+        if not user:
+            raise UserNotFoundError()
+
+        email_exists = await self._db.users.get_one_or_none_by_email(
+            data.new_email
+            )
+        if email_exists:
+            raise UserAlreadyexistsException()
+
+        if not self._hash_service.verify_password(
+            data.password,
+            user.hashed_password
+        ):
+            raise VerifyPasswordError()
+
+        updated_user = await self._db.users.update_user_credentials(
+            user_id=user_id,
+            email=data.new_email
+        )
+        return updated_user
+
+    async def change_user_password(
+        self, user_id: UUID, data: ChangePasswordRequestScheme
+    ) -> None:
+        """
+        Смена пароля пользователя и отзыв всех его текущих сессий.
+        Проверяет существование пользователя, корректность старого пароля,
+        после чего хэширует новый пароль и удаляет все токены.
+
+        Args:
+            user_id (UUID): Уникальный идентификатор пользователя.
+            data (ChangePasswordRequestScheme): Данные для смены пароля.
+
+        Raises:
+            UserNotFoundError: Если пользователь не найден.
+            VerifyPasswordError: Если текущий старый пароль введен неверно.
+        """
+        user = await self._db.users.get_one_or_none_by_id(id=user_id)
+        if not user:
+            raise UserNotFoundError()
+
+        if not self._hash_service.verify_password(
+            data.current_password,
+            user.hashed_password
+        ):
+            raise VerifyPasswordError()
+
+        new_hash = self._hash_service.create_hash_password(data.new_password)
+
+        await self._db.users.update_user_credentials(
+            user_id=user_id,
+            hashed_password=new_hash
+        )
+
+        await self._db.refresh_tokens.delete_all_by_user_id(user_id=user_id)
