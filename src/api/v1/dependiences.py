@@ -21,12 +21,6 @@ security = CustomHTTPBearer(auto_error=False)
 
 
 def get_token(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
-    if credentials is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"error": "Токен доступа не обнаружен"},
-        )
-
     return credentials.credentials
 
 
