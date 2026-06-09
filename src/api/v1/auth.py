@@ -29,7 +29,7 @@ router = APIRouter(prefix="/api/v1", tags=["Auth"])
 )
 async def create_user(
     user: UserRequestScheme,
-    user_service: AuthServiceDep,
+    auth_service: AuthServiceDep,
 ) -> UserResponseScheme:
     """
     Регистрация нового пользователя.
@@ -37,14 +37,14 @@ async def create_user(
     Хэширует пароль и сохраняет пользователя в базе данных.
     Args:
         user (UserRequestScheme): Данные пользователя (email, password).
-        user_service (UserService): Сервис для работы с пользователями.
+        auth_service (AuthServiceDep): Сервис для работы с пользователями.
     Raises:
         HTTPException: Если пользователь с таким email уже существует.
     Returns:
         UserResponseScheme: Данные пользователя.
     """
     try:
-        created_user = await user_service.register_user(user)
+        created_user = await auth_service.register_user(user)
     except UserAlreadyexistsException as exc:
         raise UserAlreadyexistsHTTPException(detail=exc.detail)
     return created_user
@@ -66,7 +66,7 @@ async def login(
         response (Response): Объект FastAPI Response для установки cookie.
         request (Request): Объект запроса для извлечения IP и User-Agent.
         user (UserRequestScheme): Данные пользователя.
-        auth_service (AuthService): Сервис пользователей.
+        auth_service (AuthServiceDep): Сервис пользователей.
     Raises:
         HTTPException: Если email или пароль некорректны.
     Returns:
@@ -91,17 +91,6 @@ async def login(
         value=refresh_token,
         httponly=True,
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
-        # secure=True,
-        secure=False,
-        samesite="lax",
-        path="/",
-    )
-
-    response.set_cookie(
-        key="access_token",
-        value=access_token,
-        httponly=True,
-        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         # secure=True,
         secure=False,
         samesite="lax",
@@ -176,17 +165,6 @@ async def refresh_token(
         path="/",
     )
 
-    response.set_cookie(
-        key="access_token",
-        value=new_access_token,
-        httponly=True,
-        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        # secure=True,
-        secure=False,
-        samesite="lax",
-        path="/",
-    )
-
     expire_time = datetime.now(timezone.utc) + timedelta(
         minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
     )
@@ -220,17 +198,14 @@ async def logout(
     """
     await auth_service.revoke_refresh_token(refresh_token=refresh_token)
 
-    cookies_to_delete = ["refresh_token", "access_token"]
-
-    for cookie_key in cookies_to_delete:
-        response.delete_cookie(
-            key=cookie_key,
-            httponly=True,
-            # secure=True,
-            secure=False,
-            samesite="lax",
-            path="/",
-        )
+    response.delete_cookie(
+        key="refresh_token",
+        httponly=True,
+        # secure=True,
+        secure=False,
+        samesite="lax",
+        path="/",
+    )
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
