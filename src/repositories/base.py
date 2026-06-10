@@ -1,8 +1,9 @@
 import logging
 from typing import Generic, Iterable, TypeVar
+from uuid import UUID
 
 from asyncpg import ForeignKeyViolationError, UniqueViolationError
-from sqlalchemy import insert, select
+from sqlalchemy import delete, insert, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -29,6 +30,20 @@ class BasePostgreSQLRepository(Generic[ModelT]):
         query = select(self.model)
         result = await self._session.execute(query)
         return result.scalars().all()
+
+    async def update_one(self, id: UUID, **kwargs) -> ModelT:
+        query = (
+            update(self.model)
+            .where(self.model.id == id)
+            .values(**kwargs)
+            .returning(self.model)
+        )
+        result = await self._session.execute(query)
+        return result.scalar_one()
+
+    async def delete_one(self, id: UUID) -> None:
+        query = delete(self.model).where(self.model.id == id)
+        await self._session.execute(query)
 
     async def add_one(self, **kwargs) -> ModelT:
         query = insert(self.model).values(**kwargs).returning(self.model)
