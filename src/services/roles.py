@@ -193,14 +193,20 @@ class RoleService(BaseService):
             role_id=role_id, permission_id=permission_id
         )
 
-    async def get_user_permissions(self, user_id: UUID) -> list[PermissionORM]:
+    async def get_user_permissions(
+        self, user_id: UUID, is_superuser: bool = False
+    ) -> list[PermissionORM]:
         """
         Возвращает все права пользователя через его роли.
+        Суперпользователю возвращает все права из БД.
 
         Args:
             user_id (UUID): Идентификатор пользователя.
+            is_superuser (bool): Флаг суперпользователя.
 
         Returns:
             list[PermissionORM]: Список уникальных прав пользователя.
         """
+        if is_superuser:
+            return await self._db.permissions.get_all()
         return await self._db.roles.get_user_permissions(user_id=user_id)

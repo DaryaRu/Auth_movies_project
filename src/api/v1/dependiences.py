@@ -99,6 +99,7 @@ async def get_current_staff_user(
 
 
 UserIDDep = Annotated[UUID, Depends(get_current_user_id)]
+CurrentUserDep = Annotated[UserORM, Depends(get_current_user)]
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
 RefreshTokenDep = Annotated[str, Depends(get_refresh_token)]
 RoleServiceDep = Annotated[RoleService, Depends(get_role_service)]

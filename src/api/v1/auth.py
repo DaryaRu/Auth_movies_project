@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Response,  Request, status
 
-from src.api.v1.dependiences import AuthServiceDep, RefreshTokenDep, RoleServiceDep, UserIDDep
+from src.api.v1.dependiences import AuthServiceDep, CurrentUserDep, RefreshTokenDep, RoleServiceDep, UserIDDep
 from src.core.config import settings
 from src.exceptions import (
     UserAlreadyexistsException,
@@ -243,10 +243,13 @@ async def get_login_history(
 
 @router.get("/users/me/permissions/")
 async def get_my_permissions(
-    user_id: UserIDDep,
+    current_user: CurrentUserDep,
     role_service: RoleServiceDep,
 ) -> list[PermissionResponseScheme]:
-    return await role_service.get_user_permissions(user_id=user_id)
+    return await role_service.get_user_permissions(
+        user_id=current_user.id,
+        is_superuser=current_user.is_superuser,
+    )
 
 
 @router.patch("/change-email/", response_model=UserResponseScheme)
