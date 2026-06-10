@@ -8,10 +8,14 @@ from src.databases.pg import async_session_maker
 from src.exceptions import (
     DecodeTokenException,
     DecodeTokenHTTPException,
+    NotEnoughPermissionsHTTPException,
     TokenKeysException,
     TokenKeysHTTPException,
 )
+from src.models.users import UserORM
 from src.services.auth import AuthService
+from src.services.permissions import PermissionService
+from src.services.roles import RoleService
 from src.utils.db_manager import DBManager
 from src.utils.hashes import HashArgon2Service
 from src.utils.security import CustomHTTPBearer
@@ -50,9 +54,18 @@ def get_auth_service(db: DBDep) -> AuthService:
     return AuthService(HashArgon2Service(), JWTTokenService(), db)
 
 
+def get_role_service(db: DBDep) -> RoleService:
+    return RoleService(db)
+
+
+def get_permission_service(db: DBDep) -> PermissionService:
+    return PermissionService(db)
+
+
 def get_current_user_id(
-        token: str = Depends(get_token),
-        auth_service: AuthService = Depends(get_auth_service)) -> UUID:
+    token: str = Depends(get_token),
+    auth_service: AuthService = Depends(get_auth_service),
+) -> UUID:
     try:
         data = auth_service.decode_token(token)
     except DecodeTokenException as exc:
@@ -62,6 +75,32 @@ def get_current_user_id(
     return UUID(data.get("sub"))
 
 
+async def get_current_user(
+    user_id: UUID = Depends(get_current_user_id),
+    db: DBDep = None,
+) -> UserORM:
+    """Возвращает текущего пользователя по id из токена. Выбрасывает 401, если пользователь не найден."""
+    user = await db.users.get_one_or_none_by_id(user_id)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"error": "Пользователь не найден"},
+        )
+    return user
+
+
+async def get_current_staff_user(
+    user: UserORM = Depends(get_current_user),
+) -> UserORM:
+    """Проверяет, что текущий пользователь является суперпользователем. Выбрасывает 403, если нет."""
+    if not user.is_superuser:
+        raise NotEnoughPermissionsHTTPException()
+    return user
+
+
 UserIDDep = Annotated[UUID, Depends(get_current_user_id)]
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
 RefreshTokenDep = Annotated[str, Depends(get_refresh_token)]
+RoleServiceDep = Annotated[RoleService, Depends(get_role_service)]
+PermissionServiceDep = Annotated[PermissionService, Depends(get_permission_service)]
+StaffUserDep = Annotated[UserORM, Depends(get_current_staff_user)]
