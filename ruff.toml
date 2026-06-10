@@ -1,0 +1,6 @@
+line-length = 79
+
+[lint.per-file-ignores]
+"src/migrations/env.py" = ["E402", "F403"]
+"src/models/__init__.py" = ["F403"]
+"src/models/*.py" = ["F821"]
