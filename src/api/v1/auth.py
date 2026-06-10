@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Response,  Request, status
 
-from src.api.v1.dependiences import AuthServiceDep, RefreshTokenDep, UserIDDep
+from src.api.v1.dependiences import AuthServiceDep, RefreshTokenDep, RoleServiceDep, UserIDDep
 from src.core.config import settings
 from src.exceptions import (
     UserAlreadyexistsException,
@@ -13,6 +13,7 @@ from src.exceptions import (
     VerifyPasswordHTTPException,
     InvalidTokenError,
 )
+from src.schemas.permissions import PermissionResponseScheme
 from src.schemas.tokens import JWTAccessToken
 from src.schemas.users import (
     ChangeEmailRequestScheme,
@@ -22,7 +23,7 @@ from src.schemas.users import (
     LoginHistoryResponseScheme,
 )
 
-router = APIRouter(prefix="/api/v1", tags=["Auth"])
+router = APIRouter(tags=["Auth"])
 
 
 @router.post(
@@ -238,6 +239,14 @@ async def get_login_history(
         return history
     except UserNotFoundError as exc:
         raise UserNotFoundHTTPException(detail=exc.detail)
+
+
+@router.get("/users/me/permissions/")
+async def get_my_permissions(
+    user_id: UserIDDep,
+    role_service: RoleServiceDep,
+) -> list[PermissionResponseScheme]:
+    return await role_service.get_user_permissions(user_id=user_id)
 
 
 @router.patch("/change-email/", response_model=UserResponseScheme)
