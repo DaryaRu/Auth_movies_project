@@ -20,7 +20,7 @@ class PermissionCreateScheme(BaseModel):
     )
     name: str = Field(..., description="Название права", max_length=150)
     description: str | None = Field(None, description="Описание того, что даёт право")
-    category: str = Field("general", description="Группа для фильтрации в админке", max_length=50)
+    category: str = Field("general", description="Группа для группировки при отображении списка прав", max_length=50)
 
 
 class PermissionUpdateScheme(BaseModel):
