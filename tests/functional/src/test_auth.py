@@ -1,3 +1,5 @@
+"""Функциональные тесты эндпоинтов аутентификации."""
+
 from http import HTTPStatus
 from typing import Any
 
@@ -6,11 +8,12 @@ from aiohttp import ClientSession
 from functional.settings import test_settings
 from functional.utils.check_methods import assert_status_return_json
 
+pytestmark = pytest.mark.asyncio(loop_scope="session")
+
 
 class TestRegistration:
     URL = f"{test_settings.api_prefix}/registration/"
-    
-    @pytest.mark.asyncio
+
     async def test_registration_success(
         self,
         http_client: ClientSession,
@@ -27,10 +30,9 @@ class TestRegistration:
         data = await assert_status_return_json(response, HTTPStatus.CREATED)
         assert "id" in data
         assert data["email"] == payload["email"]
-        assert data["is_staff"] is False
+        assert data["is_superuser"] is False
         assert data["is_active"] is True
-        
-    @pytest.mark.asyncio
+
     async def test_registration_user_already_exists(
         self,
         http_client: ClientSession,
@@ -43,38 +45,38 @@ class TestRegistration:
                 "password": active_user_data["password"],
             },
         )
-        data = await assert_status_return_json(response, HTTPStatus.BAD_REQUEST)
+        data = await assert_status_return_json(
+            response, HTTPStatus.BAD_REQUEST
+        )
 
         assert "detail" in data
         assert "error" in data["detail"]
-    
+
     @pytest.mark.parametrize(
-        'payload',
+        "payload",
         [
             {"email": "12345678", "password": "12345678"},
             {"password": "12345678"},
             {"email": "only@email.com"},
-        ]
-    )    
-    @pytest.mark.asyncio
+        ],
+    )
     async def test_registration_user_with_invalid_data(
-        self,
-        http_client: ClientSession,
-        payload: dict[str, str]
+        self, http_client: ClientSession, payload: dict[str, str]
     ):
         response = await http_client.post(
             self.URL,
             json=payload,
         )
-        data = await assert_status_return_json(response, HTTPStatus.UNPROCESSABLE_ENTITY)
+        data = await assert_status_return_json(
+            response, HTTPStatus.UNPROCESSABLE_ENTITY
+        )
 
         assert "detail" in data
 
 
 class TestLogin:
     URL = f"{test_settings.api_prefix}/login/"
-    
-    @pytest.mark.asyncio
+
     async def test_login_success(
         self,
         http_client: ClientSession,
@@ -96,8 +98,7 @@ class TestLogin:
         cookies = response.cookies
 
         assert "refresh_token" in cookies
-        
-    @pytest.mark.asyncio
+
     async def test_login_user_not_found(
         self,
         http_client: ClientSession,
@@ -113,8 +114,7 @@ class TestLogin:
 
         assert "detail" in data
         assert "error" in data["detail"]
-        
-    @pytest.mark.asyncio
+
     async def test_login_invalid_password(
         self,
         http_client: ClientSession,
@@ -127,38 +127,38 @@ class TestLogin:
                 "password": "wrong_password",
             },
         )
-        data = await assert_status_return_json(response, HTTPStatus.UNAUTHORIZED)
+        data = await assert_status_return_json(
+            response, HTTPStatus.UNAUTHORIZED
+        )
 
         assert "detail" in data
         assert "error" in data["detail"]
-        
+
     @pytest.mark.parametrize(
-        'payload',
+        "payload",
         [
             {"email": "12345678", "password": "12345678"},
             {"password": "12345678"},
             {"email": "only@email.com"},
-        ]
-    )    
-    @pytest.mark.asyncio
+        ],
+    )
     async def test_login_user_with_invalid_data(
-        self,
-        http_client: ClientSession,
-        payload: dict[str, str]
+        self, http_client: ClientSession, payload: dict[str, str]
     ):
         response = await http_client.post(
             self.URL,
             json=payload,
         )
-        data = await assert_status_return_json(response, HTTPStatus.UNPROCESSABLE_ENTITY)
+        data = await assert_status_return_json(
+            response, HTTPStatus.UNPROCESSABLE_ENTITY
+        )
 
         assert "detail" in data
 
 
 class TestPublicKey:
     URL = f"{test_settings.api_prefix}/jwt.key/"
-    
-    @pytest.mark.asyncio
+
     async def test_get_public_key(
         self,
         http_client: ClientSession,
