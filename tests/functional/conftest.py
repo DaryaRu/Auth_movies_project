@@ -10,7 +10,7 @@ import pytest_asyncio
 from functional.settings import test_settings
 from functional.utils.helpers import create_data, delete_data
 
-pytest_plugins = ["functional.fixtures.users", "functional.fixtures.roles"]
+pytest_plugins = ["functional.fixtures.users", "functional.fixtures.roles", "functional.fixtures.permissions"]
 
 WriteData = Callable[
     [str, Iterable[str], Iterable[Any]],
