@@ -12,16 +12,11 @@ from functional.utils.check_methods import (
     assert_status,
     assert_status_return_json,
 )
+from functional.utils.constants import ACCESS_DENIED_CASES, NOT_EXISTING_UUID
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 ROLES_URL = f"{test_settings.api_prefix}/roles"
-NOT_EXISTING_UUID = "00000000-0000-0000-0000-000000000000"
-
-ACCESS_DENIED_CASES = [
-    ("no_auth", HTTPStatus.UNAUTHORIZED),
-    ("regular_user", HTTPStatus.FORBIDDEN),
-]
 
 
 class TestCreateRole:
@@ -55,9 +50,7 @@ class TestCreateRole:
         response = await http_client.post(
             f"{ROLES_URL}/", json={}, headers=superuser_headers
         )
-        await assert_status_return_json(
-            response, HTTPStatus.UNPROCESSABLE_ENTITY
-        )
+        await assert_status(response, HTTPStatus.UNPROCESSABLE_ENTITY)
 
     async def test_create_role_duplicate(
         self,
@@ -91,7 +84,7 @@ class TestCreateRole:
             json={"name": f"role_{uuid.uuid4().hex[:8]}"},
             headers=headers,
         )
-        await assert_status_return_json(response, expected_status)
+        await assert_status(response, expected_status)
 
 
 class TestGetAllRoles:
@@ -125,7 +118,7 @@ class TestGetAllRoles:
             regular_user_headers if auth == "regular_user" else no_auth_headers
         )
         response = await http_client.get(f"{ROLES_URL}/", headers=headers)
-        await assert_status_return_json(response, expected_status)
+        await assert_status(response, expected_status)
 
 
 class TestGetRoleDetail:
@@ -156,7 +149,7 @@ class TestGetRoleDetail:
         response = await http_client.get(
             f"{ROLES_URL}/{NOT_EXISTING_UUID}/", headers=superuser_headers
         )
-        await assert_status_return_json(response, HTTPStatus.NOT_FOUND)
+        await assert_status(response, HTTPStatus.NOT_FOUND)
 
     @pytest.mark.parametrize("auth,expected_status", ACCESS_DENIED_CASES)
     async def test_get_role_detail_access_denied(
@@ -175,7 +168,7 @@ class TestGetRoleDetail:
         response = await http_client.get(
             f"{ROLES_URL}/{created_role['id']}/", headers=headers
         )
-        await assert_status_return_json(response, expected_status)
+        await assert_status(response, expected_status)
 
 
 class TestUpdateRole:
@@ -209,7 +202,7 @@ class TestUpdateRole:
             json={"description": "Updated description"},
             headers=superuser_headers,
         )
-        await assert_status_return_json(response, HTTPStatus.NOT_FOUND)
+        await assert_status(response, HTTPStatus.NOT_FOUND)
 
     @pytest.mark.parametrize("auth,expected_status", ACCESS_DENIED_CASES)
     async def test_update_role_access_denied(
@@ -230,7 +223,7 @@ class TestUpdateRole:
             json={"description": "x"},
             headers=headers,
         )
-        await assert_status_return_json(response, expected_status)
+        await assert_status(response, expected_status)
 
 
 class TestDeleteRole:
@@ -270,7 +263,7 @@ class TestDeleteRole:
         response = await http_client.delete(
             f"{ROLES_URL}/{NOT_EXISTING_UUID}/", headers=superuser_headers
         )
-        await assert_status_return_json(response, HTTPStatus.NOT_FOUND)
+        await assert_status(response, HTTPStatus.NOT_FOUND)
 
     async def test_delete_system_role_conflict(
         self,
@@ -282,7 +275,7 @@ class TestDeleteRole:
         response = await http_client.delete(
             f"{ROLES_URL}/{system_role['id']}/", headers=superuser_headers
         )
-        await assert_status_return_json(response, HTTPStatus.CONFLICT)
+        await assert_status(response, HTTPStatus.CONFLICT)
 
     @pytest.mark.parametrize("auth,expected_status", ACCESS_DENIED_CASES)
     async def test_delete_role_access_denied(
@@ -301,7 +294,7 @@ class TestDeleteRole:
         response = await http_client.delete(
             f"{ROLES_URL}/{created_role['id']}/", headers=headers
         )
-        await assert_status_return_json(response, expected_status)
+        await assert_status(response, expected_status)
 
 
 class TestAssignRoleToUser:
@@ -362,7 +355,7 @@ class TestAssignRoleToUser:
             f"{ROLES_URL}/{created_role['id']}/users/{NOT_EXISTING_UUID}/",
             headers=superuser_headers,
         )
-        await assert_status_return_json(response, HTTPStatus.NOT_FOUND)
+        await assert_status(response, HTTPStatus.NOT_FOUND)
 
     async def test_assign_role_role_not_found(
         self,
@@ -376,7 +369,7 @@ class TestAssignRoleToUser:
             f"{ROLES_URL}/{NOT_EXISTING_UUID}/users/{user_id}/",
             headers=superuser_headers,
         )
-        await assert_status_return_json(response, HTTPStatus.NOT_FOUND)
+        await assert_status(response, HTTPStatus.NOT_FOUND)
 
 
 class TestRemoveRoleFromUser:
@@ -426,4 +419,4 @@ class TestRemoveRoleFromUser:
             f"{ROLES_URL}/{role_id}/users/{user_id}/",
             headers=superuser_headers,
         )
-        await assert_status_return_json(response, HTTPStatus.NOT_FOUND)
+        await assert_status(response, HTTPStatus.NOT_FOUND)

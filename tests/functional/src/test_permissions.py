@@ -12,17 +12,12 @@ from functional.utils.check_methods import (
     assert_status,
     assert_status_return_json,
 )
+from functional.utils.constants import ACCESS_DENIED_CASES, NOT_EXISTING_UUID
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 PERMISSIONS_URL = f"{test_settings.api_prefix}/permissions"
 ROLES_URL = f"{test_settings.api_prefix}/roles"
-NOT_EXISTING_UUID = "00000000-0000-0000-0000-000000000000"
-
-ACCESS_DENIED_CASES = [
-    ("no_auth", HTTPStatus.UNAUTHORIZED),
-    ("regular_user", HTTPStatus.FORBIDDEN),
-]
 
 
 class TestCreatePermission:
