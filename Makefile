@@ -50,3 +50,8 @@ revision:
 keys:
 	test -f private.pem || openssl genrsa -out private.pem 2048
 	test -f public.pem || openssl rsa -in private.pem -pubout -out public.pem
+
+# Запускает функциональные тесты и удаляет контейнеры с томами после завершения
+test:
+	docker compose -f tests/functional/docker-compose.yml up --build --abort-on-container-exit; \
+	docker compose -f tests/functional/docker-compose.yml down -v
