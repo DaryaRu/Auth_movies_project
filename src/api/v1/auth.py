@@ -29,6 +29,7 @@ router = APIRouter(tags=["Auth"])
 @router.post(
     "/registration/",
     status_code=status.HTTP_201_CREATED,
+    summary="Регистрация пользователя",
 )
 async def create_user(
     user: UserRequestScheme,
@@ -53,7 +54,10 @@ async def create_user(
     return created_user
 
 
-@router.post("/login/")
+@router.post(
+    "/login/",
+    summary="Вход в аккаунт",
+)
 async def login(
     response: Response,
     request: Request,
@@ -110,7 +114,10 @@ async def login(
     )
 
 
-@router.get("/jwt.key/")
+@router.get(
+    "/jwt.key/",
+    summary="Публичный ключ JWT",
+)
 def get_public_key() -> dict[str, str]:
     """
     Получение публичного ключа для верификации JWT.
@@ -121,7 +128,10 @@ def get_public_key() -> dict[str, str]:
     return {"public_key": settings.PUBLIC_KEY}
 
 
-@router.post("/refresh/")
+@router.post(
+    "/refresh/",
+    summary="Обновление токенов",
+)
 async def refresh_token(
     request: Request,
     response: Response,
@@ -178,8 +188,11 @@ async def refresh_token(
     )
 
 
-@router.post("/logout/",
-             status_code=status.HTTP_204_NO_CONTENT)
+@router.post(
+    "/logout/",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Выход из аккаунта",
+)
 async def logout(
     response: Response,
     refresh_token: RefreshTokenDep,
@@ -213,7 +226,11 @@ async def logout(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.get("/history/", response_model=list[LoginHistoryResponseScheme])
+@router.get(
+    "/history/",
+    response_model=list[LoginHistoryResponseScheme],
+    summary="История входов",
+)
 async def get_login_history(
     auth_service: AuthServiceDep,
     user_id: UserIDDep,
@@ -241,18 +258,26 @@ async def get_login_history(
         raise UserNotFoundHTTPException(detail=exc.detail)
 
 
-@router.get("/users/me/permissions/")
+@router.get(
+    "/users/me/permissions/",
+    summary="Права текущего пользователя",
+)
 async def get_my_permissions(
     current_user: CurrentUserDep,
     role_service: RoleServiceDep,
 ) -> list[PermissionResponseScheme]:
+    """Возвращает список прав доступа, назначенных текущему пользователю через его роли."""
     return await role_service.get_user_permissions(
         user_id=current_user.id,
         is_superuser=current_user.is_superuser,
     )
 
 
-@router.patch("/change-email/", response_model=UserResponseScheme)
+@router.patch(
+    "/change-email/",
+    response_model=UserResponseScheme,
+    summary="Смена email",
+)
 async def change_email(
     data: ChangeEmailRequestScheme,
     auth_service: AuthServiceDep,
@@ -290,7 +315,11 @@ async def change_email(
         raise VerifyPasswordHTTPException(detail=exc.detail)
 
 
-@router.patch("/change-password/", status_code=status.HTTP_204_NO_CONTENT)
+@router.patch(
+    "/change-password/",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Смена пароля",
+)
 async def change_password(
     data: ChangePasswordRequestScheme,
     response: Response,

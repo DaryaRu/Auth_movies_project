@@ -18,36 +18,46 @@ from src.schemas.permissions import (
 router = APIRouter(prefix="/permissions", tags=["Permissions"])
 
 
-@router.post("/", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/",
+    status_code=status.HTTP_201_CREATED,
+    summary="Создать право",
+)
 async def create_permission(
     data: PermissionCreateScheme,
     permission_service: PermissionServiceDep,
     staff_user: StaffUserDep,
 ) -> PermissionResponseScheme:
-    """Создание нового права доступа. Доступно только суперпользователям."""
+    """Создаёт новое право доступа. Доступно только суперпользователям."""
     try:
         return await permission_service.create_permission(data)
     except PermissionAlreadyExistsException as exc:
         raise PermissionAlreadyExistsHTTPException(detail=exc.detail)
 
 
-@router.get("/")
+@router.get(
+    "/",
+    summary="Список прав",
+)
 async def get_all_permissions(
     permission_service: PermissionServiceDep,
     staff_user: StaffUserDep,
 ) -> list[PermissionResponseScheme]:
-    """Получение списка всех прав доступа. Доступно только суперпользователям."""
+    """Возвращает список всех прав доступа. Доступно только суперпользователям."""
     return await permission_service.get_all_permissions()
 
 
-@router.patch("/{permission_id}/")
+@router.patch(
+    "/{permission_id}/",
+    summary="Обновить право",
+)
 async def update_permission(
     permission_id: UUID,
     data: PermissionUpdateScheme,
     permission_service: PermissionServiceDep,
     staff_user: StaffUserDep,
 ) -> PermissionResponseScheme:
-    """Обновление права доступа. Доступно только суперпользователям."""
+    """Обновляет поля права доступа. Доступно только суперпользователям."""
     try:
         return await permission_service.update_permission(permission_id, data)
     except PermissionNotFoundException as exc:
@@ -56,13 +66,17 @@ async def update_permission(
         raise PermissionAlreadyExistsHTTPException(detail=exc.detail)
 
 
-@router.delete("/{permission_id}/", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{permission_id}/",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Удалить право",
+)
 async def delete_permission(
     permission_id: UUID,
     permission_service: PermissionServiceDep,
     staff_user: StaffUserDep,
 ) -> None:
-    """Удаление права доступа по идентификатору. Доступно только суперпользователям."""
+    """Удаляет право доступа по идентификатору. Доступно только суперпользователям."""
     try:
         await permission_service.delete_permission(permission_id)
     except PermissionNotFoundException as exc:
