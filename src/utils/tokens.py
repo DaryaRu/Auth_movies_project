@@ -2,9 +2,10 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Tuple
 
 from jose import JWTError, jwt
+from jose.exceptions import ExpiredSignatureError
 
 from src.core.config import settings
-from src.exceptions import DecodeTokenException, TokenKeysException
+from src.exceptions import DecodeTokenException, TokenExpiredException, TokenKeysException
 
 
 class JWTTokenService:
@@ -76,6 +77,8 @@ class JWTTokenService:
                 settings.PUBLIC_KEY,
                 algorithms=[settings.JWT_ALGORITHM],
             )
+        except ExpiredSignatureError:
+            raise TokenExpiredException
         except (JWTError, AttributeError):
             raise DecodeTokenException
         

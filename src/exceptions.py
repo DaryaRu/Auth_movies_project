@@ -32,6 +32,10 @@ class DecodeTokenException(AuthServiceException):
     detail = "Ошибка декодирования токена"
 
 
+class TokenExpiredException(AuthServiceException):
+    detail = "Токен истёк"
+
+
 class TokenKeysException(AuthServiceException):
     detail = "Несоответствие данных токена"
     

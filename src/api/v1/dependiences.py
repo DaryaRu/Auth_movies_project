@@ -9,6 +9,8 @@ from src.exceptions import (
     DecodeTokenException,
     DecodeTokenHTTPException,
     NotEnoughPermissionsHTTPException,
+    TokenExpiredException,
+    TokenExpiredError,
     TokenKeysException,
     TokenKeysHTTPException,
 )
@@ -68,6 +70,8 @@ def get_current_user_id(
 ) -> UUID:
     try:
         data = auth_service.decode_token(token)
+    except TokenExpiredException as exc:
+        raise TokenExpiredError(detail=exc.detail)
     except DecodeTokenException as exc:
         raise DecodeTokenHTTPException(detail=exc.detail)
     except TokenKeysException as exc:
