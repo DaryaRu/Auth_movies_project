@@ -31,6 +31,8 @@ services:
     image: auth-image
     env_file: .env
     command: alembic upgrade head
+    volumes:
+      - ./src/migrations:/app/src/migrations
     depends_on:
       db:
         condition: service_healthy

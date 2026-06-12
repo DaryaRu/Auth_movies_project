@@ -1,3 +1,5 @@
+from src.repositories.permissions import PermissionsPostgreSQLRepository
+from src.repositories.roles import RolesPostgreSQLRepository
 from src.repositories.users import (
     UsersPostgreSQLRepository,
     RefreshTokenPostgreSQLRepository,
@@ -12,6 +14,8 @@ class DBManager:
         self.session = self.session_factory()
         self.users = UsersPostgreSQLRepository(self.session)
         self.refresh_tokens = RefreshTokenPostgreSQLRepository(self.session)
+        self.roles = RolesPostgreSQLRepository(self.session)
+        self.permissions = PermissionsPostgreSQLRepository(self.session)
         return self
 
     async def __aexit__(self, exc_type, exc, tb):

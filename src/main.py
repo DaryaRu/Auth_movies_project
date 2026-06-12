@@ -19,6 +19,8 @@ from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 sys.path.append(str(Path(__file__).parent.parent))
 
 from src.api.v1.auth import router as auth_router
+from src.api.v1.permissions import router as permissions_router
+from src.api.v1.roles import router as roles_router
 from src.core import logger
 from src.core.config import settings
 from src.databases import redis
@@ -96,7 +98,9 @@ app.add_middleware(
 
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=settings.ALLOWED_HOSTS.split(","))
 
-app.include_router(auth_router)
+app.include_router(auth_router, prefix=settings.API_V1_PREFIX)
+app.include_router(roles_router, prefix=settings.API_V1_PREFIX)
+app.include_router(permissions_router, prefix=settings.API_V1_PREFIX)
 
 
 @app.get("/health", tags=["health"])

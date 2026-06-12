@@ -72,3 +72,83 @@ class InvalidTokenError(AuthServiceHTTPException):
 
 class TokenExpiredError(AuthServiceHTTPException):
     status_code = 401
+
+
+class RoleAlreadyExistsException(AuthServiceException):
+    detail = "Роль уже существует"
+
+
+class RoleNotFoundException(AuthServiceException):
+    detail = "Роль не найдена"
+
+
+class UserRoleAlreadyExistsException(AuthServiceException):
+    detail = "Роль уже назначена пользователю"
+
+
+class UserRoleNotFoundException(AuthServiceException):
+    detail = "У пользователя нет такой роли"
+
+
+class NotEnoughPermissionsException(AuthServiceException):
+    detail = "Недостаточно прав"
+
+
+class RoleAlreadyExistsHTTPException(AuthServiceHTTPException):
+    status_code = 400
+
+
+class RoleNotFoundHTTPException(AuthServiceHTTPException):
+    status_code = 404
+
+
+class UserRoleAlreadyExistsHTTPException(AuthServiceHTTPException):
+    status_code = 400
+
+
+class UserRoleNotFoundHTTPException(AuthServiceHTTPException):
+    status_code = 404
+
+
+class NotEnoughPermissionsHTTPException(AuthServiceHTTPException):
+    status_code = 403
+
+
+class PermissionAlreadyExistsException(AuthServiceException):
+    detail = "Право уже существует"
+
+
+class PermissionNotFoundException(AuthServiceException):
+    detail = "Право не найдено"
+
+
+class RolePermissionAlreadyExistsException(AuthServiceException):
+    detail = "Право уже назначено роли"
+
+
+class RolePermissionNotFoundException(AuthServiceException):
+    detail = "У роли нет такого права"
+
+
+class SystemRoleCannotBeDeletedException(AuthServiceException):
+    detail = "Системную роль нельзя удалить"
+
+
+class PermissionAlreadyExistsHTTPException(AuthServiceHTTPException):
+    status_code = 400
+
+
+class PermissionNotFoundHTTPException(AuthServiceHTTPException):
+    status_code = 404
+
+
+class RolePermissionAlreadyExistsHTTPException(AuthServiceHTTPException):
+    status_code = 400
+
+
+class RolePermissionNotFoundHTTPException(AuthServiceHTTPException):
+    status_code = 404
+
+
+class SystemRoleCannotBeDeletedHTTPException(AuthServiceHTTPException):
+    status_code = 409

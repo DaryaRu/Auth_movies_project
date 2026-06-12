@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     HASH_TIME_COST: int
     HASH_MEMORY_COST: int
     HASH_PARALLELISM: int
+    API_V1_PREFIX: str = "/api/v1"
 
     @property
     def DB_URL(self):
