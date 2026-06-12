@@ -3,6 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, status
 
 from src.api.v1.dependiences import RoleServiceDep, StaffUserDep
+from src.api.v1.responses import CONFLICT, DUPLICATE, NOT_FOUND, AUTH_ERRORS
 from src.exceptions import (
     PermissionNotFoundException,
     PermissionNotFoundHTTPException,
@@ -37,6 +38,7 @@ router = APIRouter(prefix="/roles", tags=["Roles"])
     "/",
     status_code=status.HTTP_201_CREATED,
     summary="Создать роль",
+    responses={**AUTH_ERRORS, **DUPLICATE},
 )
 async def create_role(
     data: RoleCreateScheme,
@@ -53,6 +55,7 @@ async def create_role(
 @router.get(
     "/",
     summary="Список ролей",
+    responses={**AUTH_ERRORS},
 )
 async def get_all_roles(
     role_service: RoleServiceDep,
@@ -65,6 +68,7 @@ async def get_all_roles(
 @router.get(
     "/{role_id}/",
     summary="Информация о роли",
+    responses={**AUTH_ERRORS, **NOT_FOUND},
 )
 async def get_role(
     role_id: UUID,
@@ -81,6 +85,7 @@ async def get_role(
 @router.patch(
     "/{role_id}/",
     summary="Обновить роль",
+    responses={**AUTH_ERRORS, **DUPLICATE, **NOT_FOUND},
 )
 async def update_role(
     role_id: UUID,
@@ -101,6 +106,7 @@ async def update_role(
     "/{role_id}/",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Удалить роль",
+    responses={**AUTH_ERRORS, **NOT_FOUND, **CONFLICT},
 )
 async def delete_role(
     role_id: UUID,
@@ -120,6 +126,7 @@ async def delete_role(
     "/{role_id}/users/{user_id}/",
     status_code=status.HTTP_201_CREATED,
     summary="Назначить роль пользователю",
+    responses={**AUTH_ERRORS, **DUPLICATE, **NOT_FOUND},
 )
 async def assign_role_to_user(
     role_id: UUID,
@@ -144,6 +151,7 @@ async def assign_role_to_user(
     "/{role_id}/users/{user_id}/",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Снять роль с пользователя",
+    responses={**AUTH_ERRORS, **NOT_FOUND},
 )
 async def remove_role_from_user(
     role_id: UUID,
@@ -168,6 +176,7 @@ async def remove_role_from_user(
     "/{role_id}/permissions/{permission_id}/",
     status_code=status.HTTP_201_CREATED,
     summary="Назначить право роли",
+    responses={**AUTH_ERRORS, **DUPLICATE, **NOT_FOUND},
 )
 async def assign_permission_to_role(
     role_id: UUID,
@@ -192,6 +201,7 @@ async def assign_permission_to_role(
     "/{role_id}/permissions/{permission_id}/",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Снять право с роли",
+    responses={**AUTH_ERRORS, **NOT_FOUND},
 )
 async def remove_permission_from_role(
     role_id: UUID,

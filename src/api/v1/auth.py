@@ -1,8 +1,9 @@
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Response,  Request, status
+from fastapi import APIRouter, Response, Request, status
 
 from src.api.v1.dependiences import AuthServiceDep, CurrentUserDep, RefreshTokenDep, RoleServiceDep, UserIDDep
+from src.api.v1.responses import AUTH_ERRORS, DUPLICATE, NOT_FOUND, UNAUTHORIZED
 from src.core.config import settings
 from src.exceptions import (
     UserAlreadyexistsException,
@@ -30,6 +31,7 @@ router = APIRouter(tags=["Auth"])
     "/registration/",
     status_code=status.HTTP_201_CREATED,
     summary="Регистрация пользователя",
+    responses={**DUPLICATE},
 )
 async def create_user(
     user: UserRequestScheme,
@@ -57,6 +59,7 @@ async def create_user(
 @router.post(
     "/login/",
     summary="Вход в аккаунт",
+    responses={**UNAUTHORIZED, **NOT_FOUND},
 )
 async def login(
     response: Response,
@@ -131,6 +134,7 @@ def get_public_key() -> dict[str, str]:
 @router.post(
     "/refresh/",
     summary="Обновление токенов",
+    responses={**UNAUTHORIZED},
 )
 async def refresh_token(
     request: Request,
@@ -192,6 +196,7 @@ async def refresh_token(
     "/logout/",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Выход из аккаунта",
+    responses={**UNAUTHORIZED},
 )
 async def logout(
     response: Response,
@@ -230,6 +235,7 @@ async def logout(
     "/history/",
     response_model=list[LoginHistoryResponseScheme],
     summary="История входов",
+    responses={**AUTH_ERRORS},
 )
 async def get_login_history(
     auth_service: AuthServiceDep,
@@ -261,6 +267,7 @@ async def get_login_history(
 @router.get(
     "/users/me/permissions/",
     summary="Права текущего пользователя",
+    responses={**AUTH_ERRORS},
 )
 async def get_my_permissions(
     current_user: CurrentUserDep,
@@ -277,6 +284,7 @@ async def get_my_permissions(
     "/change-email/",
     response_model=UserResponseScheme,
     summary="Смена email",
+    responses={**AUTH_ERRORS, **DUPLICATE, **NOT_FOUND},
 )
 async def change_email(
     data: ChangeEmailRequestScheme,
@@ -319,6 +327,7 @@ async def change_email(
     "/change-password/",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Смена пароля",
+    responses={**AUTH_ERRORS, **NOT_FOUND},
 )
 async def change_password(
     data: ChangePasswordRequestScheme,

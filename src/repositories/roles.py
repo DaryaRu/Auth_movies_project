@@ -203,7 +203,6 @@ class RolesAbstractRepository(ABC):
         """
         raise NotImplementedError
 
-
 class RolesPostgreSQLRepository(RolesAbstractRepository, BasePostgreSQLRepository):
     """Репозиторий ролей."""
 
@@ -308,3 +307,4 @@ class RolesPostgreSQLRepository(RolesAbstractRepository, BasePostgreSQLRepositor
         )
         result = await self._session.execute(query)
         return list(result.scalars().all())
+

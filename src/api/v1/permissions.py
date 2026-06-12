@@ -3,6 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, status
 
 from src.api.v1.dependiences import PermissionServiceDep, StaffUserDep
+from src.api.v1.responses import DUPLICATE, NOT_FOUND, AUTH_ERRORS
 from src.exceptions import (
     PermissionAlreadyExistsException,
     PermissionAlreadyExistsHTTPException,
@@ -22,6 +23,7 @@ router = APIRouter(prefix="/permissions", tags=["Permissions"])
     "/",
     status_code=status.HTTP_201_CREATED,
     summary="Создать право",
+    responses={**AUTH_ERRORS, **DUPLICATE},
 )
 async def create_permission(
     data: PermissionCreateScheme,
@@ -38,6 +40,7 @@ async def create_permission(
 @router.get(
     "/",
     summary="Список прав",
+    responses={**AUTH_ERRORS},
 )
 async def get_all_permissions(
     permission_service: PermissionServiceDep,
@@ -50,6 +53,7 @@ async def get_all_permissions(
 @router.patch(
     "/{permission_id}/",
     summary="Обновить право",
+    responses={**AUTH_ERRORS, **DUPLICATE, **NOT_FOUND},
 )
 async def update_permission(
     permission_id: UUID,
@@ -70,6 +74,7 @@ async def update_permission(
     "/{permission_id}/",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Удалить право",
+    responses={**AUTH_ERRORS, **NOT_FOUND},
 )
 async def delete_permission(
     permission_id: UUID,
