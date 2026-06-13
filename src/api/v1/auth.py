@@ -2,25 +2,29 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Response,  Request, status
 
-from src.api.v1.dependiences import AuthServiceDep, CurrentUserDep, RefreshTokenDep, RoleServiceDep, UserIDDep
+from src.api.v1.dependiences import AuthServiceDep, CurrentUserDep, RefreshTokenDep, RoleServiceDep, SessionServiceDep, TokenPayloadDep
 from src.core.config import settings
 from src.exceptions import (
+    DecodeTokenException,
+    InvalidTokenHTTPException,
+    TokenExeption,
+    TokenKeysException,
+    TokenTypeExeption,
     UserAlreadyexistsException,
     UserAlreadyexistsHTTPException,
-    UserNotFoundError,
+    UserNotFoundException,
     UserNotFoundHTTPException,
-    VerifyPasswordError,
+    VerifyPasswordException,
     VerifyPasswordHTTPException,
-    InvalidTokenError,
 )
 from src.schemas.permissions import PermissionResponseScheme
+from src.schemas.sessions import UserSessionResponse
 from src.schemas.tokens import JWTAccessToken
 from src.schemas.users import (
     ChangeEmailRequestScheme,
     ChangePasswordRequestScheme,
     UserRequestScheme,
     UserResponseScheme,
-    LoginHistoryResponseScheme,
 )
 
 router = APIRouter(tags=["Auth"])
@@ -30,11 +34,12 @@ router = APIRouter(tags=["Auth"])
     "/registration/",
     status_code=status.HTTP_201_CREATED,
     summary="Регистрация пользователя",
+    response_model=UserResponseScheme
 )
 async def create_user(
     user: UserRequestScheme,
     auth_service: AuthServiceDep,
-) -> UserResponseScheme:
+):
     """
     Регистрация нового пользователя.
     Проверяет, существует ли пользователь с таким email.
@@ -57,13 +62,14 @@ async def create_user(
 @router.post(
     "/login/",
     summary="Вход в аккаунт",
+    response_model=JWTAccessToken
 )
 async def login(
     response: Response,
     request: Request,
     user: UserRequestScheme,
     auth_service: AuthServiceDep,
-) -> JWTAccessToken:
+):
     """
     Аутентификация пользователя.
     - Проверяет корректность email и пароля.
@@ -87,10 +93,10 @@ async def login(
             user,
             ip_address=ip_address,
             user_agent=user_agent
-            )
-    except UserNotFoundError as exc:
+        )
+    except UserNotFoundException as exc:
         raise UserNotFoundHTTPException(detail=exc.detail)
-    except VerifyPasswordError as exc:
+    except VerifyPasswordException as exc:
         raise VerifyPasswordHTTPException(detail=exc.detail)
 
     response.set_cookie(
@@ -98,8 +104,7 @@ async def login(
         value=refresh_token,
         httponly=True,
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
-        # secure=True,
-        secure=False,
+        secure=True,
         samesite="lax",
         path="/",
     )
@@ -131,12 +136,13 @@ def get_public_key() -> dict[str, str]:
 @router.post(
     "/refresh/",
     summary="Обновление токенов",
+    response_model=JWTAccessToken
 )
 async def refresh_token(
-    request: Request,
+    refresh_token: RefreshTokenDep,
     response: Response,
     auth_service: AuthServiceDep,
-) -> JWTAccessToken:
+):
     """
     Обновление пары JWT-токенов (Access и Refresh).
     - Извлекает старый refresh-токен из HTTP-кук.
@@ -154,37 +160,35 @@ async def refresh_token(
     Returns:
         JWTAccessToken: Новый Access токен со временем жизни.
     """
-    old_refresh_token = request.cookies.get("refresh_token")
-    if not old_refresh_token:
-        raise InvalidTokenError()
-
     try:
-        new_access_token, new_refresh_token = (
-            await auth_service.refresh_tokens(
-                old_refresh_token=old_refresh_token
-            )
+        new_access_token, new_refresh_token = await auth_service.refresh_token(
+            old_refresh_token=refresh_token
         )
-    except Exception:
-        raise InvalidTokenError()
+    except (
+        DecodeTokenException,
+        TokenKeysException,
+        TokenTypeExeption,
+        TokenExeption
+    ) as exc:
+        raise InvalidTokenHTTPException(detail=exc.detail)
 
     response.set_cookie(
         key="refresh_token",
         value=new_refresh_token,
         httponly=True,
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
-        # secure=True,
-        secure=False,
+        secure=True,
         samesite="lax",
         path="/",
     )
 
-    expire_time = datetime.now(timezone.utc) + timedelta(
-        minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
-    )
-
     return JWTAccessToken(
         access_token=new_access_token,
-        access_token_expire=expire_time,
+        access_token_expire=datetime.now(
+            timezone.utc
+        ) + timedelta(
+            minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+        ),
     )
 
 
@@ -197,7 +201,7 @@ async def logout(
     response: Response,
     refresh_token: RefreshTokenDep,
     auth_service: AuthServiceDep,
-):
+) -> None:
     """
     Выход пользователя из аккаунта с отзывом текущей сессии.
     - Удаляет запись о текущем refresh-токене из базы данных.
@@ -217,55 +221,72 @@ async def logout(
     response.delete_cookie(
         key="refresh_token",
         httponly=True,
-        # secure=True,
-        secure=False,
+        secure=True,
         samesite="lax",
         path="/",
     )
-
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
-
-
-@router.get(
-    "/history/",
-    response_model=list[LoginHistoryResponseScheme],
-    summary="История входов",
+    
+    
+@router.post(
+    "/logout-all/",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Выход из аккаунта",
 )
-async def get_login_history(
+async def logout_all(
+    response: Response,
+    refresh_token: RefreshTokenDep,
     auth_service: AuthServiceDep,
-    user_id: UserIDDep,
-) -> list[LoginHistoryResponseScheme]:
+) -> None:
     """
-    Получение истории активных сессий (входов) текущего пользователя.
-    Запрашивает из базы данных список всех актуальных или прошлых
-    refresh-токенов, привязанных к конкретному пользователю.
+    Выход пользователя из всех активных устройств.
+    - Удаляет все сессии пользователя.
+    - Стирает авторизационные куки (refresh_token) на клиенте.
 
     Args:
+        response (Response): Объект ответа FastAPI для очистки кук.
+        refresh_token (RefreshTokenDep): Зависимость,
+        извлекающая текущий refresh-токен.
         auth_service (AuthServiceDep): Зависимость сервиса аутентификации.
-        user_id (UserIDDep): Зависимость, возвращающая
-        ID текущего пользователя из JWT.
-
-    Raises:
-        HTTPException: Если пользователь с данным ID не найден в системе.
 
     Returns:
-        list[LoginHistoryResponseScheme]: Список схем с информацией о сессиях.
+        Response: Пустой ответ со статусом HTTP 204 No Content.
     """
-    try:
-        history = await auth_service.get_user_history(user_id=user_id)
-        return history
-    except UserNotFoundError as exc:
-        raise UserNotFoundHTTPException(detail=exc.detail)
+    await auth_service.revoke_all_refresh_tokens(refresh_token=refresh_token)
+
+    response.delete_cookie(
+        key="refresh_token",
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        path="/",
+    )
+    
+    
+@router.get(
+    "/active_sessions",
+    summary="Получение активных сессий пользователя",
+    response_model=list[UserSessionResponse]
+)
+async def get_user_active_sessions(
+    token_payload: TokenPayloadDep,
+    current_user: CurrentUserDep,
+    session_service: SessionServiceDep,
+):
+    return await session_service.get_active_sessions(
+        user_id=current_user.id,
+        current_sid=token_payload.get("sid"),
+    )
 
 
 @router.get(
     "/users/me/permissions/",
     summary="Права текущего пользователя",
+    response_model=list[PermissionResponseScheme],
 )
 async def get_my_permissions(
     current_user: CurrentUserDep,
     role_service: RoleServiceDep,
-) -> list[PermissionResponseScheme]:
+):
     """Возвращает список прав доступа, назначенных текущему пользователю через его роли."""
     return await role_service.get_user_permissions(
         user_id=current_user.id,
@@ -281,8 +302,8 @@ async def get_my_permissions(
 async def change_email(
     data: ChangeEmailRequestScheme,
     auth_service: AuthServiceDep,
-    user_id: UserIDDep,
-) -> UserResponseScheme:
+    user: CurrentUserDep,
+):
     """
     Смена email пользователя после проверки пароля.
 
@@ -295,23 +316,23 @@ async def change_email(
         data (ChangeEmailRequestScheme): Схема с новым email и паролем.
 
     Raises:
-        UserNotFoundError: Если пользователь с таким ID не найден.
+        UserNotFoundException: Если пользователь с таким ID не найден.
         UserAlreadyexistsException: Если новый email уже занят.
-        VerifyPasswordError: Если текущий пароль введен неверно.
+        VerifyPasswordException: Если текущий пароль введен неверно.
 
     Returns:
         UserORM: Обновленный объект пользователя из базы данных.
     """
     try:
         updated_user = await auth_service.change_user_email(
-            user_id=user_id, data=data
+            user_id=user.id, data=data
         )
         return updated_user
     except UserAlreadyexistsException as exc:
         raise UserAlreadyexistsHTTPException(detail=exc.detail)
-    except UserNotFoundError as exc:
+    except UserNotFoundException as exc:
         raise UserNotFoundHTTPException(detail=exc.detail)
-    except VerifyPasswordError as exc:
+    except VerifyPasswordException as exc:
         raise VerifyPasswordHTTPException(detail=exc.detail)
 
 
@@ -324,7 +345,7 @@ async def change_password(
     data: ChangePasswordRequestScheme,
     response: Response,
     auth_service: AuthServiceDep,
-    user_id: UserIDDep,
+    user: CurrentUserDep,
 ):
     """
     Смена пароля пользователя и отзыв всех его текущих сессий.
@@ -338,11 +359,11 @@ async def change_password(
         data (ChangePasswordRequestScheme): Схема со старым и новым паролями.
 
     Raises:
-        UserNotFoundError: Если пользователь с таким ID не найден.
-        VerifyPasswordError: Если текущий старый пароль введен неверно.
+        UserNotFoundException: Если пользователь с таким ID не найден.
+        VerifyPasswordException: Если текущий старый пароль введен неверно.
     """
     try:
-        await auth_service.change_user_password(user_id=user_id, data=data)
+        await auth_service.change_user_password(user_id=user.id, data=data)
 
         response.delete_cookie(
             key="refresh_token",
@@ -353,7 +374,7 @@ async def change_password(
         )
 
         return Response(status_code=status.HTTP_204_NO_CONTENT)
-    except UserNotFoundError as exc:
+    except UserNotFoundException as exc:
         raise UserNotFoundHTTPException(detail=exc.detail)
-    except VerifyPasswordError as exc:
+    except VerifyPasswordException as exc:
         raise VerifyPasswordHTTPException(detail=exc.detail)

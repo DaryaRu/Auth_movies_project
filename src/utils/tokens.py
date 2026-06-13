@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+import logging
 from typing import Any, Dict, Tuple
 
 from jose import JWTError, jwt
@@ -76,11 +77,12 @@ class JWTTokenService:
                 settings.PUBLIC_KEY,
                 algorithms=[settings.JWT_ALGORITHM],
             )
-        except (JWTError, AttributeError):
-            raise DecodeTokenException
+        except (JWTError, AttributeError) as exc:
+            logging.error(exc)
+            raise DecodeTokenException()
         
-        required = {"sub", "exp", "type", "iat"}
+        required = {"sub", "exp", "type", "iat", "sid"}
         if not required.issubset(decode_token):
-            raise TokenKeysException
+            raise TokenKeysException()
 
         return decode_token

@@ -1,7 +1,5 @@
-from datetime import datetime
-from uuid import UUID
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, Text
+from sqlalchemy import Index, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.databases.pg import Base, BaseORM
@@ -20,22 +18,3 @@ class UserORM(Base, BaseORM):
         secondary=user_roles_table,
         back_populates="users",
     )
-
-
-class RefreshTokenORM(Base, BaseORM):
-    __tablename__ = "refresh_tokens"
-
-    token: Mapped[str] = mapped_column(Text, index=True, nullable=False)
-
-    user_id: Mapped[UUID] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False
-    )
-
-    expires_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        nullable=False
-    )
-
-    ip_address: Mapped[str | None] = mapped_column(String(45), nullable=True)
-    user_agent: Mapped[str | None] = mapped_column(String(512), nullable=True)

@@ -1,13 +1,14 @@
-from datetime import datetime, timezone
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from src.exceptions import (
+    DecodeTokenException,
+    TokenExeption,
+    TokenKeysException,
+    TokenTypeExeption,
     UserAlreadyexistsException,
-    UserNotFoundError,
-    VerifyPasswordError,
-    InvalidTokenError,
-    TokenExpiredError,
+    UserNotFoundException,
+    VerifyPasswordException,
 )
 from src.models.users import UserORM
 from src.schemas.users import (
@@ -16,6 +17,7 @@ from src.schemas.users import (
     ChangePasswordRequestScheme
 )
 from src.services.base import BaseService
+from src.services.sessions import SessionService
 from src.utils.db_manager import DBManager
 from src.utils.hashes import BaseHashService
 from src.utils.tokens import JWTTokenService
@@ -29,13 +31,17 @@ class AuthService(BaseService):
     - поиск пользователя по email;
     - аутентификация пользователя.
     """
-    def __init__(self, hash_service: BaseHashService,
-                 token_service: JWTTokenService,
-                 db: DBManager
-                 ) -> None:
+    def __init__(
+        self,
+        hash_service: BaseHashService,
+        token_service: JWTTokenService,
+        session_service: SessionService,
+        db: DBManager
+    ) -> None:
         super().__init__(db)
         self._hash_service: BaseHashService = hash_service
         self._token_service: JWTTokenService = token_service
+        self._session_service: SessionService = session_service
         
     async def register_user(self, user: UserRequestScheme) -> UserORM:
         is_exsist_user = await self._db.users.get_one_or_none_by_email(user.email)
@@ -81,52 +87,8 @@ class AuthService(BaseService):
         """
         user = await self._db.users.get_one_or_none_by_email(email=email)
         if user is None:
-            raise UserNotFoundError()
+            raise UserNotFoundException()
         return user
-
-    async def authenticate_user(
-            self,
-            auth_user: UserRequestScheme,
-            ip_address: str,
-            user_agent: str
-            ) -> tuple[str, str]:
-        """
-        Аутентифицирует пользователя по email и паролю.
-        - Проверяет, существует ли пользователь.
-        - Сравнивает хэшированный пароль с введённым.
-        - В случае ошибок выбрасывает исключения.
-        Args:
-            auth_user (UserRequestScheme): Данные для входа (email и пароль).
-            ip_address (str): IP-адрес клиента.
-            user_agent (str): Строка User-Agent клиентского устройства.
-
-        Raises:
-            UserNotFoundError: Если пользователь с указанным email не найден.
-            VerifyPasswordError: Если пароль введён неверно.
-        """
-        user = await self.get_one_by_email(email=auth_user.email)
-        if user is None:
-            raise UserNotFoundError()
-        if not self._hash_service.verify_password(
-            auth_user.password, user.hashed_password
-        ):
-            raise VerifyPasswordError()
-        access_token, refresh_token = (
-            self._token_service.create_access_and_refresh_tokens(
-                {"sub": str(user.id), "is_superuser": user.is_superuser}
-            )
-        )
-        payload = self.decode_token(refresh_token)
-        expires_at = datetime.fromtimestamp(payload["exp"], tz=timezone.utc)
-
-        await self._db.refresh_tokens.create_refresh_token(
-            token=refresh_token,
-            user_id=user.id,
-            expires_at=expires_at,
-            ip_address=ip_address,
-            user_agent=user_agent,
-        )
-        return access_token, refresh_token
 
     async def get_one(self, id: UUID) -> UserORM:
         """
@@ -136,18 +98,17 @@ class AuthService(BaseService):
         Returns:
             UserORM: Пользователь.
         Raises:
-            UserNotFoundError: Если пользователь с указанным id не найден.
+            UserNotFoundException: Если пользователь с указанным id не найден.
         """
         user = await self._db.users.get_one_or_none_by_id(id=id)
         if user is None:
-            raise UserNotFoundError()
+            raise UserNotFoundException()
         return user
-
+    
     def decode_token(self, token: str) -> dict[str, Any]:
-        """Декодировать JWT токен."""
         return self._token_service.decode_jwt_token(token)
 
-    async def refresh_tokens(self, old_refresh_token: str) -> tuple[str, str]:
+    async def refresh_token(self, old_refresh_token: str) -> tuple[str, str]:
         """
         Выполняет ротацию токенов (Token Rotation).
 
@@ -169,89 +130,34 @@ class AuthService(BaseService):
         """
         try:
             payload = self.decode_token(old_refresh_token)
-
-            if payload.get("type") != "refresh":
-                raise InvalidTokenError()
-
-        except Exception:
-            await self._db.refresh_tokens.delete_refresh_token(
-                token=old_refresh_token
-                )
-            raise InvalidTokenError()
-
-        db_token = await self._db.refresh_tokens.get_one_or_none_by_token(
-            token=old_refresh_token
-        )
-        if not db_token:
-            raise InvalidTokenError()
-
-        if (
-            db_token.expires_at.replace(tzinfo=None)
-            < datetime.now(timezone.utc).replace(tzinfo=None)
-        ):
-            await self._db.refresh_tokens.delete_refresh_token(
-                token=old_refresh_token
-            )
-            raise TokenExpiredError()
+        except (DecodeTokenException, TokenKeysException):
+            raise
+        if payload.get("type") != "refresh":
+            raise TokenTypeExeption()
+        sid = payload["sid"]
+        try:
+            await self._session_service.verify_session(sid, old_refresh_token)
+        except TokenExeption:
+            raise
 
         is_superuser = payload.get("is_superuser", False)
 
         new_access_token, new_refresh_token = (
             self._token_service.create_access_and_refresh_tokens(
                 {
-                    "sub": str(db_token.user_id),
-                    "is_superuser": is_superuser
+                    "sub": str(payload["sub"]),
+                    "is_superuser": is_superuser,
+                    "sid": str(payload["sid"])
                 }
             )
         )
-
-        new_payload = self.decode_token(new_refresh_token)
-        new_expires_at = datetime.fromtimestamp(
-            new_payload["exp"], tz=timezone.utc
-            )
-
-        await self._db.refresh_tokens.delete_refresh_token(
-            token=old_refresh_token
-            )
-        await self._db.refresh_tokens.create_refresh_token(
-            token=new_refresh_token,
-            user_id=db_token.user_id,
-            expires_at=new_expires_at,
-            ip_address=getattr(db_token, "ip_address", None),
-            user_agent=getattr(db_token, "user_agent", None),
+        
+        await self._session_service.rotate_refresh_token(
+            sid=sid,
+            refresh_token=new_refresh_token,
         )
 
         return new_access_token, new_refresh_token
-
-    async def revoke_refresh_token(self, refresh_token: str) -> None:
-        """
-        Отзывает (удаляет) refresh-токен из базы данных.
-        Используется при выходе пользователя из системы
-        (logout) для инвалидации сессии.
-
-        Args:
-            refresh_token (str): Токен, который необходимо отозвать.
-        """
-        await self._db.refresh_tokens.delete_refresh_token(token=refresh_token)
-
-    async def get_user_history(self, user_id: UUID) -> list[Any]:
-        """
-        Возвращает историю активных сессий (refresh-токенов) пользователя.
-        Перед получением истории проверяет
-        существование пользователя в системе.
-
-        Args:
-            user_id (UUID): Уникальный идентификатор пользователя.
-
-        Returns:
-            list[Any]: Список объектов активных сессий
-            пользователя из базы данных.
-        """
-        await self.get_one(id=user_id)
-
-        return await self._db.refresh_tokens.get_all_by_user_id(
-            user_id=user_id
-            )
 
     async def change_user_email(
         self, user_id: UUID, data: ChangeEmailRequestScheme
@@ -266,7 +172,7 @@ class AuthService(BaseService):
             data (ChangeEmailRequestScheme): Данные для смены email.
 
         Raises:
-            UserNotFoundError: Если пользователь не найден.
+            UserNotFoundException: Если пользователь не найден.
             UserAlreadyexistsException: Если новый email уже занят.
             VerifyPasswordError: Если пароль введен неверно.
 
@@ -275,7 +181,7 @@ class AuthService(BaseService):
         """
         user = await self._db.users.get_one_or_none_by_id(id=user_id)
         if not user:
-            raise UserNotFoundError()
+            raise UserNotFoundException()
 
         email_exists = await self._db.users.get_one_or_none_by_email(
             data.new_email
@@ -287,7 +193,7 @@ class AuthService(BaseService):
             data.password,
             user.hashed_password
         ):
-            raise VerifyPasswordError()
+            raise VerifyPasswordException()
 
         updated_user = await self._db.users.update_user_credentials(
             user_id=user_id,
@@ -308,18 +214,18 @@ class AuthService(BaseService):
             data (ChangePasswordRequestScheme): Данные для смены пароля.
 
         Raises:
-            UserNotFoundError: Если пользователь не найден.
-            VerifyPasswordError: Если текущий старый пароль введен неверно.
+            UserNotFoundException: Если пользователь не найден.
+            VerifyPasswordException: Если текущий старый пароль введен неверно.
         """
         user = await self._db.users.get_one_or_none_by_id(id=user_id)
         if not user:
-            raise UserNotFoundError()
+            raise UserNotFoundException()
 
         if not self._hash_service.verify_password(
             data.current_password,
             user.hashed_password
         ):
-            raise VerifyPasswordError()
+            raise VerifyPasswordException()
 
         new_hash = self._hash_service.create_hash_password(data.new_password)
 
@@ -329,3 +235,64 @@ class AuthService(BaseService):
         )
 
         await self._db.refresh_tokens.delete_all_by_user_id(user_id=user_id)
+        
+    async def authenticate_user(
+            self,
+            auth_user: UserRequestScheme,
+            ip_address: str,
+            user_agent: str
+            ) -> tuple[str, str]:
+        """
+        Аутентифицирует пользователя по email и паролю.
+        - Проверяет, существует ли пользователь.
+        - Сравнивает хэшированный пароль с введённым.
+        - В случае ошибок выбрасывает исключения.
+        Args:
+            auth_user (UserRequestScheme): Данные для входа (email и пароль).
+            ip_address (str): IP-адрес клиента.
+            user_agent (str): Строка User-Agent клиентского устройства.
+
+        Raises:
+            UserNotFoundException: Если пользователь с указанным email не найден.
+            VerifyPasswordException: Если пароль введён неверно.
+        """
+        user = await self.get_one_by_email(email=auth_user.email)
+        if user is None:
+            raise UserNotFoundException()
+        if not self._hash_service.verify_password(
+            auth_user.password, user.hashed_password
+        ):
+            raise VerifyPasswordException()
+        sid = uuid4()
+        access_token, refresh_token = (
+            self._token_service.create_access_and_refresh_tokens(
+                {"sub": str(user.id), "is_superuser": user.is_superuser, "sid": str(sid)}
+            )
+        )
+        
+        await self._session_service.add_session(
+            user.id,
+            user_agent,
+            ip_address,
+            refresh_token,
+            sid,
+        )
+ 
+        return access_token, refresh_token
+    
+    async def revoke_refresh_token(self, refresh_token: str) -> None:
+        try:
+            payload = self.decode_token(refresh_token)
+        except (DecodeTokenException, TokenKeysException):
+            return
+        sid = payload["sid"]
+        await self._session_service.delete_session(sid)
+        
+    async def revoke_all_refresh_tokens(self, refresh_token: str) -> None:
+        try:
+            payload = self.decode_token(refresh_token)
+        except (DecodeTokenException, TokenKeysException):
+            return
+        user_id = payload["sub"]
+        await self._session_service.delete_all_sessions(user_id)
+ 

@@ -60,7 +60,7 @@ def create(
         )
     except ValidationError:
         rich.print(
-            f"[red]Невалидный адрес электронной почты[/red]"
+            "[red]Невалидный адрес электронной почты[/red]"
         )
     except UserAlreadyexistsException as exc:
         rich.print(

@@ -20,11 +20,11 @@ class UserAlreadyexistsException(AuthServiceException):
     detail = "Пользователь уже зарегестрирован в системе"
     
     
-class UserNotFoundError(AuthServiceException):
+class UserNotFoundException(AuthServiceException):
     detail = "Пользователь не найден"
 
 
-class VerifyPasswordError(AuthServiceException):
+class VerifyPasswordException(AuthServiceException):
     detail = "Неверный пароль"
     
     
@@ -34,6 +34,18 @@ class DecodeTokenException(AuthServiceException):
 
 class TokenKeysException(AuthServiceException):
     detail = "Несоответствие данных токена"
+    
+    
+class TokenTypeExeption(AuthServiceException):
+    detail = "Несоответствие типа токена"
+    
+    
+class TokenExeption(AuthServiceException):
+    detail = "Невалидный токен"
+    
+    
+class TokenNotFoundExeption(AuthServiceException):
+    detail = "Токен не обнаружен"
     
     
 class AuthServiceHTTPException(HTTPException):
@@ -66,7 +78,7 @@ class TokenKeysHTTPException(AuthServiceHTTPException):
     status_code = 403
 
 
-class InvalidTokenError(AuthServiceHTTPException):
+class InvalidTokenHTTPException(AuthServiceHTTPException):
     status_code = 401
 
 
