@@ -240,7 +240,7 @@ class AuthService(BaseService):
             hashed_password=new_hash
         )
 
-        await self._db.refresh_tokens.delete_all_by_user_id(user_id=user_id)
+        await self._session_service.delete_all_sessions(str(user_id))
         
     async def authenticate_user(
             self,
