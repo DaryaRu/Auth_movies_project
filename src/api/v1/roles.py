@@ -16,7 +16,7 @@ from src.exceptions import (
     RolePermissionNotFoundHTTPException,
     SystemRoleCannotBeDeletedException,
     SystemRoleCannotBeDeletedHTTPException,
-    UserNotFoundError,
+    UserNotFoundException,
     UserNotFoundHTTPException,
     UserRoleAlreadyExistsException,
     UserRoleAlreadyExistsHTTPException,
@@ -132,7 +132,7 @@ async def assign_role_to_user(
         await role_service.assign_role_to_user(
             user_id=user_id, role_id=role_id
         )
-    except UserNotFoundError as exc:
+    except UserNotFoundException as exc:
         raise UserNotFoundHTTPException(detail=exc.detail)
     except RoleNotFoundException as exc:
         raise RoleNotFoundHTTPException(detail=exc.detail)
@@ -156,7 +156,7 @@ async def remove_role_from_user(
         await role_service.remove_role_from_user(
             user_id=user_id, role_id=role_id
         )
-    except UserNotFoundError as exc:
+    except UserNotFoundException as exc:
         raise UserNotFoundHTTPException(detail=exc.detail)
     except RoleNotFoundException as exc:
         raise RoleNotFoundHTTPException(detail=exc.detail)

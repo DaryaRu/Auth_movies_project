@@ -48,17 +48,6 @@ class RefreshTokenCreate(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class LoginHistoryResponseScheme(BaseModel):
-    """Схема ответа для элемента истории входов (активной сессии)."""
-    id: UUID
-    ip_address: str | None
-    user_agent: str | None
-    created_at: datetime
-    expires_at: datetime
-
-    model_config = ConfigDict(from_attributes=True)
-
-
 class ChangeEmailRequestScheme(BaseModel):
     """Схема для смены email."""
     new_email: EmailStr

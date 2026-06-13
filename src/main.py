@@ -48,7 +48,7 @@ def key_builder(
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    redis.redis = Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT)
+    redis.redis = Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, decode_responses=True)
     FastAPICache.init(
         RedisBackend(redis.redis),
         prefix="fastapi-cache",

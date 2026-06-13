@@ -1,21 +1,25 @@
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials
 
+from src.databases import redis
 from src.databases.pg import async_session_maker
 from src.exceptions import (
     DecodeTokenException,
     DecodeTokenHTTPException,
+    InvalidTokenHTTPException,
     NotEnoughPermissionsHTTPException,
     TokenKeysException,
     TokenKeysHTTPException,
 )
 from src.models.users import UserORM
+from src.repositories.sessions import SessionRedisRepository
 from src.services.auth import AuthService
 from src.services.permissions import PermissionService
 from src.services.roles import RoleService
+from src.services.sessions import SessionService
 from src.utils.db_manager import DBManager
 from src.utils.hashes import HashArgon2Service
 from src.utils.security import CustomHTTPBearer
@@ -31,10 +35,7 @@ def get_token(credentials: HTTPAuthorizationCredentials = Depends(security)) -> 
 def get_refresh_token(request: Request) -> str:
     token = request.cookies.get("refresh_token")
     if token is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"error": "Refresh-токен не обнаружен"},
-        )
+        raise InvalidTokenHTTPException(detail="Токен не обнаружен")
     return token
 
 
@@ -45,42 +46,54 @@ def get_db_manager():
 async def get_db():
     async with get_db_manager() as db:
         yield db
+        
+        
+def get_session_service() -> SessionService:
+    return SessionService(
+        SessionRedisRepository(redis.redis)
+    )
 
 
-DBDep = Annotated[DBManager, Depends(get_db)]
+def get_auth_service(db: "DBDep", session_service: "SessionServiceDep") -> AuthService:
+    return AuthService(
+        HashArgon2Service(),
+        JWTTokenService(),
+        session_service,
+        db
+    )
 
 
-def get_auth_service(db: DBDep) -> AuthService:
-    return AuthService(HashArgon2Service(), JWTTokenService(), db)
-
-
-def get_role_service(db: DBDep) -> RoleService:
+def get_role_service(db: "DBDep") -> RoleService:
     return RoleService(db)
 
 
-def get_permission_service(db: DBDep) -> PermissionService:
+def get_permission_service(db: "DBDep") -> PermissionService:
     return PermissionService(db)
 
 
-def get_current_user_id(
+async def get_token_payload(
+    session_service: "SessionServiceDep",
     token: str = Depends(get_token),
     auth_service: AuthService = Depends(get_auth_service),
-) -> UUID:
+) -> dict[str, Any]:
     try:
         data = auth_service.decode_token(token)
     except DecodeTokenException as exc:
         raise DecodeTokenHTTPException(detail=exc.detail)
     except TokenKeysException as exc:
         raise TokenKeysHTTPException(detail=exc.detail)
-    return UUID(data.get("sub"))
+    session = await session_service.get_session(data["sid"])
+    if not session:
+        raise InvalidTokenHTTPException(detail="Невалидный токен")
+    return data
 
 
 async def get_current_user(
-    user_id: UUID = Depends(get_current_user_id),
-    db: DBDep = None,
+    db: "DBDep",
+    token_payload: dict[str, Any] = Depends(get_token_payload),
 ) -> UserORM:
     """Возвращает текущего пользователя по id из токена. Выбрасывает 401, если пользователь не найден."""
-    user = await db.users.get_one_or_none_by_id(user_id)
+    user = await db.users.get_one_or_none_by_id(UUID(token_payload.get("sub")))
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -98,10 +111,12 @@ async def get_current_staff_user(
     return user
 
 
-UserIDDep = Annotated[UUID, Depends(get_current_user_id)]
 CurrentUserDep = Annotated[UserORM, Depends(get_current_user)]
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
 RefreshTokenDep = Annotated[str, Depends(get_refresh_token)]
 RoleServiceDep = Annotated[RoleService, Depends(get_role_service)]
 PermissionServiceDep = Annotated[PermissionService, Depends(get_permission_service)]
 StaffUserDep = Annotated[UserORM, Depends(get_current_staff_user)]
+TokenPayloadDep = Annotated[dict[str, Any], Depends(get_token_payload)]
+DBDep = Annotated[DBManager, Depends(get_db)]
+SessionServiceDep = Annotated[SessionService, Depends(get_session_service)]

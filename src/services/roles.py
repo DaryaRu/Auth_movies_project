@@ -8,7 +8,7 @@ from src.exceptions import (
     RolePermissionAlreadyExistsException,
     RolePermissionNotFoundException,
     SystemRoleCannotBeDeletedException,
-    UserNotFoundError,
+    UserNotFoundException,
     UserRoleAlreadyExistsException,
     UserRoleNotFoundException,
 )
@@ -127,7 +127,7 @@ class RoleService(BaseService):
         """
         user = await self._db.users.get_one_or_none_by_id(user_id)
         if user is None:
-            raise UserNotFoundError()
+            raise UserNotFoundException()
         await self.get_role_by_id(role_id)
         try:
             await self._db.roles.assign_role_to_user(user_id=user_id, role_id=role_id)
@@ -144,7 +144,7 @@ class RoleService(BaseService):
         """
         user = await self._db.users.get_one_or_none_by_id(user_id)
         if user is None:
-            raise UserNotFoundError()
+            raise UserNotFoundException()
         await self.get_role_by_id(role_id)
         if not await self._db.roles.has_role(user_id=user_id, role_id=role_id):
             raise UserRoleNotFoundException()
