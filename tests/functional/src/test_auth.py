@@ -1,5 +1,7 @@
 """Функциональные тесты эндпоинтов аутентификации."""
 
+import base64
+import json
 from http import HTTPStatus
 from typing import Any
 
@@ -102,6 +104,28 @@ class TestLogin:
 
         assert "refresh_token" in cookies
 
+    async def test_login_token_contains_permissions(
+        self,
+        http_client: ClientSession,
+        active_user_data: dict[str, Any],
+    ):
+        """Access-токен содержит поле permissions со списком прав пользователя."""
+        response = await http_client.post(
+            self.URL,
+            json={
+                "email": active_user_data["email"],
+                "password": active_user_data["password"],
+            },
+        )
+        data = await assert_status_return_json(response, HTTPStatus.OK)
+
+        token_payload = data["access_token"].split(".")[1]
+        token_payload += "=" * (4 - len(token_payload) % 4)
+        payload = json.loads(base64.urlsafe_b64decode(token_payload))
+
+        assert "permissions" in payload
+        assert isinstance(payload["permissions"], list)
+
     async def test_login_user_not_found(
         self,
         http_client: ClientSession,
@@ -190,7 +214,8 @@ class TestRefreshToken:
         assert login_response.status == HTTPStatus.OK, (
             f"Login failed: {await login_response.text()}"
         )
-        await login_response.json()  # потребляем тело ответа, чтобы куки попали в jar
+        # читаем тело ответа до конца, чтобы Set-Cookie обработался и куки попали в jar
+        await login_response.json()
 
         response = await cookie_http_client.post(self.URL)
         data = await assert_status_return_json(response, HTTPStatus.OK)
@@ -246,7 +271,7 @@ class TestLogout:
                 "password": active_user_data["password"],
             },
         )
-        await login_response.json()  # потребляем тело ответа, чтобы куки попали в jar
+        await login_response.json()
 
         response = await cookie_http_client.post(self.URL)
         await assert_status(response, HTTPStatus.NO_CONTENT)
@@ -276,7 +301,7 @@ class TestLogout:
                 "password": active_user_data["password"],
             },
         )
-        await login_response.json()  # потребляем тело ответа, чтобы куки попали в jar
+        await login_response.json()
 
         await cookie_http_client.post(self.URL)
 
@@ -286,13 +311,13 @@ class TestLogout:
         )
 
         assert_error_detail(data)
-        
-        
+
+
 class TestLogoutAll:
     LOGOUT_ALL_URL = f"{test_settings.api_prefix}/logout-all/"
     LOGIN_URL = f"{test_settings.api_prefix}/login/"
     ACTIVE_SESSION_URL = f"{test_settings.api_prefix}/active_sessions/"
-    
+
     async def test_logout_all_success(
         self,
         cookie_http_client: ClientSession,
@@ -311,7 +336,7 @@ class TestLogoutAll:
                     "AppleWebKit/537.36 (KHTML, like Gecko) "
                     "Chrome/137.0.0.0 Safari/537.36"
                 )
-            }
+            },
         )
         login_response_2 = await cookie_http_client.post(
             self.LOGIN_URL,
@@ -325,7 +350,7 @@ class TestLogoutAll:
                     "AppleWebKit/605.1.15 (KHTML, like Gecko) "
                     "Version/18.3 Mobile/15E148 Safari/604.1"
                 )
-            }
+            },
         )
         login_data_1 = await login_response_1.json()
         access_token_1 = login_data_1["access_token"]
@@ -335,18 +360,18 @@ class TestLogoutAll:
 
         response = await cookie_http_client.post(self.LOGOUT_ALL_URL)
         await assert_status(response, HTTPStatus.NO_CONTENT)
-        
+
         session_response_1 = await cookie_http_client.get(
             self.ACTIVE_SESSION_URL,
-            headers = {"Authorization": f"Bearer {access_token_1}"}
+            headers={"Authorization": f"Bearer {access_token_1}"},
         )
         await assert_status(session_response_1, HTTPStatus.UNAUTHORIZED)
         session_response_2 = await cookie_http_client.get(
             self.ACTIVE_SESSION_URL,
-            headers = {"Authorization": f"Bearer {access_token_2}"}
+            headers={"Authorization": f"Bearer {access_token_2}"},
         )
         await assert_status(session_response_2, HTTPStatus.UNAUTHORIZED)
-        
+
     async def test_logout_all_without_token(
         self,
         http_client: ClientSession,
@@ -358,13 +383,13 @@ class TestLogoutAll:
         )
 
         assert_error_detail(data)
-        
+
 
 class TestActiveSession:
     LOGIN_URL = f"{test_settings.api_prefix}/login/"
     ACTIVE_SESSION_URL = f"{test_settings.api_prefix}/active_sessions/"
     LOGOUT_URL = f"{test_settings.api_prefix}/logout/"
-    
+
     async def test_get_active_session_success(
         self,
         http_client: ClientSession,
@@ -382,15 +407,17 @@ class TestActiveSession:
         access_token = login_data["access_token"]
         active_session_response = await http_client.get(
             self.ACTIVE_SESSION_URL,
-            headers = {"Authorization": f"Bearer {access_token}"}
+            headers={"Authorization": f"Bearer {access_token}"},
         )
-        data = await assert_status_return_json(active_session_response, HTTPStatus.OK)
+        data = await assert_status_return_json(
+            active_session_response, HTTPStatus.OK
+        )
         assert len(data) == 1
         assert "user_agent" in data[0]
         assert "ip" in data[0]
         assert "created_at" in data[0]
         assert "is_current" in data[0]
-        
+
     async def test_change_in_active_sessions(
         self,
         cookie_http_client: ClientSession,
@@ -409,7 +436,7 @@ class TestActiveSession:
                     "AppleWebKit/537.36 (KHTML, like Gecko) "
                     "Chrome/137.0.0.0 Safari/537.36"
                 )
-            }
+            },
         )
         login_response_2 = await cookie_http_client.post(
             self.LOGIN_URL,
@@ -423,7 +450,7 @@ class TestActiveSession:
                     "AppleWebKit/605.1.15 (KHTML, like Gecko) "
                     "Version/18.3 Mobile/15E148 Safari/604.1"
                 )
-            }
+            },
         )
         login_data_1 = await login_response_1.json()
         access_token_1 = login_data_1["access_token"]
@@ -432,18 +459,22 @@ class TestActiveSession:
         access_token_2 = login_data_2["access_token"]
         active_session_response = await cookie_http_client.get(
             self.ACTIVE_SESSION_URL,
-            headers = {"Authorization": f"Bearer {access_token_2}"}
+            headers={"Authorization": f"Bearer {access_token_2}"},
         )
-        data = await assert_status_return_json(active_session_response, HTTPStatus.OK)
+        data = await assert_status_return_json(
+            active_session_response, HTTPStatus.OK
+        )
         assert len(data) == 2
         assert sum(item["is_current"] for item in data) == 1
         logout_response = await cookie_http_client.post(self.LOGOUT_URL)
         await assert_status(logout_response, HTTPStatus.NO_CONTENT)
         active_session_response = await cookie_http_client.get(
             self.ACTIVE_SESSION_URL,
-            headers = {"Authorization": f"Bearer {access_token_1}"}
+            headers={"Authorization": f"Bearer {access_token_1}"},
         )
-        data = await assert_status_return_json(active_session_response, HTTPStatus.OK)
+        data = await assert_status_return_json(
+            active_session_response, HTTPStatus.OK
+        )
         assert len(data) == 1
 
     async def test_get_active_session_error_without_headers(
@@ -453,5 +484,7 @@ class TestActiveSession:
         response = await http_client.get(
             self.ACTIVE_SESSION_URL,
         )
-        data = await assert_status_return_json(response, HTTPStatus.UNAUTHORIZED)
+        data = await assert_status_return_json(
+            response, HTTPStatus.UNAUTHORIZED
+        )
         assert_error_detail(data)
