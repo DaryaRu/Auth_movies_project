@@ -1,8 +1,10 @@
 from uuid import UUID
 
 from fastapi import APIRouter, status
+from fastapi_cache.decorator import cache
 
 from src.api.v1.dependiences import RoleServiceDep, StaffUserDep
+from src.core.config import settings
 from src.exceptions import (
     PermissionNotFoundException,
     PermissionNotFoundHTTPException,
@@ -54,6 +56,7 @@ async def create_role(
     "/",
     summary="Список ролей",
 )
+@cache(expire=settings.CACHE_EXPIRE)
 async def get_all_roles(
     role_service: RoleServiceDep,
     staff_user: StaffUserDep,
@@ -66,6 +69,7 @@ async def get_all_roles(
     "/{role_id}/",
     summary="Информация о роли",
 )
+@cache(expire=settings.CACHE_EXPIRE)
 async def get_role(
     role_id: UUID,
     role_service: RoleServiceDep,

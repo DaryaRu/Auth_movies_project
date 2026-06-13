@@ -1,8 +1,10 @@
 from uuid import UUID
 
 from fastapi import APIRouter, status
+from fastapi_cache.decorator import cache
 
 from src.api.v1.dependiences import PermissionServiceDep, StaffUserDep
+from src.core.config import settings
 from src.exceptions import (
     PermissionAlreadyExistsException,
     PermissionAlreadyExistsHTTPException,
@@ -39,6 +41,7 @@ async def create_permission(
     "/",
     summary="Список прав",
 )
+@cache(expire=settings.CACHE_EXPIRE)
 async def get_all_permissions(
     permission_service: PermissionServiceDep,
     staff_user: StaffUserDep,
