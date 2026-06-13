@@ -1,4 +1,4 @@
-"""Инфраструктурные фикстуры: HTTP-клиент и подключение к БД."""
+"""Инфраструктурные фикстуры: HTTP-клиенты и подключение к БД."""
 
 import asyncio
 from typing import Any, Awaitable, Callable, Iterable
@@ -10,7 +10,11 @@ import pytest_asyncio
 from functional.settings import test_settings
 from functional.utils.helpers import create_data, delete_data
 
-pytest_plugins = ["functional.fixtures.users", "functional.fixtures.roles", "functional.fixtures.permissions"]
+pytest_plugins = [
+    "functional.fixtures.users",
+    "functional.fixtures.roles",
+    "functional.fixtures.permissions",
+]
 
 WriteData = Callable[
     [str, Iterable[str], Iterable[Any]],
@@ -28,7 +32,9 @@ def event_loop():
 
 @pytest_asyncio.fixture(scope="function")
 async def http_client() -> aiohttp.ClientSession:
-    """Function-scoped HTTP-клиент для тестов."""
+    """Function-scoped HTTP-клиент для тестов.
+    DummyCookieJar нужен, чтобы куки не отправлялись и не переходили между тестами, для изоляция.
+    """
     async with aiohttp.ClientSession(
         base_url=test_settings.api_url,
         connector=aiohttp.TCPConnector(use_dns_cache=False),
@@ -38,9 +44,27 @@ async def http_client() -> aiohttp.ClientSession:
         yield session
 
 
+@pytest_asyncio.fixture(scope="function")
+async def cookie_http_client() -> aiohttp.ClientSession:
+    """Клиент для тестов с cookie (login, refresh, logout).
+    CookieJar(unsafe=True) сохраняет и автоматически отправляет куки в следующих запросах.
+    После логина нужно обратиться к response.cookies, чтобы jar обновился.
+    """
+    async with aiohttp.ClientSession(
+        base_url=test_settings.api_url,
+        connector=aiohttp.TCPConnector(use_dns_cache=False),
+        cookie_jar=aiohttp.CookieJar(unsafe=True),
+        timeout=aiohttp.ClientTimeout(total=None),
+    ) as session:
+        yield session
+
+
 @pytest_asyncio.fixture(scope="session")
 async def session_http_client() -> aiohttp.ClientSession:
-    """Session-scoped HTTP-клиент для async-фикстур, которым нужны API-вызовы."""
+    """Клиент только для session-scoped фикстур, которым нужны API-вызовы
+    (например, superuser_token, regular_user_token).
+    Один экземпляр на всю сессию, куки не сохраняются.
+    """
     async with aiohttp.ClientSession(
         base_url=test_settings.api_url,
         connector=aiohttp.TCPConnector(use_dns_cache=False),
