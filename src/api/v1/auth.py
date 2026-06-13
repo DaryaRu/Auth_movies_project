@@ -104,7 +104,7 @@ async def login(
         value=refresh_token,
         httponly=True,
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
-        secure=True,
+        secure=settings.COOKIE_SECURE,
         samesite="lax",
         path="/",
     )
@@ -177,7 +177,7 @@ async def refresh_token(
         value=new_refresh_token,
         httponly=True,
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
-        secure=True,
+        secure=settings.COOKIE_SECURE,
         samesite="lax",
         path="/",
     )
@@ -221,7 +221,7 @@ async def logout(
     response.delete_cookie(
         key="refresh_token",
         httponly=True,
-        secure=True,
+        secure=settings.COOKIE_SECURE,
         samesite="lax",
         path="/",
     )
@@ -256,14 +256,14 @@ async def logout_all(
     response.delete_cookie(
         key="refresh_token",
         httponly=True,
-        secure=True,
+        secure=settings.COOKIE_SECURE,
         samesite="lax",
         path="/",
     )
     
     
 @router.get(
-    "/active_sessions",
+    "/active_sessions/",
     summary="Получение активных сессий пользователя",
     response_model=list[UserSessionResponse]
 )

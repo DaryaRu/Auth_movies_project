@@ -34,6 +34,8 @@ class Settings(BaseSettings):
     HASH_MEMORY_COST: int
     HASH_PARALLELISM: int
     API_V1_PREFIX: str = "/api/v1"
+    CACHE_EXPIRE: int
+    COOKIE_SECURE: bool = False
 
     @property
     def DB_URL(self):

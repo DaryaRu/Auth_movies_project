@@ -1,12 +1,14 @@
 """Инфраструктурные фикстуры: HTTP-клиенты и подключение к БД."""
 
 import asyncio
-from typing import Any, Awaitable, Callable, Iterable
+from typing import Any, AsyncGenerator, Awaitable, Callable, Iterable
 
 import aiohttp
 import asyncpg
 import pytest
 import pytest_asyncio
+from redis.asyncio import Redis
+
 from functional.settings import test_settings
 from functional.utils.helpers import create_data, delete_data
 
@@ -77,7 +79,7 @@ async def session_http_client() -> aiohttp.ClientSession:
 
 
 @pytest_asyncio.fixture(scope="session")
-async def pg_client() -> asyncpg.Connection:
+async def pg_client() -> AsyncGenerator[asyncpg.Connection, None]:
     """Подключение к PostgreSQL на время сессии."""
     dsn = (
         f"postgresql://{test_settings.postgres_user}:{test_settings.postgres_password}@"
@@ -89,7 +91,7 @@ async def pg_client() -> asyncpg.Connection:
 
 
 @pytest_asyncio.fixture(scope="session")
-async def pg_write_data(pg_client: asyncpg.Connection) -> WriteData:
+async def pg_write_data(pg_client: asyncpg.Connection) -> AsyncGenerator[WriteData, None]:
     """Записывает данные в БД и удаляет все записи из таблиц после сессии."""
     used_tables: set[str] = set()
 
@@ -103,3 +105,19 @@ async def pg_write_data(pg_client: asyncpg.Connection) -> WriteData:
 
     for table in used_tables:
         await delete_data(pg_client, table)
+        
+        
+@pytest_asyncio.fixture(scope="session")
+async def redis_client():
+    """Session-scoped Redis async client."""
+    client = Redis(
+        host=test_settings.redis_host, port=test_settings.redis_port
+    )
+    yield client
+    await client.aclose()
+
+
+@pytest_asyncio.fixture()
+async def flush_redis_db(redis_client: Redis) -> None:
+    """Flushe Redis cache before each test."""
+    await redis_client.flushdb()
