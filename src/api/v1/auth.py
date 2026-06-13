@@ -1,8 +1,16 @@
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Response,  Request, status
+from fastapi import APIRouter, Request, Response, status
+from fastapi_cache.decorator import cache
 
-from src.api.v1.dependiences import AuthServiceDep, CurrentUserDep, RefreshTokenDep, RoleServiceDep, SessionServiceDep, TokenPayloadDep
+from src.api.v1.dependiences import (
+    AuthServiceDep,
+    CurrentUserDep,
+    RefreshTokenDep,
+    RoleServiceDep,
+    SessionServiceDep,
+    TokenPayloadDep,
+)
 from src.core.config import settings
 from src.exceptions import (
     DecodeTokenException,
@@ -34,7 +42,7 @@ router = APIRouter(tags=["Auth"])
     "/registration/",
     status_code=status.HTTP_201_CREATED,
     summary="Регистрация пользователя",
-    response_model=UserResponseScheme
+    response_model=UserResponseScheme,
 )
 async def create_user(
     user: UserRequestScheme,
@@ -60,9 +68,7 @@ async def create_user(
 
 
 @router.post(
-    "/login/",
-    summary="Вход в аккаунт",
-    response_model=JWTAccessToken
+    "/login/", summary="Вход в аккаунт", response_model=JWTAccessToken
 )
 async def login(
     response: Response,
@@ -90,9 +96,7 @@ async def login(
 
     try:
         access_token, refresh_token = await auth_service.authenticate_user(
-            user,
-            ip_address=ip_address,
-            user_agent=user_agent
+            user, ip_address=ip_address, user_agent=user_agent
         )
     except UserNotFoundException as exc:
         raise UserNotFoundHTTPException(detail=exc.detail)
@@ -111,11 +115,8 @@ async def login(
 
     return JWTAccessToken(
         access_token=access_token,
-        access_token_expire=datetime.now(
-            timezone.utc
-        ) + timedelta(
-            minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
-        ),
+        access_token_expire=datetime.now(timezone.utc)
+        + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
     )
 
 
@@ -123,7 +124,8 @@ async def login(
     "/jwt.key/",
     summary="Публичный ключ JWT",
 )
-def get_public_key() -> dict[str, str]:
+@cache(expire=3600)
+async def get_public_key() -> dict[str, str]:
     """
     Получение публичного ключа для верификации JWT.
 
@@ -134,9 +136,7 @@ def get_public_key() -> dict[str, str]:
 
 
 @router.post(
-    "/refresh/",
-    summary="Обновление токенов",
-    response_model=JWTAccessToken
+    "/refresh/", summary="Обновление токенов", response_model=JWTAccessToken
 )
 async def refresh_token(
     refresh_token: RefreshTokenDep,
@@ -147,10 +147,10 @@ async def refresh_token(
     Обновление пары JWT-токенов (Access и Refresh).
     - Извлекает старый refresh-токен из HTTP-кук.
     - Выполняет процедуру ротации токенов в сервисе.
-    - Перезаписывает новые куки в HTTP-ответ.
+    - Перезаписывает новые cookies в HTTP-ответ.
 
     Args:
-        request (Request): Объект запроса для извлечения старой куки.
+        request (Request): Объект запроса для извлечения старого cookie.
         response (Response): Объект ответа для установки новых кук.
         auth_service (AuthServiceDep): Зависимость сервиса аутентификации.
 
@@ -168,7 +168,7 @@ async def refresh_token(
         DecodeTokenException,
         TokenKeysException,
         TokenTypeExeption,
-        TokenExeption
+        TokenExeption,
     ) as exc:
         raise InvalidTokenHTTPException(detail=exc.detail)
 
@@ -184,11 +184,8 @@ async def refresh_token(
 
     return JWTAccessToken(
         access_token=new_access_token,
-        access_token_expire=datetime.now(
-            timezone.utc
-        ) + timedelta(
-            minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
-        ),
+        access_token_expire=datetime.now(timezone.utc)
+        + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
     )
 
 
@@ -205,7 +202,7 @@ async def logout(
     """
     Выход пользователя из аккаунта с отзывом текущей сессии.
     - Удаляет запись о текущем refresh-токене из базы данных.
-    - Стирает авторизационные куки (refresh_token) на клиенте.
+    - Стирает авторизационные cookies (refresh_token) на клиенте.
 
     Args:
         response (Response): Объект ответа FastAPI для очистки кук.
@@ -225,8 +222,8 @@ async def logout(
         samesite="lax",
         path="/",
     )
-    
-    
+
+
 @router.post(
     "/logout-all/",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -260,12 +257,12 @@ async def logout_all(
         samesite="lax",
         path="/",
     )
-    
-    
+
+
 @router.get(
     "/active_sessions/",
     summary="Получение активных сессий пользователя",
-    response_model=list[UserSessionResponse]
+    response_model=list[UserSessionResponse],
 )
 async def get_user_active_sessions(
     token_payload: TokenPayloadDep,
