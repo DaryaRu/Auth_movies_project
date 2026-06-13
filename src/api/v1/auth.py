@@ -261,7 +261,7 @@ async def change_password(
         response.delete_cookie(
             key="refresh_token",
             httponly=True,
-            secure=True,
+            secure=settings.COOKIE_SECURE,
             samesite="lax",
             path="/",
         )

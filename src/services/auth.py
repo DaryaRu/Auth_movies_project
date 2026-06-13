@@ -265,6 +265,8 @@ class AuthService(BaseService):
         user = await self.get_one_by_email(email=auth_user.email)
         if user is None:
             raise UserNotFoundException()
+        if not user.is_active:
+            raise UserNotFoundException()
         if not self._hash_service.verify_password(
             auth_user.password, user.hashed_password
         ):
