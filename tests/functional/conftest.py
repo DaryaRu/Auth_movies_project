@@ -47,8 +47,10 @@ async def http_client() -> aiohttp.ClientSession:
 @pytest_asyncio.fixture(scope="function")
 async def cookie_http_client() -> aiohttp.ClientSession:
     """Клиент для тестов с cookie (login, refresh, logout).
-    CookieJar(unsafe=True) сохраняет и автоматически отправляет куки в следующих запросах.
-    После логина нужно обратиться к response.cookies, чтобы jar обновился.
+    CookieJar(unsafe=True) сохраняет Set-Cookie и автоматически отправляет куки в следующих запросах.
+    unsafe=True нужен для hostname без точки (fastapi-auth).
+    После логина нужно прочитать ответ до конца (await response.json()), иначе aiohttp
+    не завершит обработку Set-Cookie и куки не попадут в jar.
     """
     async with aiohttp.ClientSession(
         base_url=test_settings.api_url,
