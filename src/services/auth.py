@@ -77,6 +77,10 @@ class AuthService(BaseService):
         )
         return new_user
 
+    async def _get_permission_codes(self, user_id: UUID) -> list[str]:
+        permissions = await self._db.roles.get_user_permissions(user_id)
+        return [p.code for p in permissions]
+
     async def get_one_by_email(self, email: str) -> UserORM:
         """
         Получает пользователя по email.
@@ -141,13 +145,15 @@ class AuthService(BaseService):
             raise
 
         is_superuser = payload.get("is_superuser", False)
+        permission_codes = await self._get_permission_codes(UUID(payload["sub"]))
 
         new_access_token, new_refresh_token = (
             self._token_service.create_access_and_refresh_tokens(
                 {
                     "sub": str(payload["sub"]),
                     "is_superuser": is_superuser,
-                    "sid": str(payload["sid"])
+                    "sid": str(payload["sid"]),
+                    "permissions": permission_codes,
                 }
             )
         )
@@ -264,9 +270,15 @@ class AuthService(BaseService):
         ):
             raise VerifyPasswordException()
         sid = uuid4()
+        permission_codes = await self._get_permission_codes(user.id)
         access_token, refresh_token = (
             self._token_service.create_access_and_refresh_tokens(
-                {"sub": str(user.id), "is_superuser": user.is_superuser, "sid": str(sid)}
+                {
+                    "sub": str(user.id),
+                    "is_superuser": user.is_superuser,
+                    "sid": str(sid),
+                    "permissions": permission_codes,
+                }
             )
         )
         
