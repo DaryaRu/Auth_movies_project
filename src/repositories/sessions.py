@@ -77,12 +77,13 @@ class SessionRedisRepository(SessionAbstractRepository):
         sid: str,
         refresh_token_hash: str
     ) -> None:
+        key = f"session:{sid}"
+        ttl = settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
 
-        await self._redis.hset(
-            f"session:{sid}",
-            "refresh_token_hash",
-            refresh_token_hash
-        )
+        async with self._redis.pipeline(transaction=True) as pipe:
+            pipe.hset(key, "refresh_token_hash", refresh_token_hash)
+            pipe.expire(key, ttl)
+            await pipe.execute()
         
     async def get_user_session(self, sid: str) -> dict[str, Any]:
         key = f"session:{sid}"
@@ -123,8 +124,11 @@ class SessionRedisRepository(SessionAbstractRepository):
         if not sids:
             return []
         result = []
-        for sid in sids:
-            session = await self._redis.hgetall(f"session:{sid}")
+        async with self._redis.pipeline(transaction=False) as pipe:
+            for sid in sids:
+                pipe.hgetall(f"session:{sid}")
+            sessions = await pipe.execute()
+        for sid, session in zip(sids, sessions):
             if not session:
                 continue
             result.append({

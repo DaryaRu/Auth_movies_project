@@ -46,13 +46,11 @@ class Settings(BaseSettings):
 
     @property
     def PRIVATE_KEY(self):
-        with open(self.PRIVATE_KEY_PATH) as file:
-            return file.read()
+        return Path(self.PRIVATE_KEY_PATH).read_text()
 
     @property
     def PUBLIC_KEY(self):
-        with open(self.PUBLIC_KEY_PATH) as file:
-            return file.read()
+        return Path(self.PUBLIC_KEY_PATH).read_text()
 
 
 settings = Settings()
