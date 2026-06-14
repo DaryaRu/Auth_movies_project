@@ -99,7 +99,7 @@ async def login(
     "/jwt.key/",
     summary="Публичный ключ JWT",
 )
-@cache(expire=3600)
+@cache(expire=settings.CACHE_EXPIRE * 6)
 async def get_public_key() -> dict[str, str]:
     """Публичный ключ RS256 для верификации JWT другими сервисами. Кэшируется на 1 час."""
     return {"public_key": settings.PUBLIC_KEY}
