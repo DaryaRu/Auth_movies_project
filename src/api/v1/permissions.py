@@ -3,7 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, status
 from fastapi_cache.decorator import cache
 
-from src.api.v1.dependiences import PermissionServiceDep, StaffUserDep
+from src.api.v1.dependencies import PermissionServiceDep, StaffUserDep
 from src.core.config import settings
 from src.exceptions import (
     PermissionAlreadyExistsException,
