@@ -5,9 +5,12 @@ import typer
 from pydantic import ValidationError
 
 from src.databases.pg import async_session_maker
+from src.databases import redis
 from src.exceptions import UserAlreadyexistsException
+from src.repositories.sessions import SessionRedisRepository
 from src.schemas.users import UserRequestScheme
 from src.services.auth import AuthService
+from src.services.sessions import SessionService
 from src.utils.db_manager import DBManager
 from src.utils.hashes import HashArgon2Service
 from src.utils.tokens import JWTTokenService
@@ -27,6 +30,7 @@ async def _create_superuser(
         await AuthService(
             HashArgon2Service(),
             JWTTokenService(),
+            SessionService(SessionRedisRepository(redis.redis)),
             db,
         ).create_admin(admin)
 
