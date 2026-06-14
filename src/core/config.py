@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     HASH_MEMORY_COST: int
     HASH_PARALLELISM: int
     API_V1_PREFIX: str = "/api/v1"
-    CACHE_EXPIRE: int
+    CACHE_EXPIRE: int = 600
     COOKIE_SECURE: bool = False
 
     @property

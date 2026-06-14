@@ -1,8 +1,16 @@
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Response,  Request, status
+from fastapi import APIRouter, Request, Response, status
+from fastapi_cache.decorator import cache
 
-from src.api.v1.dependiences import AuthServiceDep, CurrentUserDep, RefreshTokenDep, RoleServiceDep, SessionServiceDep, TokenPayloadDep
+from src.api.v1.dependiences import (
+    AuthServiceDep,
+    CurrentUserDep,
+    RefreshTokenDep,
+    RoleServiceDep,
+    SessionServiceDep,
+    TokenPayloadDep,
+)
 from src.core.config import settings
 from src.exceptions import (
     DecodeTokenException,
@@ -34,24 +42,13 @@ router = APIRouter(tags=["Auth"])
     "/registration/",
     status_code=status.HTTP_201_CREATED,
     summary="Регистрация пользователя",
-    response_model=UserResponseScheme
+    response_model=UserResponseScheme,
 )
 async def create_user(
     user: UserRequestScheme,
     auth_service: AuthServiceDep,
 ):
-    """
-    Регистрация нового пользователя.
-    Проверяет, существует ли пользователь с таким email.
-    Хэширует пароль и сохраняет пользователя в базе данных.
-    Args:
-        user (UserRequestScheme): Данные пользователя (email, password).
-        auth_service (AuthServiceDep): Сервис для работы с пользователями.
-    Raises:
-        HTTPException: Если пользователь с таким email уже существует.
-    Returns:
-        UserResponseScheme: Данные пользователя.
-    """
+    """Регистрация нового пользователя. Хэширует пароль и сохраняет в БД."""
     try:
         created_user = await auth_service.register_user(user)
     except UserAlreadyexistsException as exc:
@@ -60,9 +57,7 @@ async def create_user(
 
 
 @router.post(
-    "/login/",
-    summary="Вход в аккаунт",
-    response_model=JWTAccessToken
+    "/login/", summary="Вход в аккаунт", response_model=JWTAccessToken
 )
 async def login(
     response: Response,
@@ -70,29 +65,13 @@ async def login(
     user: UserRequestScheme,
     auth_service: AuthServiceDep,
 ):
-    """
-    Аутентификация пользователя.
-    - Проверяет корректность email и пароля.
-    - Создаёт access и refresh токены.
-    - Сохраняет refresh token в cookie `refresh_token`.
-    Args:
-        response (Response): Объект FastAPI Response для установки cookie.
-        request (Request): Объект запроса для извлечения IP и User-Agent.
-        user (UserRequestScheme): Данные пользователя.
-        auth_service (AuthServiceDep): Сервис пользователей.
-    Raises:
-        HTTPException: Если email или пароль некорректны.
-    Returns:
-        JWTAccessToken: Access токен с временем жизни.
-    """
+    """Аутентификация по email и паролю. Возвращает access-токен, refresh-токен сохраняется в cookie."""
     ip_address = request.client.host if request.client else "unknown"
     user_agent = request.headers.get("user-agent", "unknown")
 
     try:
         access_token, refresh_token = await auth_service.authenticate_user(
-            user,
-            ip_address=ip_address,
-            user_agent=user_agent
+            user, ip_address=ip_address, user_agent=user_agent
         )
     except UserNotFoundException as exc:
         raise UserNotFoundHTTPException(detail=exc.detail)
@@ -111,11 +90,8 @@ async def login(
 
     return JWTAccessToken(
         access_token=access_token,
-        access_token_expire=datetime.now(
-            timezone.utc
-        ) + timedelta(
-            minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
-        ),
+        access_token_expire=datetime.now(timezone.utc)
+        + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
     )
 
 
@@ -123,43 +99,21 @@ async def login(
     "/jwt.key/",
     summary="Публичный ключ JWT",
 )
-def get_public_key() -> dict[str, str]:
-    """
-    Получение публичного ключа для верификации JWT.
-
-    Returns:
-        dict: Словарь с публичным ключом {"public_key": str}.
-    """
+@cache(expire=settings.CACHE_EXPIRE * 6)
+async def get_public_key() -> dict[str, str]:
+    """Публичный ключ RS256 для верификации JWT другими сервисами. Кэшируется на 1 час."""
     return {"public_key": settings.PUBLIC_KEY}
 
 
 @router.post(
-    "/refresh/",
-    summary="Обновление токенов",
-    response_model=JWTAccessToken
+    "/refresh/", summary="Обновление токенов", response_model=JWTAccessToken
 )
 async def refresh_token(
     refresh_token: RefreshTokenDep,
     response: Response,
     auth_service: AuthServiceDep,
 ):
-    """
-    Обновление пары JWT-токенов (Access и Refresh).
-    - Извлекает старый refresh-токен из HTTP-кук.
-    - Выполняет процедуру ротации токенов в сервисе.
-    - Перезаписывает новые куки в HTTP-ответ.
-
-    Args:
-        request (Request): Объект запроса для извлечения старой куки.
-        response (Response): Объект ответа для установки новых кук.
-        auth_service (AuthServiceDep): Зависимость сервиса аутентификации.
-
-    Raises:
-        HTTPException: Если refresh-токен отсутствует, невалиден или протух.
-
-    Returns:
-        JWTAccessToken: Новый Access токен со временем жизни.
-    """
+    """Ротация токенов: старый refresh-токен из cookie заменяется новой парой."""
     try:
         new_access_token, new_refresh_token = await auth_service.refresh_token(
             old_refresh_token=refresh_token
@@ -168,7 +122,7 @@ async def refresh_token(
         DecodeTokenException,
         TokenKeysException,
         TokenTypeExeption,
-        TokenExeption
+        TokenExeption,
     ) as exc:
         raise InvalidTokenHTTPException(detail=exc.detail)
 
@@ -184,11 +138,8 @@ async def refresh_token(
 
     return JWTAccessToken(
         access_token=new_access_token,
-        access_token_expire=datetime.now(
-            timezone.utc
-        ) + timedelta(
-            minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
-        ),
+        access_token_expire=datetime.now(timezone.utc)
+        + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
     )
 
 
@@ -202,20 +153,7 @@ async def logout(
     refresh_token: RefreshTokenDep,
     auth_service: AuthServiceDep,
 ) -> None:
-    """
-    Выход пользователя из аккаунта с отзывом текущей сессии.
-    - Удаляет запись о текущем refresh-токене из базы данных.
-    - Стирает авторизационные куки (refresh_token) на клиенте.
-
-    Args:
-        response (Response): Объект ответа FastAPI для очистки кук.
-        refresh_token (RefreshTokenDep): Зависимость,
-        извлекающая текущий refresh-токен.
-        auth_service (AuthServiceDep): Зависимость сервиса аутентификации.
-
-    Returns:
-        Response: Пустой ответ со статусом HTTP 204 No Content.
-    """
+    """Выход из текущей сессии: удаляет refresh-токен из БД и очищает cookie."""
     await auth_service.revoke_refresh_token(refresh_token=refresh_token)
 
     response.delete_cookie(
@@ -225,8 +163,8 @@ async def logout(
         samesite="lax",
         path="/",
     )
-    
-    
+
+
 @router.post(
     "/logout-all/",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -237,20 +175,7 @@ async def logout_all(
     refresh_token: RefreshTokenDep,
     auth_service: AuthServiceDep,
 ) -> None:
-    """
-    Выход пользователя из всех активных устройств.
-    - Удаляет все сессии пользователя.
-    - Стирает авторизационные куки (refresh_token) на клиенте.
-
-    Args:
-        response (Response): Объект ответа FastAPI для очистки кук.
-        refresh_token (RefreshTokenDep): Зависимость,
-        извлекающая текущий refresh-токен.
-        auth_service (AuthServiceDep): Зависимость сервиса аутентификации.
-
-    Returns:
-        Response: Пустой ответ со статусом HTTP 204 No Content.
-    """
+    """Выход со всех устройств: удаляет все сессии пользователя из БД и очищает cookie."""
     await auth_service.revoke_all_refresh_tokens(refresh_token=refresh_token)
 
     response.delete_cookie(
@@ -260,12 +185,12 @@ async def logout_all(
         samesite="lax",
         path="/",
     )
-    
-    
+
+
 @router.get(
     "/active_sessions/",
     summary="Получение активных сессий пользователя",
-    response_model=list[UserSessionResponse]
+    response_model=list[UserSessionResponse],
 )
 async def get_user_active_sessions(
     token_payload: TokenPayloadDep,
@@ -304,25 +229,7 @@ async def change_email(
     auth_service: AuthServiceDep,
     user: CurrentUserDep,
 ):
-    """
-    Смена email пользователя после проверки пароля.
-
-    - Проверяет существование пользователя в системе.
-    - Гарантирует уникальность нового email адреса.
-    - Верифицирует текущий пароль для подтверждения личности.
-
-    Args:
-        user_id (UUID): Уникальный идентификатор пользователя.
-        data (ChangeEmailRequestScheme): Схема с новым email и паролем.
-
-    Raises:
-        UserNotFoundException: Если пользователь с таким ID не найден.
-        UserAlreadyexistsException: Если новый email уже занят.
-        VerifyPasswordException: Если текущий пароль введен неверно.
-
-    Returns:
-        UserORM: Обновленный объект пользователя из базы данных.
-    """
+    """Смена email с подтверждением текущего пароля. Новый email должен быть уникальным."""
     try:
         updated_user = await auth_service.change_user_email(
             user_id=user.id, data=data
@@ -347,28 +254,14 @@ async def change_password(
     auth_service: AuthServiceDep,
     user: CurrentUserDep,
 ):
-    """
-    Смена пароля пользователя и отзыв всех его текущих сессий.
-
-    - Проверяет существование пользователя в системе.
-    - Верифицирует старый пароль перед внесением изменений.
-    - Удаляет абсолютно все активные сессии из базы данных.
-
-    Args:
-        user_id (UUID): Уникальный идентификатор пользователя.
-        data (ChangePasswordRequestScheme): Схема со старым и новым паролями.
-
-    Raises:
-        UserNotFoundException: Если пользователь с таким ID не найден.
-        VerifyPasswordException: Если текущий старый пароль введен неверно.
-    """
+    """Смена пароля с подтверждением текущего. Сбрасывает все активные сессии."""
     try:
         await auth_service.change_user_password(user_id=user.id, data=data)
 
         response.delete_cookie(
             key="refresh_token",
             httponly=True,
-            secure=True,
+            secure=settings.COOKIE_SECURE,
             samesite="lax",
             path="/",
         )

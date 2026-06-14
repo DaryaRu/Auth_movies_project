@@ -73,16 +73,19 @@ src/
 ├── repositories/
 │   ├── base.py
 │   ├── users.py
+│   ├── sessions.py
 │   ├── roles.py
 │   └── permissions.py
 ├── schemas/
 │   ├── tokens.py
 │   ├── users.py
+│   ├── sessions.py
 │   ├── roles.py
 │   └── permissions.py
 ├── services/
 │   ├── base.py
 │   ├── auth.py
+│   ├── sessions.py
 │   ├── roles.py
 │   └── permissions.py
 ├── utils/
@@ -115,8 +118,8 @@ tests/functional/
 
 - **`main.py`** — точка входа приложения: FastAPI app, подключение middleware, роутеров, инициализация Redis в lifespan.
 - **`api/v1/`** — HTTP-интерфейс: роутеры и зависимости FastAPI. Приём запросов, вызов сервисов и формирование ответов.
-- **`services/`** — бизнес-логика. `RoleService` и `PermissionService` реализуют RBAC. `AuthService` отвечает за: регистрацию пользователя с хэшированием пароля через Argon2, аутентификацию, refresh-токена, логаут, смену пароля и email, историю сессий.
-- **`repositories/`** — слой доступа к данным. Изолирует SQL-запросы от бизнес-логики. `BasePostgreSQLRepository` содержит общие операции.
+- **`services/`** — бизнес-логика. `RoleService` и `PermissionService` реализуют RBAC. `AuthService` отвечает за регистрацию, аутентификацию, refresh-токен, логаут, смену пароля и email. `SessionService` управляет активными сессиями: получение списка, выход со всех устройств.
+- **`repositories/`** — слой доступа к данным. Изолирует SQL-запросы от бизнес-логики. `BasePostgreSQLRepository` содержит общие операции. `SessionRepository` инкапсулирует все операции с таблицей `refresh_tokens`.
 - **`models/`** — SQLAlchemy ORM-модели (`UserORM`, `RoleORM`, `PermissionORM`, M2M-таблицы).
 - **`schemas/`** — Pydantic-схемы для валидации входных данных и сериализации ответов.
 - **`databases/`** — подключение к PostgreSQL и Redis, предоставляет объекты для внедрения зависимостей.
@@ -136,7 +139,11 @@ tests/functional/
 
 ### Redis
 
-Используется для кэширования ответов через `fastapi-cache2`. Инициализируется в `lifespan` при старте приложения.
+Используется для двух целей:
+- **Хранение сессий** — каждая сессия хранится в хэше `session:{sid}` с TTL равным сроку жизни refresh-токена. Список сессий пользователя — в множестве `user_sessions:{user_id}`.
+- **Кэширование** — через `fastapi-cache2`. Сейчас кэшируется `GET /jwt.key/` (TTL 1 час).
+
+Инициализируется в `lifespan` при старте приложения.
 
 
 ## Схема данных
@@ -148,16 +155,6 @@ tests/functional/
 - `hashed_password` — пароль в хэшированном виде (Argon2). Не может быть пустым.
 - `is_superuser` — флаг суперпользователя. По умолчанию `false`.
 - `is_active` — флаг активности аккаунта. По умолчанию `true`.
-- `created_at`, `updated_at` — дата создания и последнего обновления записи.
-
-### `refresh_tokens`
-
-- `id` — уникальный идентификатор токена, генерируется автоматически.
-- `token` — значение refresh-токена. Не может быть пустым, проиндексирован для быстрого поиска.
-- `user_id` — ссылка на пользователя. При удалении пользователя все его токены удаляются каскадно.
-- `expires_at` — время истечения токена.
-- `ip_address` — IP-адрес устройства, с которого выполнен вход. Может быть пустым.
-- `user_agent` — User-Agent браузера или приложения. Может быть пустым.
 - `created_at`, `updated_at` — дата создания и последнего обновления записи.
 
 ### `roles`
@@ -207,8 +204,9 @@ tests/functional/
 Защищённые эндпоинты (требуют JWT):
 
 - `POST /api/v1/refresh/` — 200 — ротация токенов
-- `POST /api/v1/logout/` — 204 — выход, отзыв refresh-токена
-- `GET /api/v1/history/` — 200 — история активных сессий
+- `POST /api/v1/logout/` — 204 — выход, отзыв текущего refresh-токена
+- `POST /api/v1/logout-all/` — 204 — выход со всех устройств, отзыв всех активных сессий
+- `GET /api/v1/active_sessions/` — 200 — список активных сессий текущего пользователя
 - `PATCH /api/v1/change-email/` — 200 — смена email (требует пароль)
 - `PATCH /api/v1/change-password/` — 204 — смена пароля, сброс всех сессий
 - `GET /api/v1/users/me/permissions/` — 200 — список всех прав текущего пользователя
@@ -250,9 +248,10 @@ tests/functional/
 
 ## Аутентификация и токены
 
-- **Access-токен** — короткоживущий JWT RS256, передаётся в заголовке `Authorization: Bearer <token>`. Содержит `sub` (user_id) и `is_superuser`.
-- **Refresh-токен** — долгоживущий, хранится в httpOnly cookie `refresh_token` и в таблице `refresh_tokens` вместе с IP и User-Agent сессии.
-- **Token Rotation** — при рефреше старый токен удаляется из БД, выдаётся новая пара.
-- **Логаут** — refresh-токен удаляется из БД, cookie очищается.
-- **Смена пароля** — все активные сессии пользователя удаляются из `refresh_tokens`.
+- **Access-токен** — короткоживущий JWT RS256, передаётся в заголовке `Authorization: Bearer <token>`. Содержит `sub` (user_id), `is_superuser`, `sid` (ID сессии), `permissions` (список кодов прав).
+- **Refresh-токен** — долгоживущий, хранится в httpOnly `secure` cookie `refresh_token`. Сессия хранится в Redis: хэш токена, IP, User-Agent, TTL = сроку жизни refresh-токена.
+- **Token Rotation** — при рефреше хэш токена в Redis обновляется, выдаётся новая пара.
+- **Логаут** — сессия удаляется из Redis, cookie очищается.
+- **Logout-all** — все сессии пользователя удаляются из Redis, cookie очищается.
+- **Смена пароля** — все активные сессии пользователя удаляются из Redis.
 - **Публичный ключ** — другие сервисы платформы получают его через `GET /api/v1/jwt.key/` и верифицируют токены самостоятельно.
