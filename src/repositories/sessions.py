@@ -148,12 +148,16 @@ class SessionRedisRepository(SessionAbstractRepository):
         user_agent: str,
     ) -> None:
         sids = await self._redis.smembers(f"user_sessions:{user_id}")
+        if not sids:
+            return
 
-        for sid in sids:
-            session = await self._redis.hgetall(f"session:{sid}")
+        async with self._redis.pipeline(transaction=False) as pipe:
+            for sid in sids:
+                pipe.hgetall(f"session:{sid}")
+            sessions = await pipe.execute()
 
+        for sid, session in zip(sids, sessions):
             if not session:
                 continue
-
             if session.get("ip") == ip and session.get("user_agent") == user_agent:
                 await self.delete_user_session(sid)
