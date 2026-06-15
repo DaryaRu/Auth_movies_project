@@ -1,4 +1,5 @@
 import os
+from functools import cached_property
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -44,11 +45,11 @@ class Settings(BaseSettings):
             f"{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
         )
 
-    @property
+    @cached_property
     def PRIVATE_KEY(self):
         return Path(self.PRIVATE_KEY_PATH).read_text()
 
-    @property
+    @cached_property
     def PUBLIC_KEY(self):
         return Path(self.PUBLIC_KEY_PATH).read_text()
 
