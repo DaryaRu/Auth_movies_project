@@ -1,10 +1,8 @@
 import hashlib
 import logging
-import sys
 import time
 from contextlib import asynccontextmanager
 from logging import config as logging_config
-from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Tuple
 from urllib.parse import parse_qsl, urlencode, urlparse
 
@@ -16,7 +14,6 @@ from fastapi_cache.backends.redis import RedisBackend
 from redis.asyncio import Redis
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
-sys.path.append(str(Path(__file__).parent.parent))
 
 from src.api.v1.auth import router as auth_router
 from src.api.v1.permissions import router as permissions_router
