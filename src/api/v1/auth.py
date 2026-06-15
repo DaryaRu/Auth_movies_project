@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Request, Response, status
 from fastapi_cache.decorator import cache
 
-from src.api.v1.dependiences import (
+from src.api.v1.dependencies import (
     AuthServiceDep,
     CurrentUserDep,
     RefreshTokenDep,
