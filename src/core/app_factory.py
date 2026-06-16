@@ -1,15 +1,13 @@
 from contextlib import asynccontextmanager
+from logging import config as logging_config
 
 from fastapi import FastAPI
-from logging import config as logging_config
 
 from src.core import logger
 from src.core.cache import close_cache, init_cache
 from src.core.config import settings
 from src.core.middlewares import register_middlewares
 from src.core.routers import register_routers
-
-logging_config.dictConfig(logger.LOGGING)
 
 
 @asynccontextmanager
@@ -22,6 +20,7 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     """Создать и настроить экземпляр приложения FastAPI."""
+    logging_config.dictConfig(logger.LOGGING)
     app = FastAPI(
         title=settings.PROJECT_NAME,
         description=("Сервис авторизации и аутентификации"),
