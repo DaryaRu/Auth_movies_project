@@ -1,4 +1,3 @@
-
 from sqlalchemy import Index, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -17,4 +16,8 @@ class UserORM(Base, BaseORM):
     roles: Mapped[list["RoleORM"]] = relationship(
         secondary=user_roles_table,
         back_populates="users",
+    )
+    oauth_accounts: Mapped[list["OAuthAccountORM"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
     )
