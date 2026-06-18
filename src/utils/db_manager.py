@@ -1,8 +1,7 @@
+from src.repositories.oauth_accounts import OAuthAccountsPostgreSQLRepository
 from src.repositories.permissions import PermissionsPostgreSQLRepository
 from src.repositories.roles import RolesPostgreSQLRepository
-from src.repositories.users import (
-    UsersPostgreSQLRepository,
-)
+from src.repositories.users import UsersPostgreSQLRepository
 
 
 class DBManager:
@@ -14,6 +13,7 @@ class DBManager:
         self.users = UsersPostgreSQLRepository(self.session)
         self.roles = RolesPostgreSQLRepository(self.session)
         self.permissions = PermissionsPostgreSQLRepository(self.session)
+        self.oauth_accounts = OAuthAccountsPostgreSQLRepository(self.session)
         return self
 
     async def __aexit__(self, exc_type, exc, tb):
