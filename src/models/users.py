@@ -10,7 +10,7 @@ class UserORM(Base, BaseORM):
     __table_args__ = (Index("ix_users_email_unique", "email", unique=True),)
 
     email: Mapped[str] = mapped_column(String(255))
-    hashed_password: Mapped[str] = mapped_column(String(255))
+    hashed_password: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_superuser: Mapped[bool] = mapped_column(default=False)
     is_active: Mapped[bool] = mapped_column(default=True)
     roles: Mapped[list["RoleORM"]] = relationship(
