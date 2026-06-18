@@ -41,6 +41,7 @@ superuser:
 	docker compose exec app python src/cli.py superuser create
 
 # Применяет миграции и генерирует новую по текущему состоянию моделей
+# (после добавления новой модели сначала пересобери образ: make rebuild)
 # Пример: make revision name="add_users_table"
 revision:
 	docker compose run --rm migrate alembic upgrade head
