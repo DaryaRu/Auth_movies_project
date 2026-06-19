@@ -245,7 +245,7 @@ class AuthService(BaseService):
         await self._session_service.delete_all_sessions(str(user_id))
 
     async def set_password(self, user_id: UUID, data: SetPasswordRequestScheme) -> None:
-        """Установить пароль для OAuth-пользователя без пароля.
+        """Устанавливает пароль для OAuth-пользователя без пароля.
 
         Raises:
             UserNotFoundException: Если пользователь не найден.

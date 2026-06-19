@@ -23,7 +23,7 @@ router = APIRouter(tags=["OAuth"])
     status_code=status.HTTP_302_FOUND,
 )
 async def oauth_redirect(provider: str, oauth_service: OAuthServiceDep):
-    """Сформировать URL и перенаправить пользователя на страницу входа провайдера."""
+    """Формирует URL авторизации и перенаправляет пользователя на страницу входа провайдера."""
     try:
         state = secrets.token_urlsafe(16)
         url = oauth_service.get_redirect_url(provider=provider, state=state)
@@ -55,7 +55,7 @@ async def oauth_callback(
     response: Response,
     oauth_service: OAuthServiceDep,
 ):
-    """Получить code от провайдера, выдать JWT-токены и установить refresh_token в cookie."""
+    """Получает code от провайдера, выдаёт JWT-токены и устанавливает refresh_token в cookie."""
     if state != request.cookies.get("oauth_state"):
         raise OAuthProviderNotFoundHTTPException(detail="Невалидный state")
 

@@ -286,7 +286,7 @@ async def set_password(
     auth_service: AuthServiceDep,
     user: CurrentUserDep,
 ):
-    """Установить пароль для пользователя, вошедшего через OAuth (без пароля).
+    """Устанавливает пароль для пользователя, вошедшего через OAuth (без пароля).
     Если пароль уже установлен — использовать /change-password/.
     """
     try:
