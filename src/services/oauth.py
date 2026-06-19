@@ -44,7 +44,7 @@ class OAuthService(BaseService):
 
     def get_redirect_url(self, provider: str, state: str) -> str:
         """
-        Сформировать URL для редиректа пользователя на страницу авторизации провайдера.
+        Строит URL для редиректа пользователя на страницу авторизации провайдера.
 
         Args:
             provider (str): Название провайдера (google, yandex, vk).
@@ -67,7 +67,10 @@ class OAuthService(BaseService):
         self, provider: str, code: str, redirect_uri: str
     ) -> OAuthUserInfo:
         """
-        Обменять код авторизации на токен и получить данные пользователя от провайдера.
+        Отправляет код авторизации провайдеру, получает access-токен.
+        Authlib сохраняет его внутри клиента.
+        Запрашивает данные пользователя, автоматически подставляя сохранённый токен в заголовок.
+        Возвращает OAuthUserInfo через parse_user_info из конфига провайдера.
 
         Args:
             provider (str): Название провайдера (google, yandex, vk).
@@ -92,6 +95,37 @@ class OAuthService(BaseService):
 
         return config["parse_user_info"](provider, data)
 
+    async def _get_or_create_user(self, user_info: OAuthUserInfo):
+        # Ищем привязанный OAuth-аккаунт по provider, provider_user_id
+        oauth_account = await self._db.oauth_accounts.get_by_provider_data(
+            provider=user_info.provider,
+            provider_user_id=user_info.provider_user_id,
+        )
+
+        if oauth_account:
+            return await self._db.users.get_one_or_none_by_id(
+                oauth_account.user_id
+            )
+
+        # Аккаунт не найден - нужен email для поиска или создания пользователя
+        if not user_info.email:
+            raise OAuthEmailNotFoundException()
+
+        user = await self._db.users.get_one_or_none_by_email(user_info.email)
+        if not user:
+            user = await self._db.users.create_user(
+                email=user_info.email,
+                hashed_password=None,
+            )
+
+        # Привязываем OAuth-аккаунт к пользователю
+        await self._db.oauth_accounts.create_oauth_account(
+            user_id=user.id,
+            provider=user_info.provider,
+            provider_user_id=user_info.provider_user_id,
+        )
+        return user
+
     async def authenticate(
         self,
         provider: str,
@@ -100,42 +134,13 @@ class OAuthService(BaseService):
         ip_address: str,
         user_agent: str,
     ) -> tuple[str, str]:
-        """
-        Найти или создать пользователя по данным OAuth-провайдера и выдать JWT-токены.
-
-        Если OAuth-аккаунт уже привязан — возвращает существующего пользователя.
-        Если нет — ищет пользователя по email или создаёт нового, затем привязывает аккаунт.
-        """
+        # Обмен code на токен провайдера и получение данных пользователя
         user_info = await self.get_user_info(provider, code, redirect_uri)
 
-        oauth_account = await self._db.oauth_accounts.get_by_provider_data(
-            provider=user_info.provider,
-            provider_user_id=user_info.provider_user_id,
-        )
+        # Поиск или создание пользователя по данным провайдера
+        user = await self._get_or_create_user(user_info)
 
-        if oauth_account:
-            user = await self._db.users.get_one_or_none_by_id(
-                oauth_account.user_id
-            )
-        else:
-            if not user_info.email:
-                raise OAuthEmailNotFoundException()
-
-            user = await self._db.users.get_one_or_none_by_email(
-                user_info.email
-            )
-            if not user:
-                user = await self._db.users.create_user(
-                    email=user_info.email,
-                    hashed_password=None,
-                )
-
-            await self._db.oauth_accounts.create_oauth_account(
-                user_id=user.id,
-                provider=user_info.provider,
-                provider_user_id=user_info.provider_user_id,
-            )
-
+        # Получаем права пользователя и формируем JWT payload
         permissions = await self._db.roles.get_user_permissions(user.id)
         permission_codes = [p.code for p in permissions]
         sid = uuid4()
@@ -151,6 +156,7 @@ class OAuthService(BaseService):
             )
         )
 
+        # Сохраняем сессию в Redis
         await self._session_service.add_session(
             user_id=user.id,
             user_agent=user_agent,
