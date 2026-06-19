@@ -180,3 +180,11 @@ class OAuthProviderNotFoundHTTPException(AuthServiceHTTPException):
 
 class OAuthEmailNotFoundHTTPException(AuthServiceHTTPException):
     status_code = 400
+
+
+class PasswordAlreadySetException(AuthServiceException):
+    detail = "Пароль уже установлен. Используйте смену пароля."
+
+
+class PasswordAlreadySetHTTPException(AuthServiceHTTPException):
+    status_code = 409
