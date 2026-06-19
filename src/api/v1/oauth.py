@@ -30,12 +30,12 @@ async def oauth_redirect(provider: str, oauth_service: OAuthServiceDep):
     except OAuthProviderNotFoundException as exc:
         raise OAuthProviderNotFoundHTTPException(detail=exc.detail)
 
-    response = RedirectResponse(url=url)
+    response = RedirectResponse(url=url, status_code=status.HTTP_302_FOUND)
     response.set_cookie(
         key="oauth_state",
         value=state,
         httponly=True,
-        max_age=300,
+        max_age=settings.OAUTH_STATE_EXPIRE_SECONDS,
         secure=settings.COOKIE_SECURE,
         samesite="lax",
     )

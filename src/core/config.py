@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     CACHE_EXPIRE: int = 600
     COOKIE_SECURE: bool = False
     OAUTH_REDIRECT_BASE_URL: str = "http://localhost"
+    OAUTH_STATE_EXPIRE_SECONDS: int = 300
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
 
