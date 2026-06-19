@@ -56,7 +56,7 @@ class OAuthService(BaseService):
         config = self.get_provider_config(provider)
         params = {
             "client_id": config["client_id"],
-            "redirect_uri": f"{settings.OAUTH_REDIRECT_BASE_URL}/api/v1/auth/{provider}/callback/",
+            "redirect_uri": f"{settings.OAUTH_REDIRECT_BASE_URL}{settings.API_V1_PREFIX}/auth/{provider}/callback/",
             "scope": config["scope"],
             "response_type": "code",
             "state": state,
