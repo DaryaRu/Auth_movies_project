@@ -66,7 +66,7 @@ class OAuthAccountsPostgreSQLRepository(
         self, user_id: UUID, provider: str, provider_user_id: str
     ) -> OAuthAccountORM:
         return await self.add_one(
-            user_id=str(user_id),
+            user_id=user_id,
             provider=provider,
             provider_user_id=provider_user_id,
         )
