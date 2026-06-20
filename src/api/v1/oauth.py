@@ -2,7 +2,6 @@ import secrets
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Request, Response, status
-from fastapi.responses import RedirectResponse
 
 from src.api.v1.dependencies import OAuthServiceDep
 from src.core.config import settings
@@ -12,6 +11,7 @@ from src.exceptions import (
     OAuthProviderNotFoundException,
     OAuthProviderNotFoundHTTPException,
 )
+from src.schemas.oauth_accounts import OAuthRedirectURLScheme
 from src.schemas.tokens import JWTAccessToken
 
 router = APIRouter(tags=["OAuth"])
@@ -19,18 +19,19 @@ router = APIRouter(tags=["OAuth"])
 
 @router.get(
     "/auth/{provider}/",
-    summary="Редирект на страницу авторизации провайдера",
-    status_code=status.HTTP_302_FOUND,
+    summary="URL авторизации провайдера",
+    response_model=OAuthRedirectURLScheme,
 )
-async def oauth_redirect(provider: str, oauth_service: OAuthServiceDep):
-    """Формирует URL авторизации и перенаправляет пользователя на страницу входа провайдера."""
+async def oauth_redirect(
+    provider: str, response: Response, oauth_service: OAuthServiceDep
+):
+    """Формирует URL авторизации провайдера и устанавливает cookie с state для CSRF-защиты."""
     try:
         state = secrets.token_urlsafe(16)
         url = oauth_service.get_redirect_url(provider=provider, state=state)
     except OAuthProviderNotFoundException as exc:
         raise OAuthProviderNotFoundHTTPException(detail=exc.detail)
 
-    response = RedirectResponse(url=url, status_code=status.HTTP_302_FOUND)
     response.set_cookie(
         key="oauth_state",
         value=state,
@@ -39,7 +40,7 @@ async def oauth_redirect(provider: str, oauth_service: OAuthServiceDep):
         secure=settings.COOKIE_SECURE,
         samesite="lax",
     )
-    return response
+    return OAuthRedirectURLScheme(url=url)
 
 
 @router.get(

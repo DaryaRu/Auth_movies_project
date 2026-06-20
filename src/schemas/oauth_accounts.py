@@ -3,6 +3,12 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict
 
 
+class OAuthRedirectURLScheme(BaseModel):
+    """Схема ответа с URL авторизации провайдера."""
+
+    url: str
+
+
 class OAuthAccountResponseScheme(BaseModel):
     """Схема ответа с данными OAuth-аккаунта.
 
