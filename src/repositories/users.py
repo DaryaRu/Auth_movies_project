@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from uuid import UUID
 
-from sqlalchemy import update
+from sqlalchemy import or_, select, update
 
 from src.models.users import UserORM
 from src.repositories.base import BasePostgreSQLRepository
@@ -17,7 +17,7 @@ class UsersAbstractRepository(ABC):
     """
 
     @abstractmethod
-    async def create_user(self, email: str, hashed_password: str, is_superuser: bool = False) -> UserORM:
+    async def create_user(self, email: str | None, phone: str | None, hashed_password: str, is_superuser: bool = False) -> UserORM:
         """
         Добавляет нового пользователя.
         Args:
@@ -29,6 +29,18 @@ class UsersAbstractRepository(ABC):
         """
         raise NotImplementedError
 
+    @abstractmethod
+    async def get_one_or_none_by_email_or_phone(self, email: str | None, phone: str | None) -> UserORM | None:
+        """
+        Получает пользователя по email.
+        Args:
+            email (str): Электронная почта пользователя.
+            phone (str): Телефон пользователя.
+        Returns:
+            Optional[User]: Пользователь или None, если не найден.
+        """
+        raise NotImplementedError
+    
     @abstractmethod
     async def get_one_or_none_by_email(self, email: str) -> UserORM | None:
         """
@@ -75,11 +87,23 @@ class UsersPostgreSQLRepository(UsersAbstractRepository, BasePostgreSQLRepositor
     """
     model = UserORM
     
-    async def create_user(self, email: str, hashed_password: str, is_superuser: bool = False) -> UserORM:
-        return await self.add_one(email=email, hashed_password=hashed_password, is_superuser=is_superuser)
+    async def create_user(self, email: str | None, phone: str | None, hashed_password: str | None, is_superuser: bool = False) -> UserORM:
+        return await self.add_one(email=email, hashed_password=hashed_password, is_superuser=is_superuser, phone=phone)
 
+    async def get_one_or_none_by_email_or_phone(self, email: str | None, phone: str | None) -> UserORM | None:
+        conditions = []
+        if email:
+            conditions.append(UserORM.email == email)
+        if phone:
+            conditions.append(UserORM.phone == phone)
+        if not conditions:
+            return None
+        query = select(UserORM).where(or_(*conditions))
+        result = await self._session.execute(query)
+        return result.scalars().one_or_none()
+    
     async def get_one_or_none_by_email(self, email: str) -> UserORM | None:
-        return await self.get_one_or_none(email=email)
+        return await self.get_one_or_none_by_email(email=email)
     
     async def get_one_or_none_by_id(self, id: UUID) -> UserORM | None:
         return await self.get_one_or_none(id=id)

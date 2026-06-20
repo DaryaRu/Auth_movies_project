@@ -28,6 +28,10 @@ class VerifyPasswordException(AuthServiceException):
     detail = "Неверный пароль"
     
     
+class PasswordNotSetException(AuthServiceException):
+    detail = "Пароль не установлен"
+    
+    
 class DecodeTokenException(AuthServiceException):
     detail = "Ошибка декодирования токена"
 
@@ -46,6 +50,14 @@ class TokenExeption(AuthServiceException):
     
 class TokenNotFoundExeption(AuthServiceException):
     detail = "Токен не обнаружен"
+    
+    
+class ProviderException(AuthServiceException):
+    detail = "Ошибка авторизации с помощью провайдера"
+    
+    
+class OAuthStateException(AuthServiceException):
+    detail = "Ошибка проверки state переданного провайдером"
     
     
 class AuthServiceHTTPException(HTTPException):
@@ -70,6 +82,10 @@ class VerifyPasswordHTTPException(AuthServiceHTTPException):
     status_code = 401
     
     
+class PasswordNotSetHTTPException(AuthServiceHTTPException):
+    status_code = 401
+    
+    
 class DecodeTokenHTTPException(AuthServiceHTTPException):
     status_code = 403
 
@@ -84,6 +100,14 @@ class InvalidTokenHTTPException(AuthServiceHTTPException):
 
 class TokenExpiredError(AuthServiceHTTPException):
     status_code = 401
+    
+    
+class ProviderHTTPException(AuthServiceHTTPException):
+    status_code = 502
+    
+    
+class OAuthStateHTTPException(AuthServiceHTTPException):
+    status_code = 400
 
 
 class RoleAlreadyExistsException(AuthServiceException):
@@ -163,4 +187,12 @@ class RolePermissionNotFoundHTTPException(AuthServiceHTTPException):
 
 
 class SystemRoleCannotBeDeletedHTTPException(AuthServiceHTTPException):
+    status_code = 409
+    
+    
+class PasswordAlreadySetException(AuthServiceException):
+    detail = "Пароль уже установлен. Используйте смену пароля."
+
+
+class PasswordAlreadySetHTTPException(AuthServiceHTTPException):
     status_code = 409

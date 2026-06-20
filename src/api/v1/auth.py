@@ -15,6 +15,10 @@ from src.core.config import settings
 from src.exceptions import (
     DecodeTokenException,
     InvalidTokenHTTPException,
+    PasswordAlreadySetException,
+    PasswordAlreadySetHTTPException,
+    PasswordNotSetException,
+    PasswordNotSetHTTPException,
     TokenExeption,
     TokenKeysException,
     TokenTypeExeption,
@@ -31,6 +35,7 @@ from src.schemas.tokens import JWTAccessToken
 from src.schemas.users import (
     ChangeEmailRequestScheme,
     ChangePasswordRequestScheme,
+    SetPasswordRequestScheme,
     UserRequestScheme,
     UserResponseScheme,
 )
@@ -77,6 +82,8 @@ async def login(
         raise UserNotFoundHTTPException(detail=exc.detail)
     except VerifyPasswordException as exc:
         raise VerifyPasswordHTTPException(detail=exc.detail)
+    except PasswordNotSetException as exc:
+        raise PasswordNotSetHTTPException(detail=exc.detail)
 
     response.set_cookie(
         key="refresh_token",
@@ -271,3 +278,25 @@ async def change_password(
         raise UserNotFoundHTTPException(detail=exc.detail)
     except VerifyPasswordException as exc:
         raise VerifyPasswordHTTPException(detail=exc.detail)
+
+
+@router.post(
+    "/set-password/",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Установка пароля для OAuth-пользователя",
+)
+async def set_password(
+    data: SetPasswordRequestScheme,
+    auth_service: AuthServiceDep,
+    user: CurrentUserDep,
+):
+    """Устанавливает пароль для пользователя, вошедшего через OAuth (без пароля).
+    Если пароль уже установлен — использовать /change-password/.
+    """
+    try:
+        await auth_service.set_password(user_id=user.id, data=data)
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    except UserNotFoundException as exc:
+        raise UserNotFoundHTTPException(detail=exc.detail)
+    except PasswordAlreadySetException as exc:
+        raise PasswordAlreadySetHTTPException(detail=exc.detail)

@@ -22,6 +22,7 @@ def active_user_data() -> dict[str, Any]:
     return {
         "id": uuid.uuid4(),
         "email": "test_user@example.com",
+        "phone": "+79000000000",
         "password": "testpassword123",
         "is_superuser": False,
         "is_active": True,
@@ -36,6 +37,7 @@ async def create_user(pg_write_data: WriteData, active_user_data: dict[str, Any]
     data = {
         "id": active_user_data["id"],
         "email": active_user_data["email"],
+        "phone": active_user_data["phone"],
         "hashed_password": hash_password(active_user_data["password"]),
         "is_superuser": active_user_data["is_superuser"],
         "is_active": active_user_data["is_active"],

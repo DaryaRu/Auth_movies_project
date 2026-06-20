@@ -14,9 +14,14 @@ from src.exceptions import (
     TokenKeysException,
     TokenKeysHTTPException,
 )
+from src.integrations.oauth.google_provider import GoogleOAuthProvider
+from src.integrations.oauth.providers_factory import OAuthProviderFactory
+from src.integrations.oauth.vk_provider import VkOAuthProvider
+from src.integrations.oauth.yandex_provider import YandexOAuthProvider
 from src.models.users import UserORM
 from src.repositories.sessions import SessionRedisRepository
 from src.services.auth import AuthService
+from src.services.oauth import OAuthService
 from src.services.permissions import PermissionService
 from src.services.roles import RoleService
 from src.services.sessions import SessionService
@@ -111,6 +116,21 @@ async def get_current_staff_user(
     return user
 
 
+def get_oauth_provider_factory() -> OAuthProviderFactory:
+    return OAuthProviderFactory(
+        yandex=YandexOAuthProvider(),
+        google=GoogleOAuthProvider(),
+        vk=VkOAuthProvider()
+    )
+
+
+def get_oauth_service(
+    auth_service: "AuthServiceDep",
+    oauth_provider_factory: OAuthProviderFactory = Depends(get_oauth_provider_factory),
+) -> OAuthService:
+    return OAuthService(oauth_provider_factory, auth_service, redis.redis)
+    
+
 CurrentUserDep = Annotated[UserORM, Depends(get_current_user)]
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
 RefreshTokenDep = Annotated[str, Depends(get_refresh_token)]
@@ -120,3 +140,4 @@ StaffUserDep = Annotated[UserORM, Depends(get_current_staff_user)]
 TokenPayloadDep = Annotated[dict[str, Any], Depends(get_token_payload)]
 DBDep = Annotated[DBManager, Depends(get_db)]
 SessionServiceDep = Annotated[SessionService, Depends(get_session_service)]
+OAuthServiceDep = Annotated[OAuthService, Depends(get_oauth_service)]
