@@ -164,3 +164,27 @@ class RolePermissionNotFoundHTTPException(AuthServiceHTTPException):
 
 class SystemRoleCannotBeDeletedHTTPException(AuthServiceHTTPException):
     status_code = 409
+
+
+class OAuthProviderNotFoundException(AuthServiceException):
+    detail = "Провайдер не найден"
+
+
+class OAuthEmailNotFoundException(AuthServiceException):
+    detail = "Провайдер не вернул email пользователя"
+
+
+class OAuthProviderNotFoundHTTPException(AuthServiceHTTPException):
+    status_code = 400
+
+
+class OAuthEmailNotFoundHTTPException(AuthServiceHTTPException):
+    status_code = 400
+
+
+class PasswordAlreadySetException(AuthServiceException):
+    detail = "Пароль уже установлен. Используйте смену пароля."
+
+
+class PasswordAlreadySetHTTPException(AuthServiceHTTPException):
+    status_code = 409

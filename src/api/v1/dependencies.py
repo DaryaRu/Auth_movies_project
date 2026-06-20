@@ -17,6 +17,7 @@ from src.exceptions import (
 from src.models.users import UserORM
 from src.repositories.sessions import SessionRedisRepository
 from src.services.auth import AuthService
+from src.services.oauth import OAuthService
 from src.services.permissions import PermissionService
 from src.services.roles import RoleService
 from src.services.sessions import SessionService
@@ -71,6 +72,14 @@ def get_permission_service(db: "DBDep") -> PermissionService:
     return PermissionService(db)
 
 
+def get_oauth_service(db: "DBDep", session_service: "SessionServiceDep") -> OAuthService:
+    return OAuthService(
+        JWTTokenService(),
+        session_service,
+        db,
+    )
+
+
 async def get_token_payload(
     session_service: "SessionServiceDep",
     token: str = Depends(get_token),
@@ -111,6 +120,7 @@ async def get_current_staff_user(
     return user
 
 
+OAuthServiceDep = Annotated[OAuthService, Depends(get_oauth_service)]
 CurrentUserDep = Annotated[UserORM, Depends(get_current_user)]
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
 RefreshTokenDep = Annotated[str, Depends(get_refresh_token)]

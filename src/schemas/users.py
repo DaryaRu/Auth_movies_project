@@ -58,3 +58,8 @@ class ChangePasswordRequestScheme(BaseModel):
     """Схема для смены пароля."""
     current_password: str = Field(..., description="Текущий пароль")
     new_password: str = Field(..., description="Новый пароль")
+
+
+class SetPasswordRequestScheme(BaseModel):
+    """Схема для установки пароля OAuth-пользователем без пароля."""
+    password: str = Field(..., description="Новый пароль")

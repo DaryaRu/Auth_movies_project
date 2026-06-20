@@ -1,4 +1,3 @@
-
 from sqlalchemy import Index, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -11,10 +10,14 @@ class UserORM(Base, BaseORM):
     __table_args__ = (Index("ix_users_email_unique", "email", unique=True),)
 
     email: Mapped[str] = mapped_column(String(255))
-    hashed_password: Mapped[str] = mapped_column(String(255))
+    hashed_password: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_superuser: Mapped[bool] = mapped_column(default=False)
     is_active: Mapped[bool] = mapped_column(default=True)
     roles: Mapped[list["RoleORM"]] = relationship(
         secondary=user_roles_table,
         back_populates="users",
+    )
+    oauth_accounts: Mapped[list["OAuthAccountORM"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
     )
