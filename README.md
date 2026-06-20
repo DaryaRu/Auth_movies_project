@@ -96,11 +96,12 @@ http://localhost:8000/api/openapi
 2. Сервис запущен.
 
 Шаги проверки:
-1. Открыть в браузере `http://localhost:8000/api/v1/auth/google/` — должен произойти редирект на страницу входа Google.
-2. Выбрать тестовый аккаунт.
-3. Google сделает редирект на `http://localhost:8000/api/v1/auth/google/callback/?code=...&state=...`.
-4. Сервис вернёт JSON с `access_token`.
-5. Проверить что пользователь создался в БД.
+1. В Swagger (`http://localhost:8000/api/openapi`) выполнить `GET /api/v1/auth/google/` — сервис вернёт `{"url": "https://accounts.google.com/..."}`.
+2. Скопировать `url` из ответа и открыть в браузере.
+3. Выбрать тестовый аккаунт.
+4. Google сделает редирект на `http://localhost:8000/api/v1/auth/google/callback/?code=...&state=...`.
+5. Сервис вернёт JSON с `access_token`.
+6. Проверить что пользователь создался в БД: `make shell` → `SELECT * FROM users;` и `SELECT * FROM oauth_accounts;`.
 
 
 ## Работа с ролями и правами
