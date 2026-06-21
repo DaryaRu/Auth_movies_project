@@ -196,3 +196,20 @@ class PasswordAlreadySetException(AuthServiceException):
 
 class PasswordAlreadySetHTTPException(AuthServiceHTTPException):
     status_code = 409
+
+
+class OAuthAccountNotLinkedException(AuthServiceException):
+    detail = "Указанный аккаунт не привязан к профилю"
+
+
+class LastAuthMethodRestrictionException(AuthServiceException):
+    detail = "Нельзя отвязать единственный способ входа. " \
+             "Установите пароль или привяжите другой сервис."
+
+
+class OAuthAccountNotLinkedHTTPException(AuthServiceHTTPException):
+    status_code = 400
+
+
+class LastAuthMethodRestrictionHTTPException(AuthServiceHTTPException):
+    status_code = 400

@@ -80,6 +80,11 @@ class UsersAbstractRepository(ABC):
         """
         raise NotImplementedError
 
+    @abstractmethod
+    async def get_by_id_for_update(self, user_id: UUID) -> UserORM | None:
+        """Блокирует строку пользователя для UPDATE."""
+        raise NotImplementedError
+
 
 class UsersPostgreSQLRepository(UsersAbstractRepository, BasePostgreSQLRepository):
     """
@@ -121,3 +126,12 @@ class UsersPostgreSQLRepository(UsersAbstractRepository, BasePostgreSQLRepositor
         )
         result = await self._session.execute(query)
         return result.scalar_one()
+
+    async def get_by_id_for_update(self, user_id: UUID) -> UserORM | None:
+        stmt = (
+            select(self.model)
+            .where(self.model.id == user_id)
+            .with_for_update()
+        )
+        result = await self._session.execute(stmt)
+        return result.scalar_one_or_none()

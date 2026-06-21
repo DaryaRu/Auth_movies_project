@@ -14,7 +14,7 @@ class SessionService:
     def _get_refresh_token_hash(refresh_token: str) -> str:
         return hashlib.sha256(refresh_token.encode()).hexdigest()
         
-    async def add_session(self, user_id: UUID, ip: str, user_agent: str, refresh_token: str, sid: UUID) -> None:
+    async def add_session(self, user_id: UUID, ip: str, user_agent: str, refresh_token: str, sid: UUID, auth_method: str = "password") -> None:
         refresh_hash = self._get_refresh_token_hash(refresh_token)
         await self._repo.delete_session_by_device(str(user_id), ip, user_agent)
         await self._repo.add_user_session(

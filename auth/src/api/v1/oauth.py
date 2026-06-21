@@ -2,15 +2,26 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Request, Response
 
-from src.api.v1.dependencies import OAuthServiceDep
+from src.api.v1.dependencies import OAuthServiceDep, CurrentUserDep, TokenPayloadDep
+
 from src.core.config import settings
 from src.exceptions import (
     OAuthStateException,
     OAuthStateHTTPException,
     ProviderException,
     ProviderHTTPException,
+    UserNotFoundException,
+    UserNotFoundHTTPException,
+    OAuthAccountNotLinkedException,
+    OAuthAccountNotLinkedHTTPException,
+    LastAuthMethodRestrictionException,
+    LastAuthMethodRestrictionHTTPException,
 )
-from src.schemas.oauth import AuthProvider, OAuthURLResponseScheme
+from src.schemas.oauth import (
+    AuthProvider,
+    OAuthURLResponseScheme,
+)
+from src.schemas.oauth_accounts import OAuthUnlinkResponseScheme
 from src.schemas.tokens import JWTAccessToken
 
 router = APIRouter(tags=["OAuth"])
@@ -70,4 +81,46 @@ async def oauth_callback(
         access_token=access_token,
         access_token_expire=datetime.now(timezone.utc)
         + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
+    )
+
+
+@router.delete(
+    "/auth/{provider}/unlink/",
+    summary="Отвязать аккаунт социальной сети",
+    response_model=OAuthUnlinkResponseScheme,
+)
+async def oauth_unlink(
+    provider: str,
+    response: Response,
+    oauth_service: OAuthServiceDep,
+    current_user: CurrentUserDep,
+    token_payload: TokenPayloadDep,
+):
+    current_sid = token_payload["sid"]
+
+    try:
+        remaining_providers, current_session_deleted = await oauth_service.unlink_account(
+            user_id=current_user.id,
+            provider_str=provider,
+            current_sid=current_sid
+        )
+    except UserNotFoundException as exc:
+        raise UserNotFoundHTTPException(detail=exc.detail)
+    except OAuthAccountNotLinkedException as exc:
+        raise OAuthAccountNotLinkedHTTPException(detail=exc.detail)
+    except LastAuthMethodRestrictionException as exc:
+        raise LastAuthMethodRestrictionHTTPException(detail=exc.detail)
+
+    if current_session_deleted:
+        response.delete_cookie(
+            key="refresh_token",
+            httponly=True,
+            secure=settings.COOKIE_SECURE,
+            samesite="lax",
+            path="/",
+        )
+
+    return OAuthUnlinkResponseScheme(
+        message=f"Аккаунт {provider.capitalize()} успешно отвязан.",
+        linked_providers=remaining_providers,
     )

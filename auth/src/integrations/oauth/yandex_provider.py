@@ -74,3 +74,24 @@ class YandexOAuthProvider(OAuthBaseProvider):
             phone=yandex_user["phone"]["number"] if yandex_user.get("phone") else None,
             provider=AuthProvider.YANDEX,
         )
+
+    async def revoke_token(self, token: str) -> None:
+        """Асинхронно отзывает access_token в Yandex API."""
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                "https://oauth.yandex.ru/revoke",
+                data={
+                    "token": token,
+                    "client_id": settings.YANDEX_CLIENT_ID,
+                    "client_secret": settings.YANDEX_CLIENT_SECRET,
+                },
+            ) as response:
+                if response.status >= 400:
+                    detail = await response.text()
+                    logging.error(
+                        "Не удалось отозвать токен Yandex: "
+                        f"status_code={response.status}, detail={detail}"
+                    )
+                    raise ProviderException()
+
+                logging.info("Токен Yandex успешно отозван")
