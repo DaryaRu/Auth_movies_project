@@ -41,6 +41,11 @@ class Settings(BaseSettings):
     OAUTH_STATE_EXPIRE_SECONDS: int = 300
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
+    OTEL_EXPORTER_OTLP_ENDPOINT: str
+    DEBUG: bool = False
+    OTEL_SERVICE_NAME: str
+    ENVIRONMENT: str
+    OTEL_PYTHON_FASTAPI_EXCLUDED_URLS: str
 
     @property
     def DB_URL(self):

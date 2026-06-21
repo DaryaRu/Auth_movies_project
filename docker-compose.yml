@@ -12,6 +12,21 @@ services:
       retries: 5
       start_period: 10s
 
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.12.2
+    restart: unless-stopped
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+    volumes:
+      - elastic_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9200 >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   redis:
     image: redis:7-alpine
     restart: unless-stopped
@@ -37,7 +52,7 @@ services:
       db:
         condition: service_healthy
 
-  app:
+  auth-service:
     build: .
     image: auth-image
     restart: unless-stopped
@@ -50,8 +65,6 @@ services:
       --forwarded-allow-ips=*
       --timeout 120
       --error-logfile -"
-    ports:
-      - "8000:8000"
     volumes:
       - ./private.pem:/app/keys/private.pem:ro
       - ./public.pem:/app/keys/public.pem:ro
@@ -67,6 +80,51 @@ services:
       redis:
         condition: service_healthy
 
+  jaeger-query:
+    image: jaegertracing/jaeger-query:1.76.0
+    ports:
+      - "16686:16686"
+    environment:
+      - SPAN_STORAGE_TYPE=elasticsearch
+      - ES_SERVER_URLS=http://elasticsearch:9200
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+  jaeger-collector:
+    image: jaegertracing/jaeger-collector:1.76.0
+    environment:
+      - SPAN_STORAGE_TYPE=elasticsearch
+      - ES_SERVER_URLS=http://elasticsearch:9200
+      - COLLECTOR_OTLP_ENABLED=true
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.154.0-nightly.38e94c7
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./infra/otel-collector-config.yaml:/etc/otelcol/config.yaml
+    ports:
+      - "4317:4317"  # OTLP gRPC
+      - "4318:4318"  # OTLP HTTP
+    depends_on:
+      - jaeger-collector
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:1.31.2
+    volumes:
+      - ./infra/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./infra/project.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - auth-service
+    ports:
+      - "80:80"
+    restart: unless-stopped
+
 volumes:
   pg_data:
   redis_data:
+  elastic_data:
