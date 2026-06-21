@@ -7,7 +7,7 @@ from jose import jwt
 from src.core.config import settings
 from src.exceptions import ProviderException
 from src.integrations.oauth.base_provider import OAuthBaseProvider
-from src.schemas.oauth import OAuthUserInfoScheme, AuthProvider
+from src.schemas.oauth import AuthProvider, OAuthUserInfoScheme
 
 
 class YandexOAuthProvider(OAuthBaseProvider):

@@ -15,8 +15,6 @@ from src.exceptions import (
 from src.models.users import UserORM
 from src.schemas.oauth import OAuthUserInfoScheme
 from src.schemas.users import (
-    SetPasswordRequestScheme,
-    UserRequestScheme,
     ChangeEmailRequestScheme,
     ChangePasswordRequestScheme,
     SetPasswordRequestScheme,

@@ -6,7 +6,10 @@ from src.exceptions import (
     PermissionNotFoundException,
 )
 from src.models.permissions import PermissionORM
-from src.schemas.permissions import PermissionCreateScheme, PermissionUpdateScheme
+from src.schemas.permissions import (
+    PermissionCreateScheme,
+    PermissionUpdateScheme,
+)
 from src.services.base import BaseService
 
 

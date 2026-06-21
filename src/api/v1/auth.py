@@ -36,7 +36,6 @@ from src.schemas.users import (
     ChangeEmailRequestScheme,
     ChangePasswordRequestScheme,
     SetPasswordRequestScheme,
-    SetPasswordRequestScheme,
     UserRequestScheme,
     UserResponseScheme,
 )

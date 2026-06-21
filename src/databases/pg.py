@@ -3,7 +3,12 @@ from datetime import UTC, datetime
 
 from sqlalchemy import UUID, DateTime
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlalchemy.orm import DeclarativeBase, Mapped, declarative_mixin, mapped_column
+from sqlalchemy.orm import (
+    DeclarativeBase,
+    Mapped,
+    declarative_mixin,
+    mapped_column,
+)
 
 from src.core.config import settings
 

@@ -4,10 +4,14 @@ from fastapi import APIRouter, Request, Response
 
 from src.api.v1.dependencies import OAuthServiceDep
 from src.core.config import settings
-from src.exceptions import OAuthStateException, OAuthStateHTTPException, ProviderException, ProviderHTTPException
+from src.exceptions import (
+    OAuthStateException,
+    OAuthStateHTTPException,
+    ProviderException,
+    ProviderHTTPException,
+)
 from src.schemas.oauth import AuthProvider, OAuthURLResponseScheme
 from src.schemas.tokens import JWTAccessToken
-
 
 router = APIRouter(tags=["OAuth"])
 

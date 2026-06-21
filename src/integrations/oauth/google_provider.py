@@ -4,7 +4,7 @@ from authlib.integrations.httpx_client import AsyncOAuth2Client
 
 from src.core.config import settings
 from src.integrations.oauth.base_provider import OAuthBaseProvider
-from src.schemas.oauth import OAuthUserInfoScheme, AuthProvider
+from src.schemas.oauth import AuthProvider, OAuthUserInfoScheme
 
 
 class GoogleOAuthProvider(OAuthBaseProvider):

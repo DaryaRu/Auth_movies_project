@@ -1,5 +1,4 @@
-from sqlalchemy import Column, ForeignKey, Table
-from sqlalchemy import UUID
+from sqlalchemy import UUID, Column, ForeignKey, Table
 
 from src.databases.pg import Base
 
