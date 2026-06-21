@@ -17,6 +17,8 @@ from src.exceptions import (
     InvalidTokenHTTPException,
     PasswordAlreadySetException,
     PasswordAlreadySetHTTPException,
+    PasswordNotSetException,
+    PasswordNotSetHTTPException,
     TokenExeption,
     TokenKeysException,
     TokenTypeExeption,
@@ -80,6 +82,8 @@ async def login(
         raise UserNotFoundHTTPException(detail=exc.detail)
     except VerifyPasswordException as exc:
         raise VerifyPasswordHTTPException(detail=exc.detail)
+    except PasswordNotSetException as exc:
+        raise PasswordNotSetHTTPException(detail=exc.detail)
 
     response.set_cookie(
         key="refresh_token",

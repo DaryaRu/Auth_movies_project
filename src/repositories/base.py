@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.exceptions import (
     ObjectAlreadyexistsException,
-    ObjectNotFoundException
+    ObjectNotFoundException,
 )
 
 ModelT = TypeVar("ModelT")

@@ -4,8 +4,8 @@ import rich
 import typer
 from pydantic import ValidationError
 
-from src.databases.pg import async_session_maker
 from src.databases import redis
+from src.databases.pg import async_session_maker
 from src.exceptions import UserAlreadyexistsException
 from src.repositories.sessions import SessionRedisRepository
 from src.schemas.users import UserRequestScheme

@@ -4,6 +4,7 @@ from uuid import UUID, uuid4
 from src.exceptions import (
     DecodeTokenException,
     PasswordAlreadySetException,
+    PasswordNotSetException,
     TokenExeption,
     TokenKeysException,
     TokenTypeExeption,
@@ -12,6 +13,7 @@ from src.exceptions import (
     VerifyPasswordException,
 )
 from src.models.users import UserORM
+from src.schemas.oauth import OAuthUserInfoScheme
 from src.schemas.users import (
     ChangeEmailRequestScheme,
     ChangePasswordRequestScheme,
@@ -46,14 +48,14 @@ class AuthService(BaseService):
         self._session_service: SessionService = session_service
         
     async def register_user(self, user: UserRequestScheme) -> UserORM:
-        is_exsist_user = await self._db.users.get_one_or_none_by_email(user.email)
+        is_exsist_user = await self._db.users.get_one_or_none_by_email_or_phone(user.email, user.phone)
         if is_exsist_user:
             raise UserAlreadyexistsException()
         new_user = await self.add_one(user)
         return new_user
     
     async def create_admin(self, user: UserRequestScheme) -> None:
-        is_exsist_user = await self._db.users.get_one_or_none_by_email(user.email)
+        is_exsist_user = await self._db.users.get_one_or_none_by_email_or_phone(user.email, user.phone)
         if is_exsist_user:
             raise UserAlreadyexistsException()
         await self.add_one(user, is_superuser=True)
@@ -73,6 +75,7 @@ class AuthService(BaseService):
             user.password
         )
         new_user = await self._db.users.create_user(
+            phone=user.phone,
             email=user.email,
             hashed_password=hash_password,
             is_superuser=is_superuser,
@@ -193,7 +196,7 @@ class AuthService(BaseService):
 
         email_exists = await self._db.users.get_one_or_none_by_email(
             data.new_email
-            )
+        )
         if email_exists:
             raise UserAlreadyexistsException()
 
@@ -244,6 +247,131 @@ class AuthService(BaseService):
 
         await self._session_service.delete_all_sessions(str(user_id))
 
+    async def authenticate_user(
+            self,
+            auth_user: UserRequestScheme,
+            ip_address: str,
+            user_agent: str
+    ) -> tuple[str, str]:
+        """
+        Аутентифицирует пользователя по email и паролю.
+        - Проверяет, существует ли пользователь.
+        - Сравнивает хэшированный пароль с введённым.
+        - В случае ошибок выбрасывает исключения.
+        Args:
+            auth_user (UserRequestScheme): Данные для входа (email и пароль).
+            ip_address (str): IP-адрес клиента.
+            user_agent (str): Строка User-Agent клиентского устройства.
+
+        Raises:
+            UserNotFoundException: Если пользователь с указанным email не найден.
+            VerifyPasswordException: Если пароль введён неверно.
+        """
+        user = await self._db.users.get_one_or_none_by_email_or_phone(email=auth_user.email, phone=auth_user.phone)
+        if user is None:
+            raise UserNotFoundException()
+        if not user.is_active:
+            raise UserNotFoundException()
+        if not user.hashed_password:
+            raise PasswordNotSetException()
+        if not self._hash_service.verify_password(
+            auth_user.password, user.hashed_password
+        ):
+            raise VerifyPasswordException()
+        return await self._create_user_session(
+            user,
+            ip_address,
+            user_agent,
+        )
+    
+    async def _create_user_session(
+        self,
+        user: UserORM,
+        ip_address: str,
+        user_agent: str,
+    ) -> tuple[str, str]:
+        sid = uuid4()
+
+        permission_codes = await self._get_permission_codes(user.id)
+
+        access_token, refresh_token = (
+            self._token_service.create_access_and_refresh_tokens(
+                {
+                    "sub": str(user.id),
+                    "is_superuser": user.is_superuser,
+                    "sid": str(sid),
+                    "permissions": permission_codes,
+                }
+            )
+        )
+
+        await self._session_service.add_session(
+            user.id,
+            user_agent,
+            ip_address,
+            refresh_token,
+            sid,
+        )
+
+        return access_token, refresh_token
+    
+    async def revoke_refresh_token(self, refresh_token: str) -> None:
+        try:
+            payload = self.decode_token(refresh_token)
+        except (DecodeTokenException, TokenKeysException):
+            return
+        sid = payload["sid"]
+        await self._session_service.delete_session(sid)
+        
+    async def revoke_all_refresh_tokens(self, refresh_token: str) -> None:
+        try:
+            payload = self.decode_token(refresh_token)
+        except (DecodeTokenException, TokenKeysException):
+            return
+        user_id = payload["sub"]
+        await self._session_service.delete_all_sessions(user_id)
+        
+    async def _get_or_create_oauth_user(
+        self,
+        user_info: OAuthUserInfoScheme,
+    ) -> UserORM:
+        oauth_account = await self._db.oauth_accounts.get_by_provider_data(
+            provider=user_info.provider,
+            provider_user_id=user_info.provider_user_id,
+        )
+
+        if oauth_account:
+            return await self.get_one(
+                oauth_account.user_id
+            )
+        user = await self._db.users.get_one_or_none_by_email_or_phone(email=user_info.email, phone=user_info.phone)
+        if not user:
+            user = await self._db.users.create_user(
+                email=user_info.email,
+                phone=user_info.phone,
+                hashed_password=None,
+            )
+            
+        await self._db.oauth_accounts.create_oauth_account(
+            user_id=user.id,
+            provider=user_info.provider,
+            provider_user_id=user_info.provider_user_id,
+        )
+        return user
+    
+    async def authenticate_oauth_user(
+            self,
+            user_info: OAuthUserInfoScheme,
+            ip_address: str,
+            user_agent: str
+    ) -> tuple[str, str]:
+        user = await self._get_or_create_oauth_user(user_info)
+        return await self._create_user_session(
+            user,
+            ip_address,
+            user_agent,
+        )
+        
     async def set_password(self, user_id: UUID, data: SetPasswordRequestScheme) -> None:
         """Устанавливает пароль для OAuth-пользователя без пароля.
 
@@ -263,72 +391,4 @@ class AuthService(BaseService):
             user_id=user_id,
             hashed_password=new_hash,
         )
-
-    async def authenticate_user(
-            self,
-            auth_user: UserRequestScheme,
-            ip_address: str,
-            user_agent: str
-            ) -> tuple[str, str]:
-        """
-        Аутентифицирует пользователя по email и паролю.
-        - Проверяет, существует ли пользователь.
-        - Сравнивает хэшированный пароль с введённым.
-        - В случае ошибок выбрасывает исключения.
-        Args:
-            auth_user (UserRequestScheme): Данные для входа (email и пароль).
-            ip_address (str): IP-адрес клиента.
-            user_agent (str): Строка User-Agent клиентского устройства.
-
-        Raises:
-            UserNotFoundException: Если пользователь с указанным email не найден.
-            VerifyPasswordException: Если пароль введён неверно.
-        """
-        user = await self.get_one_by_email(email=auth_user.email)
-        if user is None:
-            raise UserNotFoundException()
-        if not user.is_active:
-            raise UserNotFoundException()
-        if not self._hash_service.verify_password(
-            auth_user.password, user.hashed_password
-        ):
-            raise VerifyPasswordException()
-        sid = uuid4()
-        permission_codes = await self._get_permission_codes(user.id)
-        access_token, refresh_token = (
-            self._token_service.create_access_and_refresh_tokens(
-                {
-                    "sub": str(user.id),
-                    "is_superuser": user.is_superuser,
-                    "sid": str(sid),
-                    "permissions": permission_codes,
-                }
-            )
-        )
-        
-        await self._session_service.add_session(
-            user.id,
-            user_agent,
-            ip_address,
-            refresh_token,
-            sid,
-        )
- 
-        return access_token, refresh_token
-    
-    async def revoke_refresh_token(self, refresh_token: str) -> None:
-        try:
-            payload = self.decode_token(refresh_token)
-        except (DecodeTokenException, TokenKeysException):
-            return
-        sid = payload["sid"]
-        await self._session_service.delete_session(sid)
-        
-    async def revoke_all_refresh_tokens(self, refresh_token: str) -> None:
-        try:
-            payload = self.decode_token(refresh_token)
-        except (DecodeTokenException, TokenKeysException):
-            return
-        user_id = payload["sub"]
-        await self._session_service.delete_all_sessions(user_id)
  

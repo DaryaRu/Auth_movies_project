@@ -20,14 +20,18 @@ pytestmark = pytest.mark.asyncio(loop_scope="session")
 class TestRegistration:
     URL = f"{test_settings.api_prefix}/registration/"
 
+    @pytest.mark.parametrize(
+        "payload",
+        [
+            {"email": "new_user@example.com", "password": "test_password"},
+            {"phone": "+79999999999", "password": "test_password"},
+        ],
+    )
     async def test_registration_success(
         self,
         http_client: ClientSession,
+        payload: dict[str, str]
     ):
-        payload = {
-            "email": "new_user@example.com",
-            "password": "test_password",
-        }
 
         response = await http_client.post(
             self.URL,
@@ -35,7 +39,8 @@ class TestRegistration:
         )
         data = await assert_status_return_json(response, HTTPStatus.CREATED)
         assert "id" in data
-        assert data["email"] == payload["email"]
+        assert "email" in data
+        assert "phone" in data
         assert data["is_superuser"] is False
         assert data["is_active"] is True
 
@@ -81,8 +86,8 @@ class TestRegistration:
 
 class TestLogin:
     URL = f"{test_settings.api_prefix}/login/"
-
-    async def test_login_success(
+    
+    async def test_login_success_with_email(
         self,
         http_client: ClientSession,
         active_user_data: dict[str, Any],
@@ -91,6 +96,28 @@ class TestLogin:
             self.URL,
             json={
                 "email": active_user_data["email"],
+                "password": active_user_data["password"],
+            },
+        )
+        data = await assert_status_return_json(response, HTTPStatus.OK)
+
+        assert "access_token" in data
+        assert data["token_type"] == "bearer"
+        assert "access_token_expire" in data
+
+        cookies = response.cookies
+
+        assert "refresh_token" in cookies
+        
+    async def test_login_success_with_phone(
+        self,
+        http_client: ClientSession,
+        active_user_data: dict[str, Any],
+    ):
+        response = await http_client.post(
+            self.URL,
+            json={
+                "phone": active_user_data["phone"],
                 "password": active_user_data["password"],
             },
         )
