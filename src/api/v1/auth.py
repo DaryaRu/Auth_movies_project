@@ -301,25 +301,3 @@ async def set_password(
         raise UserNotFoundHTTPException(detail=exc.detail)
     except PasswordAlreadySetException as exc:
         raise PasswordAlreadySetHTTPException(detail=exc.detail)
-
-
-@router.post(
-    "/set-password/",
-    status_code=status.HTTP_204_NO_CONTENT,
-    summary="Установка пароля для OAuth-пользователя",
-)
-async def set_password(
-    data: SetPasswordRequestScheme,
-    auth_service: AuthServiceDep,
-    user: CurrentUserDep,
-):
-    """Устанавливает пароль для пользователя, вошедшего через OAuth (без пароля).
-    Если пароль уже установлен — использовать /change-password/.
-    """
-    try:
-        await auth_service.set_password(user_id=user.id, data=data)
-        return Response(status_code=status.HTTP_204_NO_CONTENT)
-    except UserNotFoundException as exc:
-        raise UserNotFoundHTTPException(detail=exc.detail)
-    except PasswordAlreadySetException as exc:
-        raise PasswordAlreadySetHTTPException(detail=exc.detail)
