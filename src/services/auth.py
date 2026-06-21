@@ -249,26 +249,6 @@ class AuthService(BaseService):
 
         await self._session_service.delete_all_sessions(str(user_id))
 
-    async def set_password(self, user_id: UUID, data: SetPasswordRequestScheme) -> None:
-        """Устанавливает пароль для OAuth-пользователя без пароля.
-
-        Raises:
-            UserNotFoundException: Если пользователь не найден.
-            PasswordAlreadySetException: Если пароль уже установлен (использовать change-password).
-        """
-        user = await self._db.users.get_one_or_none_by_id(id=user_id)
-        if not user:
-            raise UserNotFoundException()
-
-        if user.hashed_password is not None:
-            raise PasswordAlreadySetException()
-
-        new_hash = self._hash_service.create_hash_password(data.password)
-        await self._db.users.update_user_credentials(
-            user_id=user_id,
-            hashed_password=new_hash,
-        )
-
     async def authenticate_user(
             self,
             auth_user: UserRequestScheme,
