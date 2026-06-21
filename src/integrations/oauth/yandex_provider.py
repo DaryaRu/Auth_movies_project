@@ -6,16 +6,17 @@ from jose import jwt
 
 from src.core.config import settings
 from src.exceptions import ProviderException
-from src.integrations.oauth.base_provider import OAuthProvider
+from src.integrations.oauth.base_provider import OAuthBaseProvider
 from src.schemas.oauth import OAuthUserInfoScheme, AuthProvider
 
 
-class YandexOAuthProvider(OAuthProvider):
+class YandexOAuthProvider(OAuthBaseProvider):
     def get_auth_url(self, state: str) -> str:
+        redirect_uri = f"{settings.OAUTH_REDIRECT_BASE_URL}{settings.API_V1_PREFIX}/auth/{AuthProvider.YANDEX.value}/callback/"
         params = {
             "response_type": "code",
             "client_id": settings.YANDEX_CLIENT_ID,
-            "redirect_uri": settings.YANDEX_REDIRECT_URI,
+            "redirect_uri": redirect_uri,
             "state": state
         }
         return "https://oauth.yandex.ru/authorize?" + urlencode(params)

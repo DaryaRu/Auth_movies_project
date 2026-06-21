@@ -1,9 +1,7 @@
 from src.repositories.oauth_accounts import OAuthAccountsPostgreSQLRepository
 from src.repositories.permissions import PermissionsPostgreSQLRepository
 from src.repositories.roles import RolesPostgreSQLRepository
-from src.repositories.users import (
-    UsersPostgreSQLRepository,
-)
+from src.repositories.users import UsersPostgreSQLRepository
 
 
 class DBManager:

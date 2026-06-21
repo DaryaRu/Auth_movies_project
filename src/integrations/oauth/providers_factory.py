@@ -1,4 +1,4 @@
-from src.integrations.oauth.base_provider import OAuthProvider
+from src.integrations.oauth.base_provider import OAuthBaseProvider
 from src.integrations.oauth.google_provider import GoogleOAuthProvider
 from src.integrations.oauth.vk_provider import VkOAuthProvider
 from src.integrations.oauth.yandex_provider import YandexOAuthProvider
@@ -18,5 +18,5 @@ class OAuthProviderFactory:
             AuthProvider.VK: vk,
         }
 
-    def get(self, provider: AuthProvider) -> OAuthProvider:
+    def get(self, provider: AuthProvider) -> OAuthBaseProvider:
         return self.providers[provider]

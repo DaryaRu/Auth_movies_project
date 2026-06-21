@@ -2,6 +2,7 @@ from enum import StrEnum
 
 from pydantic import BaseModel, EmailStr
 
+
 class AuthProvider(StrEnum):
     GOOGLE = "google"
     YANDEX = "yandex"

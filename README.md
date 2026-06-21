@@ -2,7 +2,7 @@
 
 Сервис аутентификации и управления доступом для онлайн-кинотеатра. Выдаёт токены, управляет ролями и правами пользователей в соответствии с моделью RBAC. Остальные сервисы платформы получают публичный ключ через `GET /api/v1/jwt.key/` и верифицируют токены самостоятельно.
 
-**Стек:** FastAPI, PostgreSQL, Redis, JWT RS256, Argon2, Docker
+**Стек:** FastAPI, PostgreSQL, Redis, JWT RS256, Argon2, OAuth 2.0 (Authlib), Docker
 
 
 ## Первый запуск
@@ -73,6 +73,35 @@ http://localhost:8000/api/openapi
 `make revision-fresh name="..."` — создать миграцию без предварительного `upgrade head` (чистая БД)
 
 `make test` — запустить функциональные тесты (поднимает окружение и удаляет контейнеры после завершения)
+
+
+## Проверка входа через Google
+
+### Получение GOOGLE_CLIENT_ID и GOOGLE_CLIENT_SECRET
+
+1. Открыть [Google Cloud Console](https://console.cloud.google.com/) и создать проект (или выбрать существующий).
+2. Перейти в **APIs & Services → OAuth consent screen**:
+   - User Type: **External**
+   - Заполнить название приложения и email
+   - В разделе **Test users** добавить Google-аккаунты, которые будут использоваться для тестирования
+3. Перейти в **APIs & Services → Credentials → Create Credentials → OAuth 2.0 Client ID**:
+   - Application type: **Web application**
+   - В **Authorized redirect URIs** добавить `http://localhost:8000/api/v1/auth/google/callback/`
+4. Скопировать **Client ID** и **Client Secret** (`GOOGLE_CLIENT_ID` и `GOOGLE_CLIENT_SECRET`).
+
+### Запуск
+
+Предварительно:
+1. В `.env` заполнены `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `OAUTH_REDIRECT_BASE_URL=http://localhost:8000`.
+2. Сервис запущен.
+
+Шаги проверки:
+1. В Swagger (`http://localhost:8000/api/openapi`) выполнить `GET /api/v1/auth/google/` — сервис вернёт `{"url": "https://accounts.google.com/..."}`.
+2. Скопировать `url` из ответа и открыть в браузере.
+3. Выбрать тестовый аккаунт.
+4. Google сделает редирект на `http://localhost:8000/api/v1/auth/google/callback/?code=...&state=...`.
+5. Сервис вернёт JSON с `access_token`.
+6. Проверить что пользователь создался в БД: `make shell` → `SELECT * FROM users;` и `SELECT * FROM oauth_accounts;`.
 
 
 ## Работа с ролями и правами

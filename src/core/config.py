@@ -37,10 +37,12 @@ class Settings(BaseSettings):
     API_V1_PREFIX: str = "/api/v1"
     CACHE_EXPIRE: int = 600
     COOKIE_SECURE: bool = False
-    OAUTH_STATE_EXPIRE_SECONDS: int
+    OAUTH_REDIRECT_BASE_URL: str = "http://localhost"
+    OAUTH_STATE_EXPIRE_SECONDS: int = 300
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
     YANDEX_CLIENT_ID: str
     YANDEX_CLIENT_SECRET: str
-    YANDEX_REDIRECT_URI: str
 
     @property
     def DB_URL(self):

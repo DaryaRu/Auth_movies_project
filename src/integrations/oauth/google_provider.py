@@ -1,8 +1,8 @@
-from src.integrations.oauth.base_provider import OAuthProvider
+from src.integrations.oauth.base_provider import OAuthBaseProvider
 from src.schemas.oauth import OAuthUserInfoScheme
 
 
-class GoogleOAuthProvider(OAuthProvider):
+class GoogleOAuthProvider(OAuthBaseProvider):
     async def get_auth_url(self, state: str) -> str:
         ...
 
