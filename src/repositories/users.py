@@ -103,7 +103,7 @@ class UsersPostgreSQLRepository(UsersAbstractRepository, BasePostgreSQLRepositor
         return result.scalars().one_or_none()
     
     async def get_one_or_none_by_email(self, email: str) -> UserORM | None:
-        return await self.get_one_or_none_by_email(email=email)
+        return await self.get_one_or_none(email=email)
     
     async def get_one_or_none_by_id(self, id: UUID) -> UserORM | None:
         return await self.get_one_or_none(id=id)

@@ -346,8 +346,8 @@ class AuthService(BaseService):
             return await self.get_one(
                 oauth_account.user_id
             )
-        user_exists = await self._db.users.get_one_or_none_by_email_or_phone(email=user_info.email, phone=user_info.phone)
-        if not user_exists:
+        user = await self._db.users.get_one_or_none_by_email_or_phone(email=user_info.email, phone=user_info.phone)
+        if not user:
             user = await self._db.users.create_user(
                 email=user_info.email,
                 phone=user_info.phone,

@@ -41,8 +41,8 @@ class Settings(BaseSettings):
     OAUTH_STATE_EXPIRE_SECONDS: int = 300
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
-    YANDEX_CLIENT_ID: str
-    YANDEX_CLIENT_SECRET: str
+    YANDEX_CLIENT_ID: str = ""
+    YANDEX_CLIENT_SECRET: str = ""
 
     @property
     def DB_URL(self):
