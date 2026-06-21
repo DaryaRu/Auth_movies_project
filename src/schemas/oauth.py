@@ -10,8 +10,8 @@ class AuthProvider(StrEnum):
     
     
 class OAuthUserInfoScheme(BaseModel):
-    email: EmailStr | None
-    phone: str | None
+    email: EmailStr | None = None
+    phone: str | None = None
     provider: AuthProvider
     provider_user_id: str
 
