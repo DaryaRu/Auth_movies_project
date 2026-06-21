@@ -1,4 +1,4 @@
-"""add_oauth_accounts_and_update_users
+"""update_users
 
 Revision ID: 58b41ae859b2
 Revises: f3a6c8d26648

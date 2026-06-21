@@ -5,7 +5,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.databases.pg import Base, BaseORM
 
-
 class OAuthAccountORM(Base, BaseORM):
     """
     OAuth-аккаунт пользователя, привязанный к внешнему провайдеру.
@@ -30,7 +29,7 @@ class OAuthAccountORM(Base, BaseORM):
     user_id: Mapped[UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE")
     )
-    provider: Mapped[str] = mapped_column(String(50))
+    provider: Mapped[str] = mapped_column(String(50), primary_key=True)
     provider_user_id: Mapped[str] = mapped_column(String(255))
 
     user: Mapped["UserORM"] = relationship(back_populates="oauth_accounts")
