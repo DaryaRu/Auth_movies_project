@@ -346,7 +346,7 @@ class AuthService(BaseService):
                 oauth_account.user_id
             )
         if not user_info.email and not user_info.phone:
-            raise ProviderException(detail="Провайдер не вернул email или телефон пользователя")
+            raise ProviderException()
         user = await self._db.users.get_one_or_none_by_email_or_phone(email=user_info.email, phone=user_info.phone)
         if not user:
             user = await self._db.users.create_user(
