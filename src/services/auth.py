@@ -5,6 +5,7 @@ from src.exceptions import (
     DecodeTokenException,
     PasswordAlreadySetException,
     PasswordNotSetException,
+    ProviderException,
     TokenExeption,
     TokenKeysException,
     TokenTypeExeption,
@@ -344,6 +345,8 @@ class AuthService(BaseService):
             return await self.get_one(
                 oauth_account.user_id
             )
+        if not user_info.email and not user_info.phone:
+            raise ProviderException(detail="Провайдер не вернул email или телефон пользователя")
         user = await self._db.users.get_one_or_none_by_email_or_phone(email=user_info.email, phone=user_info.phone)
         if not user:
             user = await self._db.users.create_user(
