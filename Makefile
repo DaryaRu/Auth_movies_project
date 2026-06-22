@@ -1,8 +1,13 @@
 # Первый запуск: генерирует ключи, собирает образы, поднимает контейнеры
 init: keys build up
 
-# Полный сброс и повторный запуск: удаляет тома, пересобирает, поднимает, мигрирует, создаёт суперпользователя
-fresh: down-v build up migrate superuser
+# Полный сброс: удаляет тома, пересобирает образы, поднимает контейнеры, применяет миграции.
+# После завершения создать суперпользователя вручную: make superuser
+fresh: down-v build up migrate
+
+# То же что fresh, но пересобирает образы без кэша Docker.
+# Использовать когда: изменился requirements.txt, Dockerfile или кэш мешает подхватить обновления.
+fresh-nc: down-v build-nc up migrate
 
 # Останавливает контейнеры и удаляет все тома (данные БД будут потеряны)
 down-v:
@@ -19,6 +24,10 @@ rebuild: down build up
 # Собирает Docker-образы
 build:
 	docker compose build
+
+# Собирает Docker-образы без кэша
+build-nc:
+	docker compose build --no-cache
 
 # Запускает контейнеры в фоне; --remove-orphans удаляет контейнеры сервисов, которых больше нет в docker-compose.yml
 up:
