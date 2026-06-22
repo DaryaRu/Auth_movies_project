@@ -1,0 +1,139 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-03-30 10:32+0300\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: .\movies\admin.py:14 .\movies\models.py:93
+msgid "rating"
+msgstr ""
+
+#: .\movies\admin.py:48
+msgid "Search by name"
+msgstr ""
+
+#: .\movies\admin.py:58
+msgid "Search by full name"
+msgstr ""
+
+#: .\movies\admin.py:70
+msgid "Search by title"
+msgstr ""
+
+#: .\movies\admin.py:79
+msgid "Genres"
+msgstr ""
+
+#: .\movies\apps.py:8
+msgid "movie"
+msgstr ""
+
+#: .\movies\apps.py:9
+msgid "movies"
+msgstr ""
+
+#: .\movies\models.py:10 .\movies\models.py:159 .\movies\models.py:197
+msgid "created"
+msgstr ""
+
+#: .\movies\models.py:14
+msgid "modified"
+msgstr ""
+
+#: .\movies\models.py:35
+msgid "name"
+msgstr ""
+
+#: .\movies\models.py:39 .\movies\models.py:78
+msgid "description"
+msgstr ""
+
+#: .\movies\models.py:45 .\movies\models.py:155
+msgid "genre"
+msgstr ""
+
+#: .\movies\models.py:46 .\movies\models.py:115
+msgid "genres"
+msgstr ""
+
+#: .\movies\models.py:54
+msgid "full name"
+msgstr ""
+
+#: .\movies\models.py:60 .\movies\models.py:188
+msgid "person"
+msgstr ""
+
+#: .\movies\models.py:61 .\movies\models.py:120
+msgid "persons"
+msgstr ""
+
+#: .\movies\models.py:70
+msgid "Movie"
+msgstr ""
+
+#: .\movies\models.py:71
+msgid "TV show"
+msgstr ""
+
+#: .\movies\models.py:74
+msgid "title"
+msgstr ""
+
+#: .\movies\models.py:82
+msgid "creation date"
+msgstr ""
+
+#: .\movies\models.py:87
+msgid "file path"
+msgstr ""
+
+#: .\movies\models.py:97
+msgid "The value cannot be less than 0"
+msgstr ""
+
+#: .\movies\models.py:101
+msgid "The value cannot be greater than 10"
+msgstr ""
+
+#: .\movies\models.py:108
+msgid "type"
+msgstr ""
+
+#: .\movies\models.py:125 .\movies\models.py:150 .\movies\models.py:183
+msgid "film work"
+msgstr ""
+
+#: .\movies\models.py:126
+msgid "film works"
+msgstr ""
+
+#: .\movies\models.py:176
+msgid "Actor"
+msgstr ""
+
+#: .\movies\models.py:177
+msgid "Director"
+msgstr ""
+
+#: .\movies\models.py:178
+msgid "Writer"
+msgstr ""
+
+#: .\movies\models.py:192
+msgid "role"
+msgstr ""
