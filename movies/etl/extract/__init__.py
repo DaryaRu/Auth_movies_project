@@ -1,0 +1,1 @@
+"""Extract package for PostgreSQL."""

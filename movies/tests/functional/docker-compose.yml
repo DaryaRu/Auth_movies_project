@@ -1,0 +1,59 @@
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.12.2
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9200 >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: >
+      redis-server
+      --maxclients 20000
+      --timeout 300
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  fastapi:
+    build: ../..
+    image: fastapi-image
+    env_file: .env
+    working_dir: /app/src
+    command: >
+      sh -c "gunicorn main:app --workers 4 --forwarded-allow-ips='*'
+      --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:7000"
+    ports:
+      - "8800:7000"
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:7000/health')\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  tests:
+    image: fastapi-image
+    env_file: .env
+    volumes:
+      - ../../tests:/app/tests
+    ports:
+      - "5678:5678"
+    depends_on:
+      fastapi:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    entrypoint: sh /app/tests/functional/utils/entrypoint.sh
