@@ -1,4 +1,3 @@
-
 from sqlalchemy import Index, String, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
