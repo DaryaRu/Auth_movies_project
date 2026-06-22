@@ -47,13 +47,13 @@ services:
     env_file: .env
     command: alembic upgrade head
     volumes:
-      - ./src/migrations:/app/src/migrations
+      - ./auth/src/migrations:/app/src/migrations
     depends_on:
       db:
         condition: service_healthy
 
   auth-service:
-    build: .
+    build: ./auth
     image: auth-image
     restart: unless-stopped
     env_file: .env
