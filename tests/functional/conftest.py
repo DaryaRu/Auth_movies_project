@@ -111,7 +111,9 @@ async def pg_write_data(pg_client: asyncpg.Connection) -> AsyncGenerator[WriteDa
 async def redis_client():
     """Session-scoped Redis async client."""
     client = Redis(
-        host=test_settings.redis_host, port=test_settings.redis_port
+        host=test_settings.redis_host,
+        port=test_settings.redis_port,
+        decode_responses=True,
     )
     yield client
     await client.aclose()
