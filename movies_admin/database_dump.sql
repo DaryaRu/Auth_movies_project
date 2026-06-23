@@ -1,7 +1,7 @@
 CREATE SCHEMA IF NOT EXISTS content;
 
 
-ALTER SCHEMA content OWNER TO postgres;
+ALTER SCHEMA content OWNER TO movies;
 
 SET default_tablespace = '';
 
@@ -24,7 +24,7 @@ CREATE TABLE content.film_work (
 );
 
 
-ALTER TABLE content.film_work OWNER TO postgres;
+ALTER TABLE content.film_work OWNER TO movies;
 
 --
 -- Name: genre; Type: TABLE; Schema: content; Owner: postgres
@@ -39,7 +39,7 @@ CREATE TABLE content.genre (
 );
 
 
-ALTER TABLE content.genre OWNER TO postgres;
+ALTER TABLE content.genre OWNER TO movies;
 
 --
 -- Name: genre_film_work; Type: TABLE; Schema: content; Owner: postgres
@@ -53,7 +53,7 @@ CREATE TABLE content.genre_film_work (
 );
 
 
-ALTER TABLE content.genre_film_work OWNER TO postgres;
+ALTER TABLE content.genre_film_work OWNER TO movies;
 
 --
 -- Name: person; Type: TABLE; Schema: content; Owner: postgres
@@ -67,7 +67,7 @@ CREATE TABLE content.person (
 );
 
 
-ALTER TABLE content.person OWNER TO postgres;
+ALTER TABLE content.person OWNER TO movies;
 
 --
 -- Name: person_film_work; Type: TABLE; Schema: content; Owner: postgres
@@ -83,7 +83,7 @@ CREATE TABLE content.person_film_work (
 );
 
 
-ALTER TABLE content.person_film_work OWNER TO postgres;
+ALTER TABLE content.person_film_work OWNER TO movies;
 
 --
 -- Name: auth_group; Type: TABLE; Schema: public; Owner: postgres
@@ -95,7 +95,7 @@ CREATE TABLE public.auth_group (
 );
 
 
-ALTER TABLE public.auth_group OWNER TO postgres;
+ALTER TABLE public.auth_group OWNER TO movies;
 
 --
 -- Name: auth_group_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
@@ -122,7 +122,7 @@ CREATE TABLE public.auth_group_permissions (
 );
 
 
-ALTER TABLE public.auth_group_permissions OWNER TO postgres;
+ALTER TABLE public.auth_group_permissions OWNER TO movies;
 
 --
 -- Name: auth_group_permissions_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
@@ -150,7 +150,7 @@ CREATE TABLE public.auth_permission (
 );
 
 
-ALTER TABLE public.auth_permission OWNER TO postgres;
+ALTER TABLE public.auth_permission OWNER TO movies;
 
 --
 -- Name: auth_permission_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
@@ -185,7 +185,7 @@ CREATE TABLE public.auth_user (
 );
 
 
-ALTER TABLE public.auth_user OWNER TO postgres;
+ALTER TABLE public.auth_user OWNER TO movies;
 
 --
 -- Name: auth_user_groups; Type: TABLE; Schema: public; Owner: postgres
@@ -198,7 +198,7 @@ CREATE TABLE public.auth_user_groups (
 );
 
 
-ALTER TABLE public.auth_user_groups OWNER TO postgres;
+ALTER TABLE public.auth_user_groups OWNER TO movies;
 
 --
 -- Name: auth_user_groups_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
@@ -239,7 +239,7 @@ CREATE TABLE public.auth_user_user_permissions (
 );
 
 
-ALTER TABLE public.auth_user_user_permissions OWNER TO postgres;
+ALTER TABLE public.auth_user_user_permissions OWNER TO movies;
 
 --
 -- Name: auth_user_user_permissions_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
@@ -272,7 +272,7 @@ CREATE TABLE public.django_admin_log (
 );
 
 
-ALTER TABLE public.django_admin_log OWNER TO postgres;
+ALTER TABLE public.django_admin_log OWNER TO movies;
 
 --
 -- Name: django_admin_log_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
@@ -299,7 +299,7 @@ CREATE TABLE public.django_content_type (
 );
 
 
-ALTER TABLE public.django_content_type OWNER TO postgres;
+ALTER TABLE public.django_content_type OWNER TO movies;
 
 --
 -- Name: django_content_type_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
@@ -327,7 +327,7 @@ CREATE TABLE public.django_migrations (
 );
 
 
-ALTER TABLE public.django_migrations OWNER TO postgres;
+ALTER TABLE public.django_migrations OWNER TO movies;
 
 --
 -- Name: django_migrations_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
@@ -354,7 +354,7 @@ CREATE TABLE public.django_session (
 );
 
 
-ALTER TABLE public.django_session OWNER TO postgres;
+ALTER TABLE public.django_session OWNER TO movies;
 
 --
 -- Data for Name: film_work; Type: TABLE DATA; Schema: content; Owner: postgres
