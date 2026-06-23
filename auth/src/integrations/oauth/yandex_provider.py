@@ -68,7 +68,6 @@ class YandexOAuthProvider(OAuthBaseProvider):
                     algorithms=["HS256"],
                     issuer="login.yandex.ru",
                 )
-                print(f"{yandex_user=}")
         return OAuthUserInfoScheme(
             email=yandex_user.get("email"),
             provider_user_id=str(yandex_user["uid"]),
