@@ -3,6 +3,7 @@ from logging import config as logging_config
 
 from fastapi import FastAPI
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
 
 from src.core import logger
 from src.core.cache import close_cache, init_cache
@@ -10,6 +11,7 @@ from src.core.config import settings
 from src.core.middlewares import register_middlewares
 from src.core.routers import register_routers
 from src.core.tracers import configure_tracer
+from src.databases.pg import engine
 
 
 @asynccontextmanager
@@ -33,6 +35,7 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
     FastAPIInstrumentor.instrument_app(app, excluded_urls=settings.OTEL_PYTHON_FASTAPI_EXCLUDED_URLS)
+    SQLAlchemyInstrumentor().instrument(engine=engine.sync_engine)
     register_middlewares(app)
     register_routers(app)
 

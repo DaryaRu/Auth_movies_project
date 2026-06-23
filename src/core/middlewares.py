@@ -5,6 +5,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
+from opentelemetry import trace
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from src.core.config import settings
@@ -14,11 +15,16 @@ def register_middlewares(app: FastAPI) -> None:
     """Зарегистрировать все middleware в приложении"""
     
     @app.middleware('http')
-    async def check_request_id(request: Request, call_next):
+    async def tracing_middlemare(request: Request, call_next):
         request_id = request.headers.get('X-Request-Id')
         if not request_id and request.url.path != "/health":
             return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content={'detail': {'error': 'X-Request-Id is required'}})
+        span = trace.get_current_span()
+        if request_id and span.is_recording():
+            span.set_attribute("request.id", request_id)
         response = await call_next(request)
+        if request_id:
+            response.headers["X-Request-Id"] = request_id
         return response
 
     @app.middleware("http")
