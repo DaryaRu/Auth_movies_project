@@ -1,0 +1,6 @@
+line-length = 79
+
+[lint.per-file-ignores]
+"auth/src/migrations/env.py" = ["E402", "F403"]
+"auth/src/models/__init__.py" = ["F403"]
+"auth/src/models/*.py" = ["F821"]
