@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     postgres_port: int = Field(default=5432, alias="POSTGRES_PORT")
 
     elastic_host: str = Field(alias="ELASTIC_HOST")
+    elastic_port: int = Field(default=9200, alias="ELASTIC_PORT")
     elastic_movies_index: str = Field(
         default="movies", alias="ELASTIC_MOVIES_INDEX"
     )

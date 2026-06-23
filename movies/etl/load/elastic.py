@@ -17,7 +17,7 @@ class ElasticsearchWriter:
     def __init__(self, settings: Settings) -> None:
         """Initialize writer with a Elasticsearch client."""
         self.settings = settings
-        self.client = Elasticsearch(hosts=[settings.elastic_host])
+        self.client = Elasticsearch(hosts=[f"http://{settings.elastic_host}:{settings.elastic_port}"])
 
     @backoff()
     def check_or_create_index(
