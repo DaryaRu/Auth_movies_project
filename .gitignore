@@ -7,3 +7,4 @@ public.pem
 .ruff_cache
 .vscode/
 cookies.txt
+.DS_Store

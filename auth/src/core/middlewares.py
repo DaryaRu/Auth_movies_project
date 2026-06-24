@@ -14,10 +14,12 @@ from src.core.config import settings
 def register_middlewares(app: FastAPI) -> None:
     """Зарегистрировать все middleware в приложении"""
     
+    excluded_paths = {"/health", f"{settings.API_V1_PREFIX}/auth/openapi.json"}
+
     @app.middleware('http')
     async def tracing_middlemare(request: Request, call_next):
         request_id = request.headers.get('X-Request-Id')
-        if not request_id and request.url.path != "/health":
+        if not request_id and request.url.path not in excluded_paths:
             return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content={'detail': {'error': 'X-Request-Id is required'}})
         span = trace.get_current_span()
         if request_id and span.is_recording():
