@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "movies.apps.MoviesConfig",
+    "users.apps.UsersConfig",
 ]
 
 MIDDLEWARE = [
@@ -98,6 +99,15 @@ MEDIA_URL = "media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+AUTH_USER_MODEL = "users.User"
+AUTHENTICATION_BACKENDS = [
+    'core.backends.CustomBackend',
+]
+
+AUTH_API_LOGIN_URL = os.getenv('AUTH_API_LOGIN_URL', '')
+AUTH_API_PUBLIC_KEY_URL = os.getenv('AUTH_API_PUBLIC_KEY_URL', '')
+JWT_ALGORITHM = os.getenv('JWT_ALGORITHM', '')
 
 if DEBUG:
     INTERNAL_IPS = [
