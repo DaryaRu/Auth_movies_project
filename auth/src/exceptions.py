@@ -213,3 +213,11 @@ class OAuthAccountNotLinkedHTTPException(AuthServiceHTTPException):
 
 class LastAuthMethodRestrictionHTTPException(AuthServiceHTTPException):
     status_code = 400
+
+
+class InvalidProviderException(AuthServiceException):
+    detail = "Некорректный провайдер"
+
+
+class InvalidProviderHTTPException(AuthServiceHTTPException):
+    status_code = 400

@@ -405,13 +405,13 @@ class AuthService(BaseService):
         self,
         user_id: UUID,
         auth_method: str,
-        current_sid: str,
+        current_sid: str | None = None,
     ) -> bool:
         """Аннулирует в Redis все активные сессии пользователя,
         созданные через определенный метод входа."""
         sessions = await self._session_service.get_active_sessions(
             user_id=user_id,
-            current_sid=None
+            current_sid=current_sid
         )
 
         current_session_deleted = False
@@ -443,15 +443,10 @@ class AuthService(BaseService):
         user_id: UUID,
         provider: str,
         current_sid: str,
-    ) -> tuple[list[str], str | None, bool]:
+    ) -> tuple[list[str], bool]:
         """
         Отвязывает аккаунт внешнего провайдера
         от личного кабинета пользователя.
-
-        Выполняет комплексную проверку:
-        - Запрет удаления единственного способа входа
-        - Каскадное удаление связи в базе данных
-        - Возврат access_token для фонового отзыва
 
         Args:
             user_id (UUID): Идентификатор пользователя в системе.
@@ -459,9 +454,8 @@ class AuthService(BaseService):
             current_sid (str): Идентификатор текущей активной сессии.
 
         Returns:
-            tuple[list[str], str | None, bool]: Кортеж, содержащий:
+            tuple[list[str], bool]: Кортеж, содержащий:
                 - list[str]: Список названий привязанных провайдеров.
-                - str | None: Access_token для отзыва (если есть).
                 - bool: Флаг True, если текущая сессия была аннулирована.
 
         Raises:
@@ -490,8 +484,6 @@ class AuthService(BaseService):
             if not has_password and remaining_oauth_count == 0:
                 raise LastAuthMethodRestrictionException()
 
-            access_token = getattr(target_account, "access_token", None)
-
             await db.oauth_accounts.delete_oauth_account(target_account.id)
 
             remaining_providers = [
@@ -505,4 +497,4 @@ class AuthService(BaseService):
             current_sid=current_sid,
         )
 
-        return remaining_providers, access_token, current_session_deleted
+        return remaining_providers, current_session_deleted

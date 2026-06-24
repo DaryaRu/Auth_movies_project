@@ -23,6 +23,7 @@ class SessionService:
             ip=ip,
             refresh_token_hash=refresh_hash,
             sid=str(sid),
+            auth_method=auth_method,
         )
         
     async def get_session(self, sid: str) -> dict[str, Any] | None:

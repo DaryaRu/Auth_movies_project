@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 from datetime import UTC, datetime
 from typing import Any
-from uuid import UUID
 
 from redis.asyncio import Redis
 
@@ -10,9 +9,17 @@ from src.core.config import settings
 
 class SessionAbstractRepository(ABC):
     @abstractmethod
-    async def add_user_session(self, user_id: str, ip: str, user_agent: str, refresh_token_hash: str, sid: str) -> None:
+    async def add_user_session(
+        self,
+        user_id: str,
+        ip: str,
+        user_agent: str,
+        refresh_token_hash: str,
+        sid: str,
+        auth_method: str,
+    ) -> None:
         raise NotImplementedError
-    
+
     @abstractmethod
     async def get_user_session(self, sid: str) -> dict[str, Any] | None:
         raise NotImplementedError
@@ -32,7 +39,7 @@ class SessionAbstractRepository(ABC):
     @abstractmethod
     async def get_user_sessions(
         self,
-        user_id: UUID,
+        user_id: str,
         current_sid: str
     ) -> list[dict]:
         raise NotImplementedError
@@ -51,7 +58,15 @@ class SessionRedisRepository(SessionAbstractRepository):
     def __init__(self, redis: Redis):
         self._redis = redis
         
-    async def add_user_session(self, user_id: str, ip: str, user_agent: str, refresh_token_hash: str, sid: str) -> None:
+    async def add_user_session(
+            self,
+            user_id: str,
+            ip: str,
+            user_agent: str,
+            refresh_token_hash: str,
+            sid: str,
+            auth_method: str,
+    ) -> None:
         async with self._redis.pipeline(transaction=True) as pipe:
             key = f"session:{sid}"
             ttl = settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
@@ -62,6 +77,7 @@ class SessionRedisRepository(SessionAbstractRepository):
                     "ip": ip,
                     "user_agent": user_agent,
                     "refresh_token_hash": refresh_token_hash,
+                    "auth_method": auth_method,
                     "created_at": datetime.now(UTC).isoformat()
                 }
             )

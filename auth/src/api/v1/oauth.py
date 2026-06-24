@@ -90,7 +90,7 @@ async def oauth_callback(
     response_model=OAuthUnlinkResponseScheme,
 )
 async def oauth_unlink(
-    provider: str,
+    provider: AuthProvider,
     response: Response,
     oauth_service: OAuthServiceDep,
     current_user: CurrentUserDep,
@@ -101,7 +101,7 @@ async def oauth_unlink(
     try:
         remaining_providers, current_session_deleted = await oauth_service.unlink_account(
             user_id=current_user.id,
-            provider_str=provider,
+            provider_str=provider.value,
             current_sid=current_sid
         )
     except UserNotFoundException as exc:
