@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class OAuthRedirectURLScheme(BaseModel):
@@ -25,3 +25,13 @@ class OAuthAccountResponseScheme(BaseModel):
     provider_user_id: str
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class OAuthUnlinkResponseScheme(BaseModel):
+    """Схема ответа после успешной отвязки OAuth-аккаунта."""
+
+    status: str = "success"
+    message: str
+    linked_providers: list[str] = Field(
+        description="Список оставшихся привязанных к личному кабинету провайдеров"
+    )

@@ -42,3 +42,15 @@ class GoogleOAuthProvider(OAuthBaseProvider):
             provider_user_id=str(google_user["sub"]),
             email=google_user.get("email"),
         )
+
+    async def revoke_token(self, token: str) -> None:
+        """Асинхронно отзывает access_token в Google API."""
+        async with AsyncOAuth2Client(
+            client_id=settings.GOOGLE_CLIENT_ID,
+            client_secret=settings.GOOGLE_CLIENT_SECRET,
+        ) as client:
+            await client.revoke_token(
+                url="https://oauth2.googleapis.com/revoke",
+                token=token,
+                timeout=5.0
+            )
