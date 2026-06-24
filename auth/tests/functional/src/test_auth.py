@@ -4,6 +4,7 @@ import base64
 import json
 from http import HTTPStatus
 from typing import Any
+from uuid import uuid4
 
 import pytest
 from aiohttp import ClientSession
@@ -462,7 +463,7 @@ class TestActiveSession:
                     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                     "AppleWebKit/537.36 (KHTML, like Gecko) "
                     "Chrome/137.0.0.0 Safari/537.36"
-                )
+                ),
             },
         )
         login_response_2 = await cookie_http_client.post(
@@ -476,7 +477,7 @@ class TestActiveSession:
                     "Mozilla/5.0 (iPhone; CPU iPhone OS 18_3 like Mac OS X) "
                     "AppleWebKit/605.1.15 (KHTML, like Gecko) "
                     "Version/18.3 Mobile/15E148 Safari/604.1"
-                )
+                ),
             },
         )
         login_data_1 = await login_response_1.json()
@@ -486,7 +487,7 @@ class TestActiveSession:
         access_token_2 = login_data_2["access_token"]
         active_session_response = await cookie_http_client.get(
             self.ACTIVE_SESSION_URL,
-            headers={"Authorization": f"Bearer {access_token_2}"},
+            headers={"Authorization": f"Bearer {access_token_2}",},
         )
         data = await assert_status_return_json(
             active_session_response, HTTPStatus.OK

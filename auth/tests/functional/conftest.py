@@ -2,6 +2,7 @@
 
 import asyncio
 from typing import Any, AsyncGenerator, Awaitable, Callable, Iterable
+from uuid import uuid4
 
 import aiohttp
 import asyncpg
@@ -42,6 +43,7 @@ async def http_client() -> aiohttp.ClientSession:
         connector=aiohttp.TCPConnector(use_dns_cache=False),
         cookie_jar=aiohttp.DummyCookieJar(),
         timeout=aiohttp.ClientTimeout(total=None),
+        headers={"X-Request-Id": str(uuid4())},
     ) as session:
         yield session
 
@@ -59,6 +61,7 @@ async def cookie_http_client() -> aiohttp.ClientSession:
         connector=aiohttp.TCPConnector(use_dns_cache=False),
         cookie_jar=aiohttp.CookieJar(unsafe=True),
         timeout=aiohttp.ClientTimeout(total=None),
+        headers={"X-Request-Id": str(uuid4())},
     ) as session:
         yield session
 
@@ -74,6 +77,7 @@ async def session_http_client() -> aiohttp.ClientSession:
         connector=aiohttp.TCPConnector(use_dns_cache=False),
         cookie_jar=aiohttp.DummyCookieJar(),
         timeout=aiohttp.ClientTimeout(total=None),
+        headers={"X-Request-Id": str(uuid4())},
     ) as session:
         yield session
 

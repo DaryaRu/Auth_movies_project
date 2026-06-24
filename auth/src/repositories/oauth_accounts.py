@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from uuid import UUID
 
+from sqlalchemy import delete, select
+
 from src.models.oauth_accounts import OAuthAccountORM
 from src.repositories.base import BasePostgreSQLRepository
 
@@ -11,7 +13,10 @@ class OAuthAccountsAbstractRepository(ABC):
 
     Определяет методы для:
     - получения аккаунта по провайдеру и идентификатору пользователя у провайдера;
-    - создания нового OAuth-аккаунта.
+    - создания нового OAuth-аккаунта;
+    - получения всех аккаунтов пользователя;
+    - получения аккаунта по пользователю и провайдеру;
+    - удаления OAuth-аккаунта.
     """
 
     @abstractmethod
@@ -47,6 +52,45 @@ class OAuthAccountsAbstractRepository(ABC):
         """
         raise NotImplementedError
 
+    @abstractmethod
+    async def get_all_by_user_id(self, user_id: UUID) -> list[OAuthAccountORM]:
+        """
+        Возвращает все привязанные соцсети пользователя.
+
+        Args:
+            user_id (UUID): Идентификатор пользователя в системе.
+
+        Returns:
+            list[OAuthAccountORM]: Список OAuth-аккаунтов пользователя.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_by_user_and_provider(
+        self, user_id: UUID, provider: str
+    ) -> OAuthAccountORM | None:
+        """
+        Находит конкретную соцсеть у определенного пользователя.
+
+        Args:
+            user_id (UUID): Идентификатор пользователя в системе.
+            provider (str): Название провайдера (google, yandex, vk).
+
+        Returns:
+            OAuthAccountORM | None: Найденный аккаунт или None.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def delete_oauth_account(self, account_id: UUID) -> None:
+        """
+        Удаляет запись OAuth-аккаунта из базы данных.
+
+        Args:
+            account_id (UUID): Идентификатор OAuth-аккаунта для удаления.
+        """
+        raise NotImplementedError
+
 
 class OAuthAccountsPostgreSQLRepository(
     OAuthAccountsAbstractRepository, BasePostgreSQLRepository
@@ -70,3 +114,16 @@ class OAuthAccountsPostgreSQLRepository(
             provider=provider,
             provider_user_id=provider_user_id,
         )
+
+    async def get_all_by_user_id(self, user_id: UUID) -> list[OAuthAccountORM]:
+        stmt = select(self.model).where(self.model.user_id == user_id)
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def get_by_user_and_provider(
+        self, user_id: UUID, provider: str
+    ) -> OAuthAccountORM | None:
+        return await self.get_one_or_none(user_id=user_id, provider=provider)
+
+    async def delete_oauth_account(self, account_id: UUID) -> None:
+        await self.delete_one(id=account_id)

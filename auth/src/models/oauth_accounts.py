@@ -4,6 +4,7 @@ from sqlalchemy import ForeignKey, Index, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.databases.pg import Base, BaseORM
+from src.models.users import UserORM
 
 class OAuthAccountORM(Base, BaseORM):
     """

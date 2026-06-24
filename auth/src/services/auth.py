@@ -3,6 +3,8 @@ from uuid import UUID, uuid4
 
 from src.exceptions import (
     DecodeTokenException,
+    LastAuthMethodRestrictionException,
+    OAuthAccountNotLinkedException,
     PasswordAlreadySetException,
     PasswordNotSetException,
     ProviderException,
@@ -283,6 +285,7 @@ class AuthService(BaseService):
             user,
             ip_address,
             user_agent,
+            auth_method="password"
         )
     
     async def _create_user_session(
@@ -290,6 +293,7 @@ class AuthService(BaseService):
         user: UserORM,
         ip_address: str,
         user_agent: str,
+        auth_method: str,
     ) -> tuple[str, str]:
         sid = uuid4()
 
@@ -312,6 +316,7 @@ class AuthService(BaseService):
             ip_address,
             refresh_token,
             sid,
+            auth_method=auth_method,
         )
 
         return access_token, refresh_token
@@ -373,6 +378,7 @@ class AuthService(BaseService):
             user,
             ip_address,
             user_agent,
+            auth_method=user_info.provider
         )
         
     async def set_password(self, user_id: UUID, data: SetPasswordRequestScheme) -> None:
@@ -394,4 +400,101 @@ class AuthService(BaseService):
             user_id=user_id,
             hashed_password=new_hash,
         )
- 
+
+    async def _delete_sessions_by_auth_method(
+        self,
+        user_id: UUID,
+        auth_method: str,
+        current_sid: str | None = None,
+    ) -> bool:
+        """Аннулирует в Redis все активные сессии пользователя,
+        созданные через определенный метод входа."""
+        sessions = await self._session_service.get_active_sessions(
+            user_id=user_id,
+            current_sid=current_sid
+        )
+
+        current_session_deleted = False
+
+        for session_info in sessions:
+            sid = (
+                session_info.get("sid")
+                if isinstance(session_info, dict)
+                else getattr(session_info, "sid", None)
+            )
+            if not sid:
+                continue
+
+            full_session = await self._session_service.get_session(sid)
+            if not full_session:
+                continue
+
+            session_auth_method = full_session.get("auth_method") if isinstance(full_session, dict) else getattr(full_session, "auth_method", None)
+
+            if session_auth_method == auth_method:
+                await self._session_service.delete_session(sid)
+                if str(sid) == str(current_sid):
+                    current_session_deleted = True
+
+        return current_session_deleted
+
+    async def unlink_account(
+        self,
+        user_id: UUID,
+        provider: str,
+        current_sid: str,
+    ) -> tuple[list[str], bool]:
+        """
+        Отвязывает аккаунт внешнего провайдера
+        от личного кабинета пользователя.
+
+        Args:
+            user_id (UUID): Идентификатор пользователя в системе.
+            provider (str): Название провайдера (google, yandex, vk).
+            current_sid (str): Идентификатор текущей активной сессии.
+
+        Returns:
+            tuple[list[str], bool]: Кортеж, содержащий:
+                - list[str]: Список названий привязанных провайдеров.
+                - bool: Флаг True, если текущая сессия была аннулирована.
+
+        Raises:
+            UserNotFoundException: Если пользователь не найден.
+            OAuthAccountNotLinkedException: Если провайдер не привязан.
+            LastAuthMethodRestrictionException: Если это единственный
+            способ входа.
+        """
+        async with self._db as db:
+            user = await db.users.get_by_id_for_update(user_id)
+            if not user:
+                raise UserNotFoundException()
+
+            all_accounts = await db.oauth_accounts.get_all_by_user_id(user_id)
+
+            target_account = next(
+                (acc for acc in all_accounts if acc.provider == provider),
+                None
+            )
+            if not target_account:
+                raise OAuthAccountNotLinkedException()
+
+            has_password = bool(user.hashed_password)
+            remaining_oauth_count = len(all_accounts) - 1
+
+            if not has_password and remaining_oauth_count == 0:
+                raise LastAuthMethodRestrictionException()
+
+            await db.oauth_accounts.delete_oauth_account(target_account.id)
+
+            remaining_providers = [
+                acc.provider for acc in all_accounts
+                if acc.provider != provider
+            ]
+
+        current_session_deleted = await self._delete_sessions_by_auth_method(
+            user_id=user_id,
+            auth_method=provider,
+            current_sid=current_sid,
+        )
+
+        return remaining_providers, current_session_deleted
