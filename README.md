@@ -103,6 +103,32 @@ http://localhost:8000/api/openapi
 5. Сервис вернёт JSON с `access_token`.
 6. Проверить что пользователь создался в БД: `make shell` → `SELECT * FROM users;` и `SELECT * FROM oauth_accounts;`.
 
+## Проверка входа через VK ID
+
+### Получение VK_CLIENT_ID и VK_CLIENT_SECRET
+
+1. Открыть [VK ID для разработчиков](https://id.vk.com/about/business/go/accounts) и создать приложение (или выбрать существующее).
+2. Перейти в **Настройки приложения**:
+   - Скопировать **ID приложения** (`VK_CLIENT_ID`)
+   - Скопировать **Защищённый ключ** (`VK_CLIENT_SECRET`)
+3. В разделе **Подключение авторизации**:
+   - В поле **Базовый домен** добавить `localhost`
+   - В поле **Доверенный Redirect URL** добавить `http://localhost/api/v1/auth/vk/callback/`
+4. Сохранить изменения.
+
+### Запуск
+
+Предварительно:
+1. В `.env` заполнены `VK_CLIENT_ID`, `VK_CLIENT_SECRET`, `OAUTH_REDIRECT_BASE_URL=http://localhost`.
+2. Сервис запущен.
+
+Шаги проверки:
+1. В Swagger (`http://localhost/api/openapi`) выполнить `GET /api/v1/auth/vk/` — сервис вернёт `{"url": "https://id.vk.ru/authorize?..."}`.
+2. Скопировать `url` из ответа и открыть в браузере.
+3. Разрешить доступ приложению.
+4. VK ID сделает редирект на `http://localhost/api/v1/auth/vk/callback/?code=...&state=...&device_id=...`.
+5. Сервис вернёт JSON с `access_token`.
+6. Проверить что пользователь создался в БД: `make shell` → `SELECT * FROM users;` и `SELECT * FROM oauth_accounts;`.
 
 ## Работа с ролями и правами
 

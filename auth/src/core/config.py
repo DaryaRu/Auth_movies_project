@@ -48,6 +48,8 @@ class Settings(BaseSettings):
     OTEL_PYTHON_FASTAPI_EXCLUDED_URLS: str
     YANDEX_CLIENT_ID: str = ""
     YANDEX_CLIENT_SECRET: str = ""
+    VK_CLIENT_ID: str = ""
+    VK_CLIENT_SECRET: str = ""
 
     @property
     def DB_URL(self):
