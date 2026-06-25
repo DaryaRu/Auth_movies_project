@@ -8,3 +8,5 @@ public.pem
 .vscode/
 cookies.txt
 .DS_Store
+movies_admin/staticfiles
+movies_admin/mediafiles

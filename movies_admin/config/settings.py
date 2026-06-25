@@ -26,7 +26,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.environ.get("SECRET_KEY", "django-default-key")
 
-DEBUG = os.environ.get("DEBUG", False) == "True"
+DEBUG = bool(os.environ.get("DEBUG", ""))
 
 ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*").split(",")
 
@@ -37,13 +37,16 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "core.apps.CoreConfig",
     "movies.apps.MoviesConfig",
+    "users.apps.UsersConfig",
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
+    "core.middlewares.RequestIdMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
@@ -98,6 +101,21 @@ MEDIA_URL = "media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+AUTH_USER_MODEL = "users.User"
+AUTHENTICATION_BACKENDS = [
+    'core.backends.CustomBackend',
+]
+
+AUTH_API_LOGIN_URL = os.getenv('AUTH_API_LOGIN_URL', '')
+AUTH_API_PUBLIC_KEY_URL = os.getenv('AUTH_API_PUBLIC_KEY_URL', '')
+JWT_ALGORITHM = os.getenv('JWT_ALGORITHM', '')
+
+OTEL_SERVICE_NAME = os.getenv('OTEL_SERVICE_NAME', '')
+OTEL_EXPORTER_OTLP_ENDPOINT = os.getenv('OTEL_EXPORTER_OTLP_ENDPOINT', '')
+OTEL_PYTHON_DJANGO_EXCLUDED_URLS = os.getenv('OTEL_PYTHON_DJANGO_EXCLUDED_URLS', '')
+ENVIRONMENT = os.getenv('ENVIRONMENT', '')
+EXCLUDED_PATHS = os.getenv('EXCLUDED_PATHS', '').split(",")
 
 if DEBUG:
     INTERNAL_IPS = [

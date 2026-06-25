@@ -21,7 +21,7 @@ services:
       POSTGRES_PASSWORD: ${MOVIES_POSTGRES_PASSWORD}
     volumes:
       - movies_pg_data:/var/lib/postgresql/data
-      - ./movies_admin/database_dump.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./movies_admin/movies.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${MOVIES_POSTGRES_USER} -d ${MOVIES_POSTGRES_DB}"]
       interval: 15s
@@ -76,6 +76,7 @@ services:
     environment:
       - SPAN_STORAGE_TYPE=elasticsearch
       - ES_SERVER_URLS=http://elasticsearch:9200
+      - QUERY_BASE_PATH=/tracers
     depends_on:
       elasticsearch:
         condition: service_healthy
@@ -85,11 +86,11 @@ services:
     command: ["--config=/etc/otelcol/config.yaml"]
     volumes:
       - ./infra/otel-collector-config.yaml:/etc/otelcol/config.yaml
+    depends_on:
+      - jaeger-collector
     # ports:
     #   - "4317:4317"  # OTLP gRPC
     #   - "4318:4318"  # OTLP HTTP
-    depends_on:
-      - jaeger-collector
     restart: unless-stopped
 
   auth-migrate:
@@ -143,7 +144,12 @@ services:
       SECRET_KEY: ${DJANGO_SECRET_KEY}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS}
       DEBUG: ${DEBUG}
-    command: python manage.py migrate
+    command: >
+      sh -c "
+      python manage.py migrate movies --fake-initial &&
+      python manage.py migrate users --fake-initial &&
+      python manage.py migrate
+      "
     depends_on:
       movies-db:
         condition: service_healthy
@@ -161,7 +167,20 @@ services:
       SECRET_KEY: ${DJANGO_SECRET_KEY}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS}
       DEBUG: ${DEBUG}
-    command: uwsgi --strict --ini /opt/app/uwsgi.ini
+      OTEL_SERVICE_NAME: ${ADMIN_OTEL_SERVICE_NAME}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
+      ENVIRONMENT: ${ENVIRONMENT}
+      OTEL_PYTHON_DJANGO_EXCLUDED_URLS: ${OTEL_PYTHON_DJANGO_EXCLUDED_URLS}
+      AUTH_API_LOGIN_URL: ${AUTH_API_LOGIN_URL}
+      AUTH_API_PUBLIC_KEY_URL: ${AUTH_API_PUBLIC_KEY_URL}
+    command: >
+      sh -c "
+      python manage.py collectstatic --no-input &&
+      uwsgi --strict --ini uwsgi.ini
+      "
+    volumes:
+      - ./movies_admin/mediafiles:/opt/app/media/
+      - ./movies_admin/staticfiles:/opt/app/collected_static/
     depends_on:
       movies-admin-migrate:
         condition: service_completed_successfully
@@ -178,6 +197,12 @@ services:
       PROJECT_NAME: ${MOVIES_PROJECT_NAME}
       ALLOW_HOSTS: "*"
       ORIGINS: ${ORIGINS}
+      AUTH_API_PUBLIC_KEY_URL: ${AUTH_API_PUBLIC_KEY_URL}
+      DEBUG: ${DEBUG}
+      OTEL_SERVICE_NAME: ${MOVIES_OTEL_SERVICE_NAME}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
+      OTEL_PYTHON_FASTAPI_EXCLUDED_URLS: ${OTEL_PYTHON_FASTAPI_EXCLUDED_URLS}
+      ENVIRONMENT: ${ENVIRONMENT}
     command: >
       gunicorn main:app
       --workers 4
@@ -225,6 +250,8 @@ services:
     volumes:
       - ./infra/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./infra/project.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./movies_admin/staticfiles:/static/
+      - ./movies_admin/mediafiles:/media/
     depends_on:
       - auth-service
       - movies-service

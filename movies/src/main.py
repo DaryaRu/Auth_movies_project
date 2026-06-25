@@ -11,15 +11,24 @@ from elasticsearch import AsyncElasticsearch
 from fastapi import FastAPI, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from fastapi.responses import ORJSONResponse
+from fastapi.responses import ORJSONResponse, JSONResponse
 from fastapi_cache import FastAPICache
 from db.redis import FaultTolerantRedisBackend
 from redis.asyncio import Redis
+from opentelemetry import trace
+from opentelemetry.instrumentation.aiohttp_client import (
+    AioHttpClientInstrumentor,
+)
+from opentelemetry.instrumentation.elasticsearch import (
+    ElasticsearchInstrumentor,
+)
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from api.v1 import films, genres, persons
 from core import config
 from core import logger
+from core.tracers import configure_tracer
 from db import elastic, redis
 
 logging_config.dictConfig(logger.LOGGING)
@@ -58,6 +67,9 @@ async def lifespan(app: FastAPI):
     yield
     await redis.redis.close()
     await elastic.es.close()
+    
+    
+configure_tracer()
 
 
 app = FastAPI(
@@ -67,11 +79,28 @@ app = FastAPI(
         "участвовавших в создании произведения"
     ),
     version="1.0.0",
-    docs_url="/api/openapi",
-    openapi_url="/api/openapi.json",
+    docs_url="/api/movies/openapi",
+    openapi_url="/api/movies/openapi.json",
     default_response_class=ORJSONResponse,
     lifespan=lifespan,
 )
+
+FastAPIInstrumentor.instrument_app(app, excluded_urls=config.OTEL_PYTHON_FASTAPI_EXCLUDED_URLS)
+AioHttpClientInstrumentor().instrument()
+ElasticsearchInstrumentor().instrument()
+
+@app.middleware('http')
+async def tracing_middlemare(request: Request, call_next):
+    request_id = request.headers.get('X-Request-Id')
+    if not request_id and request.url.path not in config.EXCLUDED_PATHS:
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content={'detail': {'error': 'X-Request-Id is required'}})
+    span = trace.get_current_span()
+    if request_id and span.is_recording():
+        span.set_attribute("request.id", request_id)
+    response = await call_next(request)
+    if request_id:
+        response.headers["X-Request-Id"] = request_id
+    return response
 
 
 @app.middleware("http")
