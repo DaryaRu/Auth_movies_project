@@ -76,6 +76,7 @@ services:
     environment:
       - SPAN_STORAGE_TYPE=elasticsearch
       - ES_SERVER_URLS=http://elasticsearch:9200
+      - QUERY_BASE_PATH=/tracers
     depends_on:
       elasticsearch:
         condition: service_healthy
@@ -85,11 +86,11 @@ services:
     command: ["--config=/etc/otelcol/config.yaml"]
     volumes:
       - ./infra/otel-collector-config.yaml:/etc/otelcol/config.yaml
+    depends_on:
+      - jaeger-collector
     # ports:
     #   - "4317:4317"  # OTLP gRPC
     #   - "4318:4318"  # OTLP HTTP
-    depends_on:
-      - jaeger-collector
     restart: unless-stopped
 
   auth-migrate:
@@ -166,6 +167,10 @@ services:
       SECRET_KEY: ${DJANGO_SECRET_KEY}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS}
       DEBUG: ${DEBUG}
+      OTEL_SERVICE_NAME: ${ADMIN_OTEL_SERVICE_NAME}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
+      ENVIRONMENT: ${ENVIRONMENT}
+      OTEL_PYTHON_DJANGO_EXCLUDED_URLS: ${OTEL_PYTHON_DJANGO_EXCLUDED_URLS}
       AUTH_API_LOGIN_URL: ${AUTH_API_LOGIN_URL}
       AUTH_API_PUBLIC_KEY_URL: ${AUTH_API_PUBLIC_KEY_URL}
     command: >
@@ -192,6 +197,12 @@ services:
       PROJECT_NAME: ${MOVIES_PROJECT_NAME}
       ALLOW_HOSTS: "*"
       ORIGINS: ${ORIGINS}
+      AUTH_API_PUBLIC_KEY_URL: ${AUTH_API_PUBLIC_KEY_URL}
+      DEBUG: ${DEBUG}
+      OTEL_SERVICE_NAME: ${MOVIES_OTEL_SERVICE_NAME}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
+      OTEL_PYTHON_FASTAPI_EXCLUDED_URLS: ${OTEL_PYTHON_FASTAPI_EXCLUDED_URLS}
+      ENVIRONMENT: ${ENVIRONMENT}
     command: >
       gunicorn main:app
       --workers 4

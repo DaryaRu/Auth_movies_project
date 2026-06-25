@@ -30,8 +30,8 @@ def create_app() -> FastAPI:
         title=settings.PROJECT_NAME,
         description=("Сервис авторизации и аутентификации"),
         version="1.0.0",
-        docs_url="/api/openapi",
-        openapi_url="/api/openapi.json",
+        docs_url="/api/auth/openapi",
+        openapi_url="/api/auth/openapi.json",
         lifespan=lifespan,
     )
     FastAPIInstrumentor.instrument_app(app, excluded_urls=settings.OTEL_PYTHON_FASTAPI_EXCLUDED_URLS)
