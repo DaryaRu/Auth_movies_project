@@ -143,7 +143,12 @@ services:
       SECRET_KEY: ${DJANGO_SECRET_KEY}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS}
       DEBUG: ${DEBUG}
-    command: python manage.py migrate
+    command: >
+      sh -c "
+      python manage.py migrate movies --fake-initial &&
+      python manage.py migrate users --fake-initial &&
+      python manage.py migrate
+      "
     depends_on:
       movies-db:
         condition: service_healthy
@@ -165,9 +170,6 @@ services:
       AUTH_API_PUBLIC_KEY_URL: ${AUTH_API_PUBLIC_KEY_URL}
     command: >
       sh -c "
-      python manage.py migrate movies --fake-initial &&
-      python manage.py migrate users --fake-initial &&
-      python manage.py migrate &&
       python manage.py collectstatic --no-input &&
       uwsgi --strict --ini uwsgi.ini
       "
