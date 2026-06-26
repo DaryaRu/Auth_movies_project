@@ -1,3 +1,5 @@
+"""Репозиторий типов подписок."""
+
 from abc import ABC, abstractmethod
 from uuid import UUID
 
@@ -12,7 +14,7 @@ class SubscriptionsAbstractRepository(ABC):
 
     @abstractmethod
     async def create_subscription(
-        self, code: str, level: int, description: str | None
+        self, code: str, level: int, description: str | None, is_active: bool = True
     ) -> SubscriptionORM:
         """
         Создание новой подписки.
@@ -94,9 +96,10 @@ class SubscriptionsPostgreSQLRepository(
         code: str,
         level: int,
         description: str | None = None,
+        is_active: bool = True,
     ) -> SubscriptionORM:
         return await self.add_one(
-            code=code, level=level, description=description
+            code=code, level=level, description=description, is_active=is_active
         )
 
     async def get_one_or_none_by_id(self, id: UUID) -> SubscriptionORM | None:
