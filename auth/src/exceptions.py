@@ -253,3 +253,11 @@ class SubscriptionInactiveHTTPException(AuthServiceHTTPException):
 
 class UserSubscriptionNotFoundHTTPException(AuthServiceHTTPException):
     status_code = 404
+
+
+class SubscriptionInUseException(AuthServiceException):
+    detail = "Нельзя удалить подписку: есть пользователи с активной подпиской этого типа. Используйте PATCH для деактивации"
+
+
+class SubscriptionInUseHTTPException(AuthServiceHTTPException):
+    status_code = 409

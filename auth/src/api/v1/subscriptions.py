@@ -6,6 +6,8 @@ from src.api.v1.dependencies import StaffUserDep, SubscriptionServiceDep
 from src.exceptions import (
     SubscriptionAlreadyExistsException,
     SubscriptionAlreadyExistsHTTPException,
+    SubscriptionInUseException,
+    SubscriptionInUseHTTPException,
     SubscriptionNotFoundException,
     SubscriptionNotFoundHTTPException,
 )
@@ -97,3 +99,5 @@ async def delete_subscription(
         await subscription_service.delete_subscription(subscription_id)
     except SubscriptionNotFoundException as exc:
         raise SubscriptionNotFoundHTTPException(detail=exc.detail)
+    except SubscriptionInUseException as exc:
+        raise SubscriptionInUseHTTPException(detail=exc.detail)

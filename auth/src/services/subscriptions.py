@@ -2,9 +2,12 @@
 
 from uuid import UUID
 
+from sqlalchemy.exc import IntegrityError
+
 from src.exceptions import (
     ObjectAlreadyexistsException,
     SubscriptionAlreadyExistsException,
+    SubscriptionInUseException,
     SubscriptionNotFoundException,
 )
 from src.models.subscriptions import SubscriptionORM
@@ -108,5 +111,8 @@ class SubscriptionService(BaseService):
             subscription_id (UUID): Идентификатор подписки.
         """
         await self.get_subscription_by_id(subscription_id)
-        await self._db.subscriptions.delete_subscription(subscription_id)
+        try:
+            await self._db.subscriptions.delete_subscription(subscription_id)
+        except IntegrityError:
+            raise SubscriptionInUseException()
 
