@@ -5,6 +5,7 @@ from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import select, update
+from sqlalchemy.orm import selectinload
 
 from src.models.user_subscriptions import UserSubscriptionORM
 from src.repositories.base import BasePostgreSQLRepository
@@ -47,18 +48,29 @@ class UserSubscriptionsPostgreSQLRepository(
         started_at: datetime,
         expires_at: datetime,
     ) -> UserSubscriptionORM:
-        return await self.add_one(
+        obj = await self.add_one(
             user_id=user_id,
             subscription_id=subscription_id,
             started_at=started_at,
             expires_at=expires_at,
             is_active=True,
         )
+        query = (
+            select(self.model)
+            .where(self.model.id == obj.id)
+            .options(selectinload(self.model.subscription))
+        )
+        result = await self._session.execute(query)
+        return result.scalars().one()
 
     async def get_active(self, user_id: UUID) -> UserSubscriptionORM | None:
-        query = select(self.model).where(
-            self.model.user_id == user_id,
-            self.model.is_active.is_(True),
+        query = (
+            select(self.model)
+            .where(
+                self.model.user_id == user_id,
+                self.model.is_active.is_(True),
+            )
+            .options(selectinload(self.model.subscription))
         )
         result = await self._session.execute(query)
         return result.scalars().one_or_none()
@@ -68,6 +80,7 @@ class UserSubscriptionsPostgreSQLRepository(
             select(self.model)
             .where(self.model.user_id == user_id)
             .order_by(self.model.started_at.desc())
+            .options(selectinload(self.model.subscription))
         )
         result = await self._session.execute(query)
         return list(result.scalars().all())
