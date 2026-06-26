@@ -37,9 +37,16 @@ async def init_cache() -> None:
         host=settings.REDIS_HOST,
         port=settings.REDIS_PORT,
         decode_responses=True,
+        health_check_interval=30,
+    )
+    cache_redis = Redis(
+        host=settings.REDIS_HOST,
+        port=settings.REDIS_PORT,
+        decode_responses=False,
+        health_check_interval=30,
     )
     FastAPICache.init(
-        RedisBackend(redis.redis),
+        RedisBackend(cache_redis),
         prefix="fastapi-cache",
         key_builder=key_builder,
     )
