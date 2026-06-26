@@ -1,5 +1,7 @@
 """Fixtures for functional tests."""
 
+import uuid
+
 import aiohttp
 import pytest_asyncio
 from elasticsearch import AsyncElasticsearch
@@ -45,8 +47,12 @@ async def flush_cache(redis_client: Redis):
 @pytest_asyncio.fixture(loop_scope="function")
 async def http_client():
     """Function-scoped aiohttp client session."""
+    headers = {
+        "X-Request-Id": str(uuid.uuid4())
+    }
     async with aiohttp.ClientSession(
-        base_url=test_settings.api_url
+        base_url=test_settings.api_url,
+        headers=headers
     ) as session:
         yield session
 
