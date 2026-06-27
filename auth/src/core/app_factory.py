@@ -4,6 +4,7 @@ from logging import config as logging_config
 from fastapi import FastAPI
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+from slowapi.errors import RateLimitExceeded
 
 from src.core import logger
 from src.core.cache import close_cache, init_cache
@@ -11,6 +12,7 @@ from src.core.config import settings
 from src.core.middlewares import register_middlewares
 from src.core.routers import register_routers
 from src.core.tracers import configure_tracer
+from src.core.limiter import limiter, rate_limit_exceeded_handler
 from src.databases.pg import engine
 
 
@@ -34,6 +36,12 @@ def create_app() -> FastAPI:
         openapi_url="/api/auth/openapi.json",
         lifespan=lifespan,
     )
+
+    limiter.storage_uri = settings.REDIS_LIMITER_URL
+    app.state.limiter = limiter
+
+    app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
+
     FastAPIInstrumentor.instrument_app(app, excluded_urls=settings.OTEL_PYTHON_FASTAPI_EXCLUDED_URLS)
     SQLAlchemyInstrumentor().instrument(engine=engine.sync_engine)
     register_middlewares(app)

@@ -48,6 +48,7 @@ class Settings(BaseSettings):
     OTEL_PYTHON_FASTAPI_EXCLUDED_URLS: str
     YANDEX_CLIENT_ID: str = ""
     YANDEX_CLIENT_SECRET: str = ""
+    DEFAULT_LIMIT_VALUE: int = 100
 
     @property
     def DB_URL(self):
@@ -63,6 +64,10 @@ class Settings(BaseSettings):
     @cached_property
     def PUBLIC_KEY(self):
         return Path(self.PUBLIC_KEY_PATH).read_text()
+
+    @property
+    def REDIS_LIMITER_URL(self) -> str:
+        return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/0"
 
 
 settings = Settings()

@@ -39,6 +39,7 @@ from src.schemas.users import (
     UserRequestScheme,
     UserResponseScheme,
 )
+from src.core.limiter import limiter
 
 router = APIRouter(tags=["Auth"])
 
@@ -49,9 +50,11 @@ router = APIRouter(tags=["Auth"])
     summary="Регистрация пользователя",
     response_model=UserResponseScheme,
 )
+@limiter.limit("5/minute")
 async def create_user(
     user: UserRequestScheme,
     auth_service: AuthServiceDep,
+    request: Request,
 ):
     """Регистрация нового пользователя. Хэширует пароль и сохраняет в БД."""
     try:
@@ -64,6 +67,7 @@ async def create_user(
 @router.post(
     "/login/", summary="Вход в аккаунт", response_model=JWTAccessToken
 )
+@limiter.limit("5/minute")
 async def login(
     response: Response,
     request: Request,
@@ -115,10 +119,12 @@ async def get_public_key() -> dict[str, str]:
 @router.post(
     "/refresh/", summary="Обновление токенов", response_model=JWTAccessToken
 )
+@limiter.limit("5/minute")
 async def refresh_token(
     refresh_token: RefreshTokenDep,
     response: Response,
     auth_service: AuthServiceDep,
+    request: Request,
 ):
     """Ротация токенов: старый refresh-токен из cookie заменяется новой парой."""
     try:
@@ -199,10 +205,12 @@ async def logout_all(
     summary="Получение активных сессий пользователя",
     response_model=list[UserSessionResponse],
 )
+@limiter.limit("5/minute")
 async def get_user_active_sessions(
     token_payload: TokenPayloadDep,
     current_user: CurrentUserDep,
     session_service: SessionServiceDep,
+    request: Request,
 ):
     return await session_service.get_active_sessions(
         user_id=current_user.id,
@@ -215,9 +223,11 @@ async def get_user_active_sessions(
     summary="Права текущего пользователя",
     response_model=list[PermissionResponseScheme],
 )
+@limiter.limit("5/minute")
 async def get_my_permissions(
     current_user: CurrentUserDep,
     role_service: RoleServiceDep,
+    request: Request,
 ):
     """Возвращает список прав доступа, назначенных текущему пользователю через его роли."""
     return await role_service.get_user_permissions(
@@ -231,10 +241,12 @@ async def get_my_permissions(
     response_model=UserResponseScheme,
     summary="Смена email",
 )
+@limiter.limit("5/minute")
 async def change_email(
     data: ChangeEmailRequestScheme,
     auth_service: AuthServiceDep,
     user: CurrentUserDep,
+    request: Request,
 ):
     """Смена email с подтверждением текущего пароля. Новый email должен быть уникальным."""
     try:
@@ -255,11 +267,13 @@ async def change_email(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Смена пароля",
 )
+@limiter.limit("5/minute")
 async def change_password(
     data: ChangePasswordRequestScheme,
     response: Response,
     auth_service: AuthServiceDep,
     user: CurrentUserDep,
+    request: Request,
 ):
     """Смена пароля с подтверждением текущего. Сбрасывает все активные сессии."""
     try:
