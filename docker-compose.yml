@@ -131,6 +131,7 @@ services:
       redis:
         condition: service_healthy
 
+
   movies-admin-migrate:
     build: ./movies_admin
     image: movies-admin-image
@@ -173,6 +174,8 @@ services:
       OTEL_PYTHON_DJANGO_EXCLUDED_URLS: ${OTEL_PYTHON_DJANGO_EXCLUDED_URLS}
       AUTH_API_LOGIN_URL: ${AUTH_API_LOGIN_URL}
       AUTH_API_PUBLIC_KEY_URL: ${AUTH_API_PUBLIC_KEY_URL}
+      JWT_ALGORITHM: ${JWT_ALGORITHM}
+      EXCLUDED_PATHS: ${ADMIN_EXCLUDED_PATHS}
     command: >
       sh -c "
       python manage.py collectstatic --no-input &&
@@ -202,6 +205,7 @@ services:
       OTEL_SERVICE_NAME: ${MOVIES_OTEL_SERVICE_NAME}
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
       OTEL_PYTHON_FASTAPI_EXCLUDED_URLS: ${OTEL_PYTHON_FASTAPI_EXCLUDED_URLS}
+      EXCLUDED_PATHS: ${MOVIES_EXCLUDED_PATHS}
       ENVIRONMENT: ${ENVIRONMENT}
     command: >
       gunicorn main:app
