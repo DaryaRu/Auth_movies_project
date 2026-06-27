@@ -117,7 +117,7 @@ http://localhost:8000/api/openapi
 ### Запуск
 
 Предварительно:
-1. В `.env` заполнены `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `OAUTH_REDIRECT_BASE_URL=http://localhost:8000`.
+1. В `.env` заполнены `YANDEX_CLIENT_ID`, `YANDEX_CLIENT_SECRET`, `OAUTH_REDIRECT_BASE_URL=http://localhost:8000`.
 2. Сервис запущен.
 
 Шаги проверки:
