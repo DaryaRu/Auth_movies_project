@@ -6,10 +6,10 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 CODE_REGEX = re.compile(r"^[a-z0-9_]+:[a-z0-9_]+$")
 
 PERMISSION_EXAMPLE = {
-    "code": "movie:watch_premium",
-    "name": "Смотреть премиум-контент",
-    "description": "Доступ к фильмам по подписке Premium",
-    "category": "movies",
+    "code": "content:edit",
+    "name": "Редактировать фильмы",
+    "description": "Позволяет редактировать карточки фильмов в каталоге",
+    "category": "content",
 }
 
 
@@ -17,7 +17,7 @@ def _validate_code(v: str | None) -> str | None:
     if v is not None and not CODE_REGEX.match(v):
         raise ValueError(
             "code должен быть в формате «область системы:действие» — "
-            "только строчные буквы, цифры и подчёркивания, например: movie:watch"
+            "только строчные буквы, цифры и подчёркивания, например: content:edit"
         )
     return v
 
@@ -25,11 +25,13 @@ def _validate_code(v: str | None) -> str | None:
 class PermissionCreateScheme(BaseModel):
     """Схема для создания права.
 
+    Права определяют административные действия для ролей.
+
     Атрибуты:
-        code (str): Уникальный код права, например movie:watch_premium.
+        code (str): Уникальный код права в формате «область:действие», например content:edit, user:view.
         name (str): Название права.
         description (str | None): Описание того, что даёт право.
-        category (str): Группа для фильтрации (по умолчанию — general).
+        category (str): Группа для фильтрации, например content(по умолчанию — general).
     """
 
     model_config = ConfigDict(
@@ -38,7 +40,7 @@ class PermissionCreateScheme(BaseModel):
 
     code: str = Field(
         ...,
-        description="Код права в формате «область системы:действие», например: movie:watch, admin:manage_roles, content:upload",
+        description="Код права в формате «область:действие», например: content:edit, user:view, stats:view",
         max_length=100,
     )
     name: str = Field(..., description="Название права", max_length=150)
@@ -47,7 +49,7 @@ class PermissionCreateScheme(BaseModel):
     )
     category: str = Field(
         "general",
-        description="Группа для группировки при отображении списка прав",
+        description="Группа для фильтрации, например content, stats",
         max_length=50,
     )
 
@@ -73,7 +75,7 @@ class PermissionUpdateScheme(BaseModel):
 
     code: str | None = Field(
         None,
-        description="Новый код права в формате «область системы:действие», например: movie:watch, admin:manage_roles",
+        description="Новый код права в формате «область:действие», например: content:edit, user:view, stats:view",
         max_length=100,
     )
     name: str | None = Field(

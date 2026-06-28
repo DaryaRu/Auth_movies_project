@@ -5,8 +5,8 @@ from pydantic import BaseModel, ConfigDict, Field
 from src.schemas.permissions import PermissionResponseScheme
 
 ROLE_EXAMPLE = {
-    "name": "premium_subscriber",
-    "description": "Пользователь с подпиской Premium",
+    "name": "content_manager",
+    "description": "Контент-менеджер — управляет каталогом фильмов",
     "is_active": True,
 }
 
@@ -14,17 +14,21 @@ ROLE_EXAMPLE = {
 class RoleCreateScheme(BaseModel):
     """Схема для создания роли.
 
+    Роли определяют административные возможности пользователей.
+
     Атрибуты:
-        name (str): Название роли.
+        name (str): Название роли, например content_manager.
         description (str | None): Описание роли.
         is_active (bool): Активна ли роль (по умолчанию — True).
     """
 
-    model_config = ConfigDict(
-        json_schema_extra={"example": ROLE_EXAMPLE}
-    )
+    model_config = ConfigDict(json_schema_extra={"example": ROLE_EXAMPLE})
 
-    name: str = Field(..., description="Название роли", max_length=100)
+    name: str = Field(
+        ...,
+        description="Название роли, например content_manager",
+        max_length=100,
+    )
     description: str | None = Field(None, description="Описание роли")
     is_active: bool = Field(True, description="Активна ли роль")
 
@@ -38,11 +42,11 @@ class RoleUpdateScheme(BaseModel):
         is_active (bool | None): Новый статус активности.
     """
 
-    model_config = ConfigDict(
-        json_schema_extra={"example": ROLE_EXAMPLE}
-    )
+    model_config = ConfigDict(json_schema_extra={"example": ROLE_EXAMPLE})
 
-    name: str | None = Field(None, description="Новое название роли", max_length=100)
+    name: str | None = Field(
+        None, description="Новое название роли", max_length=100
+    )
     description: str | None = Field(None, description="Новое описание роли")
     is_active: bool | None = Field(None, description="Новый статус активности")
 
