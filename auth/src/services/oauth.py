@@ -1,5 +1,6 @@
 import logging
 import secrets
+from typing import Optional
 from uuid import UUID
 
 from redis.asyncio import Redis
@@ -18,15 +19,27 @@ class OAuthService:
         self._redis = redis
         
     async def get_auth_url(self, provider: AuthProvider) -> str:
-        state = secrets.token_urlsafe(16)
+        state = secrets.token_urlsafe(32)
         await self._redis.setex(
             f"oauth_state:{state}",
             settings.OAUTH_STATE_EXPIRE_SECONDS,
             provider.value
         )
         strategy = self._provider_factory.get(provider)
-        return strategy.get_auth_url(state)
-    
+        if provider == AuthProvider.VK:
+            auth_url = strategy.get_auth_url(state)
+            code_verifier = strategy.get_code_verifier()
+            if code_verifier:
+                await self._redis.setex(
+                    f"vk_pkce:{state}",
+                    settings.OAUTH_STATE_EXPIRE_SECONDS,
+                    code_verifier
+                )
+        else:
+            auth_url = strategy.get_auth_url(state)
+
+        return auth_url
+
     async def authenticate(
         self,
         provider: AuthProvider,
@@ -34,14 +47,25 @@ class OAuthService:
         ip_address: str,
         user_agent: str,
         state: str,
+        device_id: str | None = None,
     ) -> tuple[str, str]:
         stored_provider_key = f"oauth_state:{state}"
         stored_provider = await self._redis.get(stored_provider_key)
         if not stored_provider or stored_provider != provider.value:
             raise OAuthStateException()
         await self._redis.delete(stored_provider_key)
+
         strategy = self._provider_factory.get(provider)
-        oauth_user = await strategy.get_user_info(code)
+
+        if provider == AuthProvider.VK:
+            code_verifier = await self._redis.get(f"vk_pkce:{state}")
+            await self._redis.delete(f"vk_pkce:{state}")
+            oauth_user = await strategy.get_user_info_with_pkce(
+                code, state, code_verifier, device_id
+            )
+        else:
+            oauth_user = await strategy.get_user_info(code)
+
         return await self._auth_service.authenticate_oauth_user(
             oauth_user,
             ip_address,
