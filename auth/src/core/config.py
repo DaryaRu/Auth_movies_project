@@ -49,6 +49,8 @@ class Settings(BaseSettings):
     YANDEX_CLIENT_ID: str = ""
     YANDEX_CLIENT_SECRET: str = ""
     DEFAULT_LIMIT_VALUE: int = 100
+    VK_CLIENT_ID: str = ""
+    VK_CLIENT_SECRET: str = ""
 
     @property
     def DB_URL(self):

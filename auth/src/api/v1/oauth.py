@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
+from typing import Optional
 
-from fastapi import APIRouter, Request, Response
+from fastapi import APIRouter, Query, Request, Response
 
 from src.api.v1.dependencies import OAuthServiceDep, CurrentUserDep, TokenPayloadDep
 
@@ -49,6 +50,7 @@ async def oauth_callback(
     request: Request,
     response: Response,
     oauth_service: OAuthServiceDep,
+    device_id: Optional[str] = Query(None),
 ):
     """Получает code от провайдера, выдаёт JWT-токены и устанавливает refresh_token в cookie."""
     ip_address = request.client.host if request.client else "unknown"
@@ -61,6 +63,7 @@ async def oauth_callback(
             ip_address=ip_address,
             user_agent=user_agent,
             state=state,
+            device_id=device_id,
         )
     except OAuthStateException as exc:
         raise OAuthStateHTTPException(detail=exc.detail)
