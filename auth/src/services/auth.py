@@ -119,6 +119,7 @@ class AuthService(BaseService):
     async def _get_subscription_info(self, user_id: UUID) -> dict:
         """
         Возвращает код и уровень активной подписки пользователя для JWT-токена.
+        Если подписка истекла — деактивирует её и возвращает дефолтные значения 'free'.
         Если активной подписки нет, возвращает дефолтные значения 'free'.
 
         Args:
@@ -126,6 +127,9 @@ class AuthService(BaseService):
         """
         active = await self._db.user_subscriptions.get_active(user_id)
         if active is None:
+            return {"subscription_code": "free", "subscription_level": 0}
+        if active.expires_at.replace(tzinfo=UTC) < datetime.now(UTC):
+            await self._db.user_subscriptions.deactivate(active.id)
             return {"subscription_code": "free", "subscription_level": 0}
         return {
             "subscription_code": active.subscription.code,

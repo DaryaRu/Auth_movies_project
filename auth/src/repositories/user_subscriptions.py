@@ -1,7 +1,7 @@
 """Репозиторий подписок пользователей."""
 
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import select, update
@@ -69,6 +69,7 @@ class UserSubscriptionsPostgreSQLRepository(
             .where(
                 self.model.user_id == user_id,
                 self.model.is_active.is_(True),
+                self.model.expires_at > datetime.now(UTC),
             )
             .options(selectinload(self.model.subscription))
         )
