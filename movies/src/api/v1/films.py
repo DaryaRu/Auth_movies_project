@@ -7,7 +7,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from fastapi_cache.decorator import cache
 
-from api.v1.dependencies import PaginationDepend
+from api.v1.dependencies import OptionalTokenPayloadDep, PaginationDepend
 from core import config
 from schemas.film_shorts import FilmShortResponse
 from schemas.films import FilmResponse
@@ -52,8 +52,8 @@ async def films_search(
         HTTPStatus.NOT_FOUND: {"description": "Фильм с таким UUID не найден"}
     },
 )
-@cache(expire=config.CACHE_EXPIRE)
 async def film_details(
+    token_payload: OptionalTokenPayloadDep,
     film_id: UUID = Path(
         ...,
         description="Уникальный идентификатор фильма (UUID)",
@@ -67,6 +67,13 @@ async def film_details(
             status_code=HTTPStatus.NOT_FOUND,
             detail="film not found",
         )
+    if film.subscription_level > 0 and not (token_payload or {}).get("is_superuser"):
+        user_level = (token_payload or {}).get("subscription_level", 0)
+        if user_level < film.subscription_level:
+            raise HTTPException(
+                status_code=HTTPStatus.FORBIDDEN,
+                detail="Subscription level insufficient to watch this film",
+            )
     return FilmResponse.model_validate(film.model_dump())
 
 
