@@ -8,6 +8,8 @@ from src.exceptions import (
     SubscriptionAlreadyExistsHTTPException,
     SubscriptionInUseException,
     SubscriptionInUseHTTPException,
+    SubscriptionLevelAlreadyExistsException,
+    SubscriptionLevelAlreadyExistsHTTPException,
     SubscriptionNotFoundException,
     SubscriptionNotFoundHTTPException,
 )
@@ -35,6 +37,8 @@ async def create_subscription(
         return await subscription_service.create_subscription(data)
     except SubscriptionAlreadyExistsException as exc:
         raise SubscriptionAlreadyExistsHTTPException(detail=exc.detail)
+    except SubscriptionLevelAlreadyExistsException as exc:
+        raise SubscriptionLevelAlreadyExistsHTTPException(detail=exc.detail)
 
 
 @router.get(
@@ -98,6 +102,8 @@ async def update_subscription(
         raise SubscriptionNotFoundHTTPException(detail=exc.detail)
     except SubscriptionAlreadyExistsException as exc:
         raise SubscriptionAlreadyExistsHTTPException(detail=exc.detail)
+    except SubscriptionLevelAlreadyExistsException as exc:
+        raise SubscriptionLevelAlreadyExistsHTTPException(detail=exc.detail)
 
 
 @router.delete(

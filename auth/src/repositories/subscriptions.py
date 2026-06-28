@@ -49,6 +49,12 @@ class SubscriptionsAbstractRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def get_one_or_none_by_level(
+        self, level: int
+    ) -> SubscriptionORM | None:
+        raise NotImplementedError
+
+    @abstractmethod
     async def get_all(self) -> list[SubscriptionORM]:
         """
         Возврат всех подписок.
@@ -109,6 +115,11 @@ class SubscriptionsPostgreSQLRepository(
         self, code: str
     ) -> SubscriptionORM | None:
         return await self.get_one_or_none(code=code)
+
+    async def get_one_or_none_by_level(
+        self, level: int
+    ) -> SubscriptionORM | None:
+        return await self.get_one_or_none(level=level)
 
     async def get_all(self) -> list[SubscriptionORM]:
         return list(await BasePostgreSQLRepository.get_all(self))

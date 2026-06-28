@@ -11,5 +11,5 @@ class SubscriptionORM(Base, BaseORM):
 
     code: Mapped[str] = mapped_column(String(50), unique=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    level: Mapped[int] = mapped_column(Integer)
+    level: Mapped[int] = mapped_column(Integer, unique=True)
     is_active: Mapped[bool] = mapped_column(default=True)

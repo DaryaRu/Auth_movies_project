@@ -231,6 +231,10 @@ class SubscriptionAlreadyExistsException(AuthServiceException):
     detail = "Подписка с таким кодом уже существует"
 
 
+class SubscriptionLevelAlreadyExistsException(AuthServiceException):
+    detail = "Подписка с таким уровнем уже существует"
+
+
 class SubscriptionInactiveException(AuthServiceException):
     detail = "Подписка неактивна"
 
@@ -244,6 +248,10 @@ class SubscriptionNotFoundHTTPException(AuthServiceHTTPException):
 
 
 class SubscriptionAlreadyExistsHTTPException(AuthServiceHTTPException):
+    status_code = 400
+
+
+class SubscriptionLevelAlreadyExistsHTTPException(AuthServiceHTTPException):
     status_code = 400
 
 

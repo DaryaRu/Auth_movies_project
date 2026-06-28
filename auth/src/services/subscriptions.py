@@ -8,6 +8,7 @@ from src.exceptions import (
     ObjectAlreadyexistsException,
     SubscriptionAlreadyExistsException,
     SubscriptionInUseException,
+    SubscriptionLevelAlreadyExistsException,
     SubscriptionNotFoundException,
 )
 from src.models.subscriptions import SubscriptionORM
@@ -39,6 +40,11 @@ class SubscriptionService(BaseService):
         )
         if existing:
             raise SubscriptionAlreadyExistsException()
+        existing_level = await self._db.subscriptions.get_one_or_none_by_level(
+            data.level
+        )
+        if existing_level:
+            raise SubscriptionLevelAlreadyExistsException()
         return await self._db.subscriptions.create_subscription(
             code=data.code,
             level=data.level,
@@ -96,6 +102,12 @@ class SubscriptionService(BaseService):
         """
         await self.get_subscription_by_id(subscription_id)
         update_data = data.model_dump(exclude_unset=True)
+        if "level" in update_data:
+            existing_level = await self._db.subscriptions.get_one_or_none_by_level(
+                update_data["level"]
+            )
+            if existing_level and existing_level.id != subscription_id:
+                raise SubscriptionLevelAlreadyExistsException()
         try:
             return await self._db.subscriptions.update_subscription(
                 id=subscription_id, **update_data
