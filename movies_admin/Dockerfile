@@ -12,6 +12,8 @@ ENV DJANGO_SETTINGS_MODULE 'config.settings'
 COPY requirements.txt requirements.txt
 COPY uwsgi/uwsgi.ini uwsgi.ini
 
+RUN apt-get update && apt-get install -y gettext && rm -rf /var/lib/apt/lists/*
+
 RUN  mkdir -p /opt/app/media/ \
      && mkdir -p /opt/app/static \
      && mkdir -p /var/wwww/media \
@@ -21,7 +23,8 @@ RUN  mkdir -p /opt/app/media/ \
 
 COPY . .
 
-RUN python manage.py collectstatic --noinput
+RUN python manage.py collectstatic --noinput && \
+    python manage.py compilemessages
 
 EXPOSE 8000
 

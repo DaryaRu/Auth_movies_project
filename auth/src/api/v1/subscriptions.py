@@ -50,6 +50,18 @@ async def get_all_subscriptions(
 
 
 @router.get(
+    "/levels/",
+    summary="Доступные уровни подписок",
+)
+async def get_subscription_levels(
+    subscription_service: SubscriptionServiceDep,
+) -> list[int]:
+    """Возвращает список доступных уровней подписок."""
+    subscriptions = await subscription_service.get_all_subscriptions()
+    return sorted({s.level for s in subscriptions})
+
+
+@router.get(
     "/{subscription_id}/",
     summary="Информация о типе подписки",
 )
@@ -60,7 +72,9 @@ async def get_subscription(
 ) -> SubscriptionResponseScheme:
     """Возвращает тип подписки по идентификатору. Доступно только суперпользователям."""
     try:
-        return await subscription_service.get_subscription_by_id(subscription_id)
+        return await subscription_service.get_subscription_by_id(
+            subscription_id
+        )
     except SubscriptionNotFoundException as exc:
         raise SubscriptionNotFoundHTTPException(detail=exc.detail)
 
@@ -77,7 +91,9 @@ async def update_subscription(
 ) -> SubscriptionResponseScheme:
     """Обновляет поля типа подписки. Доступно только суперпользователям."""
     try:
-        return await subscription_service.update_subscription(subscription_id, data)
+        return await subscription_service.update_subscription(
+            subscription_id, data
+        )
     except SubscriptionNotFoundException as exc:
         raise SubscriptionNotFoundHTTPException(detail=exc.detail)
     except SubscriptionAlreadyExistsException as exc:
