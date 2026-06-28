@@ -14,7 +14,7 @@ from src.core.config import settings
 def register_middlewares(app: FastAPI) -> None:
     """Зарегистрировать все middleware в приложении"""
     
-    excluded_paths = {"/health", f"{settings.API_V1_PREFIX}/auth/openapi.json"}
+    excluded_paths = {"/health", f"{settings.API_V1_PREFIX}/auth/openapi.json", f"{settings.API_V1_PREFIX}/jwt.key/"}
 
     @app.middleware('http')
     async def tracing_middlemare(request: Request, call_next):

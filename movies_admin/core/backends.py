@@ -17,7 +17,11 @@ class CustomBackend(BaseBackend):
         url = settings.AUTH_API_LOGIN_URL
         request_id = request.headers.get("X-Request-Id")
         payload = {'email': username, 'password': password}
-        response = requests.post(url, json=payload, timeout=5, headers={"X-Request-Id": request_id})
+        try:
+            response = requests.post(url, json=payload, timeout=5, headers={"X-Request-Id": request_id})
+        except requests.RequestException:
+            logging.error("Auth API unavailable")
+            return None
         if response.status_code != http.HTTPStatus.OK:
             logging.error(f"Login status code - {response.status_code}")
             logging.error(f"Login error - {response.text}")
@@ -25,7 +29,7 @@ class CustomBackend(BaseBackend):
         
         access_token = response.json()["access_token"]
 
-        public_key = self._get_public_key(request_id)
+        public_key = self._get_public_key()
         if public_key is None:
             return None
 
@@ -48,24 +52,14 @@ class CustomBackend(BaseBackend):
 
         user_id = payload["sub"]
 
-        user, _ = User.objects.get_or_create(
+        user, _ = User.objects.update_or_create(
             id=user_id,
             defaults={
                 "email": username,
+                "is_superuser": True,
+                "is_staff": True,
+                "is_active": True,
             },
-        )
-
-        user.email = username
-        user.is_superuser = True
-        user.is_active = True
-        user.is_staff = True
-        user.save(
-            update_fields=[
-                "email",
-                "is_superuser",
-                "is_staff",
-                "is_active",
-            ]
         )
 
         return user
@@ -78,11 +72,10 @@ class CustomBackend(BaseBackend):
     
     @staticmethod
     @lru_cache(maxsize=1)
-    def _get_public_key(request_id: str) -> str | None:
+    def _get_public_key() -> str | None:
         response = requests.get(
             settings.AUTH_API_PUBLIC_KEY_URL,
             timeout=5,
-            headers={"X-Request-Id": request_id},
         )
         if response.status_code != http.HTTPStatus.OK:
             logging.error(f"Public key status code - {response.status_code}")
