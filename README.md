@@ -129,6 +129,30 @@ http://localhost:8000/api/openapi
 4. VK ID сделает редирект на `http://localhost/api/v1/auth/vk/callback/?code=...&state=...&device_id=...`.
 5. Сервис вернёт JSON с `access_token`.
 6. Проверить что пользователь создался в БД: `make shell` → `SELECT * FROM users;` и `SELECT * FROM oauth_accounts;`.
+## Проверка входа через Yandex
+
+### Получение YANDEX_CLIENT_ID и YANDEX_CLIENT_SECRET
+
+1. Перейдите по ссылке https://oauth.yandex.ru/client/new/id.
+2. Выберите создание приложения для авторизации пользователей.
+3. Пройдите верификацию с помощью ГосУслуг.
+4. Заполните поля формы (название сервиса, иконка, почта для связи).
+5. Выберите, к каким данным нужен доступ вашему приложению.
+6. Далее укажите ссылку для редиректа в поле RedirectURI `http://localhost:8000/api/v1/auth/yandex/callback/`
+
+### Запуск
+
+Предварительно:
+1. В `.env` заполнены `YANDEX_CLIENT_ID`, `YANDEX_CLIENT_SECRET`, `OAUTH_REDIRECT_BASE_URL=http://localhost:8000`.
+2. Сервис запущен.
+
+Шаги проверки:
+1. В Swagger (`http://localhost:8000/api/openapi`) выполнить `GET /api/v1/auth/yandex/` — сервис вернёт `{"url": "https://oauth.yandex.ru/authorize?..."}`.
+2. Скопировать `url` из ответа и открыть в браузере.
+4. Yandex сделает редирект на `http://localhost:8000/api/v1/auth/yandex/callback/?code=...&state=...`.
+5. Сервис вернёт JSON с `access_token`.
+6. Проверить что пользователь создался в БД: `make shell` → `SELECT * FROM users;` и `SELECT * FROM oauth_accounts;`.
+
 
 ## Работа с ролями и правами
 
