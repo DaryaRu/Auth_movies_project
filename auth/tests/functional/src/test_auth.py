@@ -4,7 +4,6 @@ import base64
 import json
 from http import HTTPStatus
 from typing import Any
-from uuid import uuid4
 
 import pytest
 from aiohttp import ClientSession
