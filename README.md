@@ -58,14 +58,14 @@ http://localhost/admin/              — Django-админка
 
 Доступ к фильмам управляется через уровень подписки:
 
-1. В auth-сервисе создаётся подписка с числовым `level` (например, `free=0`, `premium=1`).
+1. В auth-сервисе создаётся подписка с числовым значением `level` (например, `free=0`, `premium=1`).
 2. При регистрации пользователю автоматически назначается подписка `free`.
 3. В JWT-токене передаются поля `subscription_code` и `subscription_level`.
 4. В Django-админке каждому фильму выставляется `subscription_level` — минимальный уровень для просмотра.
 5. ETL переносит `subscription_level` из PostgreSQL в Elasticsearch.
 6. movies-service при запросе деталей фильма (`GET /api/v1/films/{id}/`) сравнивает уровень пользователя с уровнем фильма. Если уровень недостаточен — возвращает 403.
 
-Список фильмов и поиск — публичные эндпоинты, отображаются всем.
+Список фильмов и поиск — публичные эндпоинты, доступны всем.
 
 
 ## Команды
@@ -166,7 +166,7 @@ docker compose exec elasticsearch curl -X DELETE "http://localhost:9200/movies"
 2. Сервис запущен.
 
 Шаги проверки:
-1. В Swagger (`http://localhost/api/openapi`) выполнить `GET /api/v1/auth/vk/` — сервис вернёт `{"url": "https://id.vk.ru/authorize?..."}`.
+1. В Swagger (`http://localhost/api/auth/openapi`) выполнить `GET /api/v1/auth/vk/` — сервис вернёт `{"url": "https://id.vk.ru/authorize?..."}`.
 2. Скопировать `url` из ответа и открыть в браузере.
 3. Разрешить доступ приложению.
 4. VK ID сделает редирект на `http://localhost/api/v1/auth/vk/callback/?code=...&state=...&device_id=...`.
@@ -181,20 +181,20 @@ docker compose exec elasticsearch curl -X DELETE "http://localhost:9200/movies"
 3. Пройдите верификацию с помощью ГосУслуг.
 4. Заполните поля формы (название сервиса, иконка, почта для связи).
 5. Выберите, к каким данным нужен доступ вашему приложению.
-6. Далее укажите ссылку для редиректа в поле RedirectURI `http://localhost:8000/api/v1/auth/yandex/callback/`
+6. Далее укажите ссылку для редиректа в поле RedirectURI `http://localhost/api/v1/auth/yandex/callback/`
 
 ### Запуск
 
 Предварительно:
-1. В `.env` заполнены `YANDEX_CLIENT_ID`, `YANDEX_CLIENT_SECRET`, `OAUTH_REDIRECT_BASE_URL=http://localhost:8000`.
+1. В `.env` заполнены `YANDEX_CLIENT_ID`, `YANDEX_CLIENT_SECRET`, `OAUTH_REDIRECT_BASE_URL=http://localhost`.
 2. Сервис запущен.
 
 Шаги проверки:
-1. В Swagger (`http://localhost:8000/api/openapi`) выполнить `GET /api/v1/auth/yandex/` — сервис вернёт `{"url": "https://oauth.yandex.ru/authorize?..."}`.
+1. В Swagger (`http://localhost/api/auth/openapi`) выполнить `GET /api/v1/auth/yandex/` — сервис вернёт `{"url": "https://oauth.yandex.ru/authorize?..."}`.
 2. Скопировать `url` из ответа и открыть в браузере.
-4. Yandex сделает редирект на `http://localhost:8000/api/v1/auth/yandex/callback/?code=...&state=...`.
-5. Сервис вернёт JSON с `access_token`.
-6. Проверить что пользователь создался в БД: `make shell` → `SELECT * FROM users;` и `SELECT * FROM oauth_accounts;`.
+3. Yandex сделает редирект на `http://localhost/api/v1/auth/yandex/callback/?code=...&state=...`.
+4. Сервис вернёт JSON с `access_token`.
+5. Проверить что пользователь создался в БД: `make shell` → `SELECT * FROM users;` и `SELECT * FROM oauth_accounts;`.
 
 
 ## Работа с ролями и правами
@@ -206,6 +206,20 @@ Authorization: Bearer <access_token>
 ```
 
 Когда access-токен истечёт — обновить через `POST /api/v1/refresh/`.
+
+### Как назначить роль пользователю
+
+1. Создать право: `POST /api/v1/permissions/` с `{"code": "content:edit", "name": "Редактировать контент"}`
+2. Создать роль: `POST /api/v1/roles/` с `{"name": "content_manager"}`
+3. Добавить право к роли: `POST /api/v1/roles/{role_id}/permissions/{permission_id}/`
+4. Назначить роль пользователю: `POST /api/v1/roles/{role_id}/users/{user_id}/`
+
+После следующего логина пользователя в JWT-токене появится поле `permissions` со списком кодов прав, например `["content:edit"]`.
+
+### Использование прав в сервисах-потребителях
+
+Сами по себе роли доступ не ограничивают — сервис-потребитель (movies-service, movies-admin) должен самостоятельно извлечь `permissions` из JWT и проверить наличие нужного права перед выполнением операции.
+Сейчас все административные операции доступны только суперпользователю. Чтобы разграничить доступ через роли, нужно добавить проверку `permissions` на соответствующих эндпоинтах.
 
 
 ## Работа с подписками
@@ -225,3 +239,8 @@ POST /api/v1/users/{user_id}/subscription/
 После следующего логина пользователя новый `subscription_level` отразится в JWT-токене.
 
 **Выставить уровень фильму:** в Django-админке (`http://localhost/admin/`) открыть карточку фильма и установить поле «Уровень подписки».
+
+
+## Трассировка
+
+UI Jaeger доступен на `http://localhost/tracers/` — показывает трейсы всех запросов к auth-service, movies-service и movies-admin.
