@@ -2,6 +2,7 @@ from functools import lru_cache
 import http
 import logging
 from typing import Any
+import uuid
 
 import requests
 from django.conf import settings
@@ -76,6 +77,7 @@ class CustomBackend(BaseBackend):
         response = requests.get(
             settings.AUTH_API_PUBLIC_KEY_URL,
             timeout=5,
+            headers={"X-Request-Id": str(uuid.uuid4())},
         )
         if response.status_code != http.HTTPStatus.OK:
             logging.error(f"Public key status code - {response.status_code}")
