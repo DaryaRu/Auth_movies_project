@@ -4,14 +4,13 @@ from http import HTTPStatus
 from typing import Literal, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query
-from fastapi_cache.decorator import cache
-
 from api.v1.dependencies import OptionalTokenPayloadDep, PaginationDepend
 from core import config
+from dependencies import get_film_service
+from fastapi import APIRouter, Depends, HTTPException, Path, Query
+from fastapi_cache.decorator import cache
 from schemas.film_shorts import FilmShortResponse
 from schemas.films import FilmResponse
-from dependencies import get_film_service
 from services.film import FilmService
 
 router = APIRouter()
@@ -67,12 +66,14 @@ async def film_details(
             status_code=HTTPStatus.NOT_FOUND,
             detail="film not found",
         )
-    if film.subscription_level > 0 and not (token_payload or {}).get("is_superuser"):
+    if film.subscription_level > 0 and not (token_payload or {}).get(
+        "is_superuser"
+    ):
         user_level = (token_payload or {}).get("subscription_level", 0)
         if user_level < film.subscription_level:
             raise HTTPException(
                 status_code=HTTPStatus.FORBIDDEN,
-                detail="Subscription level insufficient to watch this film",
+                detail="This film requires a higher subscription level. Upgrade your subscription to watch this film.",
             )
     return FilmResponse.model_validate(film.model_dump())
 
@@ -95,7 +96,8 @@ async def films_list(
     sort: Literal[
         "imdb_rating",
         "-imdb_rating",
-    ] | None = Query(
+    ]
+    | None = Query(
         default=None,
         description=(
             "Поле для сортировки (например, imdb_rating и -imdb_rating). "

@@ -1,6 +1,5 @@
 import logging
 import secrets
-from typing import Optional
 from uuid import UUID
 
 from redis.asyncio import Redis
@@ -13,17 +12,22 @@ from src.services.auth import AuthService
 
 
 class OAuthService:
-    def __init__(self, provider_factory: OAuthProviderFactory, auth_service: AuthService, redis: Redis) -> None:
+    def __init__(
+        self,
+        provider_factory: OAuthProviderFactory,
+        auth_service: AuthService,
+        redis: Redis,
+    ) -> None:
         self._provider_factory = provider_factory
         self._auth_service = auth_service
         self._redis = redis
-        
+
     async def get_auth_url(self, provider: AuthProvider) -> str:
         state = secrets.token_urlsafe(32)
         await self._redis.setex(
             f"oauth_state:{state}",
             settings.OAUTH_STATE_EXPIRE_SECONDS,
-            provider.value
+            provider.value,
         )
         strategy = self._provider_factory.get(provider)
         if provider == AuthProvider.VK:
@@ -33,7 +37,7 @@ class OAuthService:
                 await self._redis.setex(
                     f"vk_pkce:{state}",
                     settings.OAUTH_STATE_EXPIRE_SECONDS,
-                    code_verifier
+                    code_verifier,
                 )
         else:
             auth_url = strategy.get_auth_url(state)
@@ -73,10 +77,7 @@ class OAuthService:
         )
 
     async def unlink_account(
-            self,
-            user_id: UUID,
-            provider_str: str,
-            current_sid: str
+        self, user_id: UUID, provider_str: str, current_sid: str
     ) -> tuple[list[str], bool]:
         """
         Координирует отвязку аккаунта.
@@ -93,12 +94,11 @@ class OAuthService:
             logging.error(f"Неизвестный провайдер для отвязки: {provider_str}")
             raise InvalidProviderException()
 
-        remaining_providers, current_session_deleted = (
-            await self._auth_service.unlink_account(
-                user_id=user_id,
-                provider=provider_str,
-                current_sid=current_sid
-            )
+        (
+            remaining_providers,
+            current_session_deleted,
+        ) = await self._auth_service.unlink_account(
+            user_id=user_id, provider=provider_str, current_sid=current_sid
         )
 
         return remaining_providers, current_session_deleted
