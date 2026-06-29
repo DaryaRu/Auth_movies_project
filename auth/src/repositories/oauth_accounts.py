@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from uuid import UUID
 
-from sqlalchemy import delete, select
+from sqlalchemy import select
 
 from src.models.oauth_accounts import OAuthAccountORM
 from src.repositories.base import BasePostgreSQLRepository

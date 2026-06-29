@@ -57,6 +57,10 @@ revision:
 	docker compose run --rm auth-migrate alembic upgrade head
 	docker compose run --rm auth-migrate alembic revision --autogenerate -m "$(name)"
 
+# Открывает psql-сессию в БД auth-сервиса
+shell:
+	docker compose exec auth-db psql -U movies -d movies
+
 # Генерирует RSA-ключи для подписи JWT (пропускает, если файлы уже существуют)
 keys:
 	test -f private.pem || openssl genrsa -out private.pem 2048

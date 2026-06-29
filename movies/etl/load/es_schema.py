@@ -44,6 +44,7 @@ MOVIES_INDEX_SCHEMA = {
         "properties": {
             "id": {"type": "keyword"},
             "imdb_rating": {"type": "float"},
+            "subscription_level": {"type": "integer"},
             "genres": {
                 "type": "nested",
                 "dynamic": "strict",

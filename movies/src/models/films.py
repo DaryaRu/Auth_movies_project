@@ -21,6 +21,7 @@ class Film(BaseModel):
     imdb_rating: float | None = None
     description: str | None = None
     creation_date: date | None = None
+    subscription_level: int = 0
     genres: list[Genre] = []
     directors: list[Person] = []
     actors: list[Person] = []

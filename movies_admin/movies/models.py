@@ -109,6 +109,12 @@ class FilmWork(UUIDMixin, TimeStampedMixin):
         max_length=10,
         choices=Type.choices
     )
+    subscription_level = models.IntegerField(
+        _('subscription level'),
+        default=0,
+        validators=[MinValueValidator(0)],
+        help_text=_('Minimum subscription level required to watch. 0 — available to everyone.'),
+    )
     genres = models.ManyToManyField(
         Genre,
         through='GenreFilmWork',

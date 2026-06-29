@@ -16,6 +16,7 @@ class FilmResponse(BaseModel):
     imdb_rating: float | None = None
     description: str | None = None
     creation_date: date | None = None
+    subscription_level: int = 0
     directors: list[PersonShort] = []
     actors: list[PersonShort] = []
     writers: list[PersonShort] = []

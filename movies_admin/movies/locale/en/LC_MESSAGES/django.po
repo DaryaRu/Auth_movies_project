@@ -137,3 +137,11 @@ msgstr ""
 #: .\movies\models.py:192
 msgid "role"
 msgstr ""
+
+#: .\movies\models.py:112
+msgid "subscription level"
+msgstr ""
+
+#: .\movies\models.py:115
+msgid "Minimum subscription level required to watch. 0 — available to everyone."
+msgstr ""

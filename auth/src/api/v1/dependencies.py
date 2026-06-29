@@ -25,6 +25,8 @@ from src.services.oauth import OAuthService
 from src.services.permissions import PermissionService
 from src.services.roles import RoleService
 from src.services.sessions import SessionService
+from src.services.subscriptions import SubscriptionService
+from src.services.user_subscriptions import UserSubscriptionService
 from src.utils.db_manager import DBManager
 from src.utils.hashes import HashArgon2Service
 from src.utils.security import CustomHTTPBearer
@@ -74,6 +76,14 @@ def get_role_service(db: "DBDep") -> RoleService:
 
 def get_permission_service(db: "DBDep") -> PermissionService:
     return PermissionService(db)
+
+
+def get_subscription_service(db: "DBDep") -> SubscriptionService:
+    return SubscriptionService(db)
+
+
+def get_user_subscription_service(db: "DBDep") -> UserSubscriptionService:
+    return UserSubscriptionService(db)
 
 
 async def get_token_payload(
@@ -141,3 +151,5 @@ TokenPayloadDep = Annotated[dict[str, Any], Depends(get_token_payload)]
 DBDep = Annotated[DBManager, Depends(get_db)]
 SessionServiceDep = Annotated[SessionService, Depends(get_session_service)]
 OAuthServiceDep = Annotated[OAuthService, Depends(get_oauth_service)]
+SubscriptionServiceDep = Annotated[SubscriptionService, Depends(get_subscription_service)]
+UserSubscriptionServiceDep = Annotated[UserSubscriptionService, Depends(get_user_subscription_service)]

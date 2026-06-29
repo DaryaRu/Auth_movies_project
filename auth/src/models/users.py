@@ -35,3 +35,7 @@ class UserORM(Base, BaseORM):
         back_populates="user",
         cascade="all, delete-orphan",
     )
+    subscriptions: Mapped[list["UserSubscriptionORM"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )

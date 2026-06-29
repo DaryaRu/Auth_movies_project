@@ -1,3 +1,5 @@
+import logging
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -38,56 +40,101 @@ class AuthService(BaseService):
     - поиск пользователя по email;
     - аутентификация пользователя.
     """
+
     def __init__(
         self,
         hash_service: BaseHashService,
         token_service: JWTTokenService,
         session_service: SessionService,
-        db: DBManager
+        db: DBManager,
     ) -> None:
         super().__init__(db)
         self._hash_service: BaseHashService = hash_service
         self._token_service: JWTTokenService = token_service
         self._session_service: SessionService = session_service
-        
+
     async def register_user(self, user: UserRequestScheme) -> UserORM:
-        is_exsist_user = await self._db.users.get_one_or_none_by_email_or_phone(user.email, user.phone)
+        is_exsist_user = (
+            await self._db.users.get_one_or_none_by_email_or_phone(
+                user.email, user.phone
+            )
+        )
         if is_exsist_user:
             raise UserAlreadyexistsException()
         new_user = await self.add_one(user)
         return new_user
-    
+
     async def create_admin(self, user: UserRequestScheme) -> None:
-        is_exsist_user = await self._db.users.get_one_or_none_by_email_or_phone(user.email, user.phone)
+        is_exsist_user = (
+            await self._db.users.get_one_or_none_by_email_or_phone(
+                user.email, user.phone
+            )
+        )
         if is_exsist_user:
             raise UserAlreadyexistsException()
         await self.add_one(user, is_superuser=True)
 
-    async def add_one(self, user: UserRequestScheme, is_superuser: bool = False) -> UserORM:
+    async def add_one(
+        self, user: UserRequestScheme, is_superuser: bool = False
+    ) -> UserORM:
         """
         Добавляет нового пользователя.
         - Пароль пользователя хэшируется.
         - Оригинальный пароль удаляется перед сохранением.
         - Пользователь сохраняется в БД.
+        - Пользователю назначается базовая подписка 'free'.
         Args:
             user (UserRequestScheme): Данные пользователя.
         Returns:
             UserORM: Пользователь.
         """
-        hash_password = self._hash_service.create_hash_password(
-            user.password
-        )
+        hash_password = self._hash_service.create_hash_password(user.password)
         new_user = await self._db.users.create_user(
             phone=user.phone,
             email=user.email,
             hashed_password=hash_password,
             is_superuser=is_superuser,
         )
+        await self._assign_free_subscription(new_user.id)
         return new_user
+
+    async def _assign_free_subscription(self, user_id: UUID) -> None:
+        free_sub = await self._db.subscriptions.get_one_or_none_by_code("free")
+        if free_sub is None:
+            logging.warning(
+                "Подписка 'free' не найдена в БД, не удается назначить"
+            )
+            return
+        await self._db.user_subscriptions.create(
+            user_id=user_id,
+            subscription_id=free_sub.id,
+            started_at=datetime.now(UTC),
+            expires_at=datetime(2999, 12, 31, tzinfo=UTC),
+        )
 
     async def _get_permission_codes(self, user_id: UUID) -> list[str]:
         permissions = await self._db.roles.get_user_permissions(user_id)
         return [p.code for p in permissions]
+
+    async def _get_subscription_info(self, user_id: UUID) -> dict:
+        """
+        Возвращает код и уровень активной подписки пользователя для JWT-токена.
+        Если подписка истекла — деактивирует её и возвращает дефолтные значения 'free'.
+        Если активной подписки нет, возвращает дефолтные значения 'free'.
+
+        Args:
+            user_id (UUID): Идентификатор пользователя.
+        """
+        active = await self._db.user_subscriptions.get_active(user_id)
+        if active is None:
+            return {"subscription_code": "free", "subscription_level": 0}
+        if active.expires_at.replace(tzinfo=UTC) < datetime.now(UTC):
+            await self._db.user_subscriptions.deactivate(active.id)
+            return {"subscription_code": "free", "subscription_level": 0}
+        return {
+            "subscription_code": active.subscription.code,
+            "subscription_level": active.subscription.level,
+        }
 
     async def get_one_by_email(self, email: str) -> UserORM:
         """
@@ -116,7 +163,7 @@ class AuthService(BaseService):
         if user is None:
             raise UserNotFoundException()
         return user
-    
+
     def decode_token(self, token: str) -> dict[str, Any]:
         return self._token_service.decode_jwt_token(token)
 
@@ -153,7 +200,9 @@ class AuthService(BaseService):
             raise
 
         is_superuser = payload.get("is_superuser", False)
-        permission_codes = await self._get_permission_codes(UUID(payload["sub"]))
+        user_id = UUID(payload["sub"])
+        permission_codes = await self._get_permission_codes(user_id)
+        subscription_info = await self._get_subscription_info(user_id)
 
         new_access_token, new_refresh_token = (
             self._token_service.create_access_and_refresh_tokens(
@@ -162,10 +211,11 @@ class AuthService(BaseService):
                     "is_superuser": is_superuser,
                     "sid": str(payload["sid"]),
                     "permissions": permission_codes,
+                    **subscription_info,
                 }
             )
         )
-        
+
         await self._session_service.rotate_refresh_token(
             sid=sid,
             refresh_token=new_refresh_token,
@@ -204,14 +254,12 @@ class AuthService(BaseService):
             raise UserAlreadyexistsException()
 
         if not self._hash_service.verify_password(
-            data.password,
-            user.hashed_password
+            data.password, user.hashed_password
         ):
             raise VerifyPasswordException()
 
         updated_user = await self._db.users.update_user_credentials(
-            user_id=user_id,
-            email=data.new_email
+            user_id=user_id, email=data.new_email
         )
         return updated_user
 
@@ -236,25 +284,20 @@ class AuthService(BaseService):
             raise UserNotFoundException()
 
         if not self._hash_service.verify_password(
-            data.current_password,
-            user.hashed_password
+            data.current_password, user.hashed_password
         ):
             raise VerifyPasswordException()
 
         new_hash = self._hash_service.create_hash_password(data.new_password)
 
         await self._db.users.update_user_credentials(
-            user_id=user_id,
-            hashed_password=new_hash
+            user_id=user_id, hashed_password=new_hash
         )
 
         await self._session_service.delete_all_sessions(str(user_id))
 
     async def authenticate_user(
-            self,
-            auth_user: UserRequestScheme,
-            ip_address: str,
-            user_agent: str
+        self, auth_user: UserRequestScheme, ip_address: str, user_agent: str
     ) -> tuple[str, str]:
         """
         Аутентифицирует пользователя по email и паролю.
@@ -270,7 +313,9 @@ class AuthService(BaseService):
             UserNotFoundException: Если пользователь с указанным email не найден.
             VerifyPasswordException: Если пароль введён неверно.
         """
-        user = await self._db.users.get_one_or_none_by_email_or_phone(email=auth_user.email, phone=auth_user.phone)
+        user = await self._db.users.get_one_or_none_by_email_or_phone(
+            email=auth_user.email, phone=auth_user.phone
+        )
         if user is None:
             raise UserNotFoundException()
         if not user.is_active:
@@ -282,12 +327,9 @@ class AuthService(BaseService):
         ):
             raise VerifyPasswordException()
         return await self._create_user_session(
-            user,
-            ip_address,
-            user_agent,
-            auth_method="password"
+            user, ip_address, user_agent, auth_method="password"
         )
-    
+
     async def _create_user_session(
         self,
         user: UserORM,
@@ -298,6 +340,7 @@ class AuthService(BaseService):
         sid = uuid4()
 
         permission_codes = await self._get_permission_codes(user.id)
+        subscription_info = await self._get_subscription_info(user.id)
 
         access_token, refresh_token = (
             self._token_service.create_access_and_refresh_tokens(
@@ -306,6 +349,7 @@ class AuthService(BaseService):
                     "is_superuser": user.is_superuser,
                     "sid": str(sid),
                     "permissions": permission_codes,
+                    **subscription_info,
                 }
             )
         )
@@ -320,7 +364,7 @@ class AuthService(BaseService):
         )
 
         return access_token, refresh_token
-    
+
     async def revoke_refresh_token(self, refresh_token: str) -> None:
         try:
             payload = self.decode_token(refresh_token)
@@ -328,7 +372,7 @@ class AuthService(BaseService):
             return
         sid = payload["sid"]
         await self._session_service.delete_session(sid)
-        
+
     async def revoke_all_refresh_tokens(self, refresh_token: str) -> None:
         try:
             payload = self.decode_token(refresh_token)
@@ -336,7 +380,7 @@ class AuthService(BaseService):
             return
         user_id = payload["sub"]
         await self._session_service.delete_all_sessions(user_id)
-        
+
     async def _get_or_create_oauth_user(
         self,
         user_info: OAuthUserInfoScheme,
@@ -347,41 +391,38 @@ class AuthService(BaseService):
         )
 
         if oauth_account:
-            return await self.get_one(
-                oauth_account.user_id
-            )
+            return await self.get_one(oauth_account.user_id)
         if not user_info.email and not user_info.phone:
             raise ProviderException()
-        user = await self._db.users.get_one_or_none_by_email_or_phone(email=user_info.email, phone=user_info.phone)
+        user = await self._db.users.get_one_or_none_by_email_or_phone(
+            email=user_info.email, phone=user_info.phone
+        )
         if not user:
             user = await self._db.users.create_user(
                 email=user_info.email,
                 phone=user_info.phone,
                 hashed_password=None,
             )
-            
+            await self._assign_free_subscription(user.id)
+
         await self._db.oauth_accounts.create_oauth_account(
             user_id=user.id,
             provider=user_info.provider,
             provider_user_id=user_info.provider_user_id,
         )
         return user
-    
+
     async def authenticate_oauth_user(
-            self,
-            user_info: OAuthUserInfoScheme,
-            ip_address: str,
-            user_agent: str
+        self, user_info: OAuthUserInfoScheme, ip_address: str, user_agent: str
     ) -> tuple[str, str]:
         user = await self._get_or_create_oauth_user(user_info)
         return await self._create_user_session(
-            user,
-            ip_address,
-            user_agent,
-            auth_method=user_info.provider
+            user, ip_address, user_agent, auth_method=user_info.provider
         )
-        
-    async def set_password(self, user_id: UUID, data: SetPasswordRequestScheme) -> None:
+
+    async def set_password(
+        self, user_id: UUID, data: SetPasswordRequestScheme
+    ) -> None:
         """Устанавливает пароль для OAuth-пользователя без пароля.
 
         Raises:
@@ -410,8 +451,7 @@ class AuthService(BaseService):
         """Аннулирует в Redis все активные сессии пользователя,
         созданные через определенный метод входа."""
         sessions = await self._session_service.get_active_sessions(
-            user_id=user_id,
-            current_sid=current_sid
+            user_id=user_id, current_sid=current_sid
         )
 
         current_session_deleted = False
@@ -429,7 +469,11 @@ class AuthService(BaseService):
             if not full_session:
                 continue
 
-            session_auth_method = full_session.get("auth_method") if isinstance(full_session, dict) else getattr(full_session, "auth_method", None)
+            session_auth_method = (
+                full_session.get("auth_method")
+                if isinstance(full_session, dict)
+                else getattr(full_session, "auth_method", None)
+            )
 
             if session_auth_method == auth_method:
                 await self._session_service.delete_session(sid)
@@ -472,8 +516,7 @@ class AuthService(BaseService):
             all_accounts = await db.oauth_accounts.get_all_by_user_id(user_id)
 
             target_account = next(
-                (acc for acc in all_accounts if acc.provider == provider),
-                None
+                (acc for acc in all_accounts if acc.provider == provider), None
             )
             if not target_account:
                 raise OAuthAccountNotLinkedException()
@@ -487,7 +530,8 @@ class AuthService(BaseService):
             await db.oauth_accounts.delete_oauth_account(target_account.id)
 
             remaining_providers = [
-                acc.provider for acc in all_accounts
+                acc.provider
+                for acc in all_accounts
                 if acc.provider != provider
             ]
 

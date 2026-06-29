@@ -61,6 +61,7 @@ SELECT
     fw.rating AS imdb_rating,
     fw.title,
     fw.description,
+    fw.subscription_level,
     fw.modified
 FROM content.film_work AS fw
 WHERE fw.id = ANY(%(film_work_ids)s)

@@ -221,3 +221,51 @@ class InvalidProviderException(AuthServiceException):
 
 class InvalidProviderHTTPException(AuthServiceHTTPException):
     status_code = 400
+
+
+class SubscriptionNotFoundException(AuthServiceException):
+    detail = "Подписка не найдена"
+
+
+class SubscriptionAlreadyExistsException(AuthServiceException):
+    detail = "Подписка с таким кодом уже существует"
+
+
+class SubscriptionLevelAlreadyExistsException(AuthServiceException):
+    detail = "Подписка с таким уровнем уже существует"
+
+
+class SubscriptionInactiveException(AuthServiceException):
+    detail = "Подписка неактивна"
+
+
+class UserSubscriptionNotFoundException(AuthServiceException):
+    detail = "Активная подписка пользователя не найдена"
+
+
+class SubscriptionNotFoundHTTPException(AuthServiceHTTPException):
+    status_code = 404
+
+
+class SubscriptionAlreadyExistsHTTPException(AuthServiceHTTPException):
+    status_code = 400
+
+
+class SubscriptionLevelAlreadyExistsHTTPException(AuthServiceHTTPException):
+    status_code = 400
+
+
+class SubscriptionInactiveHTTPException(AuthServiceHTTPException):
+    status_code = 400
+
+
+class UserSubscriptionNotFoundHTTPException(AuthServiceHTTPException):
+    status_code = 404
+
+
+class SubscriptionInUseException(AuthServiceException):
+    detail = "Нельзя удалить подписку: есть пользователи с активной подпиской этого типа. Используйте PATCH для деактивации"
+
+
+class SubscriptionInUseHTTPException(AuthServiceHTTPException):
+    status_code = 409

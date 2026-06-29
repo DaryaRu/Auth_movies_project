@@ -145,3 +145,11 @@ msgstr "Сценарист"
 #: .\movies\models.py:192
 msgid "role"
 msgstr "Роль"
+
+#: .\movies\models.py:112
+msgid "subscription level"
+msgstr "Уровень подписки"
+
+#: .\movies\models.py:115
+msgid "Minimum subscription level required to watch. 0 — available to everyone."
+msgstr "Минимальный уровень подписки для просмотра. 0 — доступно всем."

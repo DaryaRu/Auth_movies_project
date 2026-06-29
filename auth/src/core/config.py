@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     HASH_MEMORY_COST: int
     HASH_PARALLELISM: int
     API_V1_PREFIX: str = "/api/v1"
+    OPENAPI_URL: str = "/api/auth/openapi"
+    OPENAPI_SCHEMA_URL: str = "/api/auth/openapi.json"
     CACHE_EXPIRE: int = 600
     COOKIE_SECURE: bool = False
     OAUTH_REDIRECT_BASE_URL: str = "http://localhost"

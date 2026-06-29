@@ -14,7 +14,7 @@ from src.core.config import settings
 def register_middlewares(app: FastAPI) -> None:
     """Зарегистрировать все middleware в приложении"""
     
-    excluded_paths = {"/health", f"{settings.API_V1_PREFIX}/auth/openapi.json", f"{settings.API_V1_PREFIX}/jwt.key/"}
+    excluded_paths = {"/health", settings.OPENAPI_URL, settings.OPENAPI_SCHEMA_URL}
 
     @app.middleware('http')
     async def tracing_middlemare(request: Request, call_next):
@@ -33,17 +33,15 @@ def register_middlewares(app: FastAPI) -> None:
     async def add_process_time_header(request: Request, call_next):
         """Middleware для измерения времени выполнения запроса"""
         start_time = time.perf_counter()
-        try:
-            response = await call_next(request)
-            return response
-        finally:
-            process_time = time.perf_counter() - start_time
-            response.headers["X-Process-Time"] = str(process_time)
-            logging.info(
-                f"Request: {request.method} {request.url.path} "
-                f"Completed in {process_time:.4f} seconds "
-                f"Status: {response.status_code}"
-            )
+        response = await call_next(request)
+        process_time = time.perf_counter() - start_time
+        response.headers["X-Process-Time"] = str(process_time)
+        logging.info(
+            f"Request: {request.method} {request.url.path} "
+            f"Completed in {process_time:.4f} seconds "
+            f"Status: {response.status_code}"
+        )
+        return response
 
     app.add_middleware(
         TrustedHostMiddleware, allowed_hosts=settings.ALLOWED_HOSTS.split(",")

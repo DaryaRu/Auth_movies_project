@@ -32,8 +32,8 @@ def create_app() -> FastAPI:
         title=settings.PROJECT_NAME,
         description=("Сервис авторизации и аутентификации"),
         version="1.0.0",
-        docs_url="/api/auth/openapi",
-        openapi_url="/api/auth/openapi.json",
+        docs_url=settings.OPENAPI_URL,
+        openapi_url=settings.OPENAPI_SCHEMA_URL,
         lifespan=lifespan,
     )
 

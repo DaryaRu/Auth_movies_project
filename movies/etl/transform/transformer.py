@@ -20,6 +20,7 @@ def build_film_work(
         genres=genres,
         title=row["title"],
         description=row.get("description"),
+        subscription_level=row.get("subscription_level", 0),
         directors_names=[person.name for person in directors],
         actors_names=[person.name for person in actors],
         writers_names=[person.name for person in writers],

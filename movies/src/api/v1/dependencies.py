@@ -1,10 +1,11 @@
 """Dependencies for API."""
 
-from typing import Annotated
+from typing import Annotated, Any
 
-from fastapi import Depends, Query
+from fastapi import Depends, Header, HTTPException, Query, status
 
 from core import config
+from utils.jwt import decode_token
 
 
 class PaginationParams:
@@ -27,3 +28,32 @@ class PaginationParams:
 
 
 PaginationDepend = Annotated[PaginationParams, Depends(PaginationParams)]
+
+
+async def get_token_payload(
+    authorization: Annotated[str | None, Header()] = None,
+) -> dict[str, Any] | None:
+    """Декодирует Bearer-токен из заголовка Authorization. Возвращает None если токен отсутствует или невалиден."""
+    if authorization is None:
+        return None
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() != "bearer" or not token:
+        return None
+    return await decode_token(token)
+
+
+async def require_token_payload(
+    payload: Annotated[dict[str, Any] | None, Depends(get_token_payload)],
+) -> dict[str, Any]:
+    """Требует валидный JWT-токен. Возвращает 401 если токен отсутствует или невалиден."""
+    if payload is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return payload
+
+
+OptionalTokenPayloadDep = Annotated[dict[str, Any] | None, Depends(get_token_payload)]
+RequiredTokenPayloadDep = Annotated[dict[str, Any], Depends(require_token_payload)]
