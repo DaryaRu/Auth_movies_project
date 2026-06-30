@@ -1,7 +1,6 @@
 """JWT декодирование с кэшированием публичного ключа в Redis."""
 
 import logging
-import uuid
 from typing import Any
 
 import httpx
@@ -19,9 +18,8 @@ _PUBLIC_KEY_TTL = 3600
 async def _fetch_public_key() -> str | None:
     """Получает публичный ключ от auth-сервиса."""
     try:
-        headers = {"X-Request-Id": str(uuid.uuid4())}
         async with httpx.AsyncClient() as client:
-            response = await client.get(config.AUTH_API_PUBLIC_KEY_URL, timeout=5, headers=headers)
+            response = await client.get(config.AUTH_API_PUBLIC_KEY_URL, timeout=5)
             if response.status_code != 200:
                 logger.error("Failed to fetch public key: status %s", response.status_code)
                 return None
