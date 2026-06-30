@@ -12,6 +12,7 @@ from opentelemetry.instrumentation.elasticsearch import (
 from opentelemetry.instrumentation.fastapi import (
     FastAPIInstrumentor,
 )
+from opentelemetry.instrumentation.redis import RedisInstrumentor
 
 from core import config, logger
 from core.lifespan import lifespan
@@ -42,6 +43,7 @@ def create_app() -> FastAPI:
     )
     AioHttpClientInstrumentor().instrument()
     ElasticsearchInstrumentor().instrument()
+    RedisInstrumentor().instrument()
 
     register_middlewares(app)
     register_routers(app)

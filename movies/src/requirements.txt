@@ -11,3 +11,4 @@ opentelemetry-exporter-otlp==1.42.1
 opentelemetry-instrumentation-fastapi==0.63b1
 opentelemetry-instrumentation-aiohttp-client==0.63b1
 opentelemetry-instrumentation-elasticsearch==0.63b1
+opentelemetry-instrumentation-redis==0.63b1
