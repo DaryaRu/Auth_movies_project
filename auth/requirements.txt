@@ -20,5 +20,8 @@ opentelemetry-sdk==1.42.1
 opentelemetry-exporter-otlp==1.42.1
 opentelemetry-instrumentation-fastapi==0.63b1
 opentelemetry-instrumentation-sqlalchemy==0.63b1
+opentelemetry-instrumentation-aiohttp-client==0.63b1
+opentelemetry-instrumentation-httpx==0.63b1
+opentelemetry-instrumentation-redis==0.63b1
 aiohttp==3.14.1
 slowapi==0.1.9

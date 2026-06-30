@@ -9,12 +9,21 @@ from opentelemetry import trace
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from src.core.config import settings
+from src.schemas.oauth import AuthProvider
 
 
 def register_middlewares(app: FastAPI) -> None:
     """Зарегистрировать все middleware в приложении"""
     
-    excluded_paths = {"/health", settings.OPENAPI_URL, settings.OPENAPI_SCHEMA_URL}
+    excluded_paths = {
+        "/health",
+        f"{settings.API_V1_PREFIX}/jwt.key/",
+        settings.OPENAPI_URL,
+        settings.OPENAPI_SCHEMA_URL,
+    } | {
+        f"/auth/{provider}/callback/"
+        for provider in AuthProvider
+    }
 
     @app.middleware('http')
     async def tracing_middlemare(request: Request, call_next):

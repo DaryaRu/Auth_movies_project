@@ -2,7 +2,10 @@ from contextlib import asynccontextmanager
 from logging import config as logging_config
 
 from fastapi import FastAPI
+from opentelemetry.instrumentation.aiohttp_client import AioHttpClientInstrumentor
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
+from opentelemetry.instrumentation.redis import RedisInstrumentor
 from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
 from slowapi.errors import RateLimitExceeded
 
@@ -43,6 +46,9 @@ def create_app() -> FastAPI:
     app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 
     FastAPIInstrumentor.instrument_app(app, excluded_urls=settings.OTEL_PYTHON_FASTAPI_EXCLUDED_URLS)
+    AioHttpClientInstrumentor().instrument()
+    HTTPXClientInstrumentor().instrument()
+    RedisInstrumentor().instrument()
     SQLAlchemyInstrumentor().instrument(engine=engine.sync_engine)
     register_middlewares(app)
     register_routers(app)
