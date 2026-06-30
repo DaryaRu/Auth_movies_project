@@ -50,7 +50,7 @@ router = APIRouter(tags=["Auth"])
     summary="Регистрация пользователя",
     response_model=UserResponseScheme,
 )
-@limiter.limit("5/minute")
+@limiter.limit(settings.LIMIT_VALUE)
 async def create_user(
     user: UserRequestScheme,
     auth_service: AuthServiceDep,
@@ -67,7 +67,7 @@ async def create_user(
 @router.post(
     "/login/", summary="Вход в аккаунт", response_model=JWTAccessToken
 )
-@limiter.limit("5/minute")
+@limiter.limit(settings.LIMIT_VALUE)
 async def login(
     response: Response,
     request: Request,
@@ -119,7 +119,7 @@ async def get_public_key() -> dict[str, str]:
 @router.post(
     "/refresh/", summary="Обновление токенов", response_model=JWTAccessToken
 )
-@limiter.limit("5/minute")
+@limiter.limit(settings.LIMIT_VALUE)
 async def refresh_token(
     refresh_token: RefreshTokenDep,
     response: Response,
@@ -205,7 +205,7 @@ async def logout_all(
     summary="Получение активных сессий пользователя",
     response_model=list[UserSessionResponse],
 )
-@limiter.limit("5/minute")
+@limiter.limit(settings.LIMIT_VALUE)
 async def get_user_active_sessions(
     token_payload: TokenPayloadDep,
     current_user: CurrentUserDep,
@@ -223,7 +223,7 @@ async def get_user_active_sessions(
     summary="Права текущего пользователя",
     response_model=list[PermissionResponseScheme],
 )
-@limiter.limit("5/minute")
+@limiter.limit(settings.LIMIT_VALUE)
 async def get_my_permissions(
     current_user: CurrentUserDep,
     role_service: RoleServiceDep,
@@ -241,7 +241,7 @@ async def get_my_permissions(
     response_model=UserResponseScheme,
     summary="Смена email",
 )
-@limiter.limit("5/minute")
+@limiter.limit(settings.LIMIT_VALUE)
 async def change_email(
     data: ChangeEmailRequestScheme,
     auth_service: AuthServiceDep,
@@ -267,7 +267,7 @@ async def change_email(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Смена пароля",
 )
-@limiter.limit("5/minute")
+@limiter.limit(settings.LIMIT_VALUE)
 async def change_password(
     data: ChangePasswordRequestScheme,
     response: Response,

@@ -24,6 +24,7 @@ from src.schemas.oauth import (
 )
 from src.schemas.oauth_accounts import OAuthUnlinkResponseScheme
 from src.schemas.tokens import JWTAccessToken
+from src.core.limiter import limiter
 
 router = APIRouter(tags=["OAuth"])
 
@@ -33,7 +34,11 @@ router = APIRouter(tags=["OAuth"])
     summary="URL для авторизации на стороне провайдера",
     response_model=OAuthURLResponseScheme
 )
-async def oauth_redirect(provider: AuthProvider, oauth_service: OAuthServiceDep):
+@limiter.limit(settings.LIMIT_VALUE)
+async def oauth_redirect(provider: AuthProvider,
+                         oauth_service: OAuthServiceDep,
+                         request: Request,
+                         ):
     """Формирует URL авторизации и перенаправляет пользователя на страницу входа провайдера."""
     return {"url": await oauth_service.get_auth_url(provider=provider)}
 
@@ -43,6 +48,7 @@ async def oauth_redirect(provider: AuthProvider, oauth_service: OAuthServiceDep)
     summary="Обработка callback от провайдера",
     response_model=JWTAccessToken,
 )
+@limiter.limit(settings.LIMIT_VALUE)
 async def oauth_callback(
     provider: AuthProvider,
     code: str,

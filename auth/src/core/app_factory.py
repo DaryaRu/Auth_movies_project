@@ -41,6 +41,8 @@ def create_app() -> FastAPI:
     )
 
     limiter.storage_uri = settings.REDIS_LIMITER_URL
+    if settings.ENVIRONMENT == "test":
+        limiter.enabled = False
     app.state.limiter = limiter
 
     app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)

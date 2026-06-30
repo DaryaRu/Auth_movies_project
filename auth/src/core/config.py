@@ -53,6 +53,7 @@ class Settings(BaseSettings):
     DEFAULT_LIMIT_VALUE: int = 100
     VK_CLIENT_ID: str = ""
     VK_CLIENT_SECRET: str = ""
+    LIMIT_VALUE: str = "5/minute"
 
     @property
     def DB_URL(self):
