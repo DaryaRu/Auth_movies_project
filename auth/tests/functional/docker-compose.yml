@@ -42,8 +42,8 @@ services:
       redis:
         condition: service_healthy
     volumes:
-      - ../../private.pem:/app/keys/private.pem:ro
-      - ../../public.pem:/app/keys/public.pem:ro
+      - ../../../private.pem:/app/keys/private.pem:ro
+      - ../../../public.pem:/app/keys/public.pem:ro
 
   tests:
     image: fastapi-image
