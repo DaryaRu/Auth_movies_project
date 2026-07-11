@@ -1,0 +1,106 @@
+@startuml C4_Containers_ToBe
+!include <C4/C4_Container>
+
+skinparam linetype ortho
+
+skinparam nodesep 100
+skinparam ranksep 200
+
+LAYOUT_LEFT_RIGHT()
+
+AddElementTag("db",      $bgColor="#afdaad", $borderColor="#142a13", $fontColor="#000000")
+
+AddRelTag("incoming",    $lineColor="#888888", $textColor="#888888")
+AddRelTag("routing",     $lineColor="#1565c0", $textColor="#1565c0")
+AddRelTag("auth",        $lineColor="#6a1b9a", $textColor="#6a1b9a")
+AddRelTag("movies",      $lineColor="#307133", $textColor="#307133")
+AddRelTag("admin",       $lineColor="#e04f01", $textColor="#e04f01")
+AddRelTag("etl",         $lineColor="#0bc5e6", $textColor="#0bc5e6")
+AddRelTag("monitoring",  $lineColor="#e28008", $textColor="#e28008")
+AddRelTag("analytics",   $lineColor="#12b71b", $textColor="#12b71b")
+
+title C4 Level 2: Container Diagram — Целевая архитектура (To Be)
+
+Person(user, "Пользователь", "Браузер или API-клиент.\nСмотрит фильмы, входит в аккаунт.")
+Person(admin, "Администратор", "Управляет контентом\nчерез Django Admin.")
+
+rectangle "OAuth провайдеры" #line.dashed {
+    System_Ext(google, "Google OAuth 2.0", "Внешний провайдер")
+    System_Ext(yandex, "Yandex OAuth 2.0", "Внешний провайдер")
+    System_Ext(vk, "VK OAuth 2.0", "Внешний провайдер")
+}
+
+System_Boundary(online_cinema, "Онлайн-кинотеатр") {
+
+    rectangle "Сервисы" #line.dashed {
+        Container(nginx, "nginx", "nginx 1.31", "Единая точка входа.\nМаршрутизирует запросы между сервисами.\nРаздаёт статику и медиафайлы.\nГенерирует X-Request-Id для трассировки.")
+        Container(auth_service, "auth-service", "FastAPI", "Аутентификация и авторизация.\nРегистрация, вход по паролю, OAuth.\nВыдача и верификация токенов.\nУправление сессиями, ролями, правами, подписками.\nRate limiting (slowapi).")
+        Container(movies_service, "movies-service", "FastAPI", "Каталог фильмов, персон, жанров.\nВерифицирует JWT.\nКэш ответов API в Redis.")
+        Container(movies_admin, "movies-admin", "Django", "Администрирование контента.\nУправление фильмами, персонами, жанрами.\nВход через auth-service (JWT).")
+        Container(movies_etl, "movies-etl", "Python", "Синхронизация данных.\nПереносит фильмы, персон, жанры\nиз PostgreSQL в Elasticsearch.")
+        Container(analytics_service, "analytics-service [NEW]", "FastAPI", "Приём событий пользователей.\nВерифицирует JWT.\nПубликует события в Kafka.")
+        Container(analytics_etl, "analytics-etl [NEW]", "Python", "Читает события из Kafka.\nЗаписывает события в ClickHouse.")
+        Container(kafka, "Kafka [NEW]", "Apache Kafka", "Брокер событий пользователей.\nТопик: user-activity.")
+    }
+
+    rectangle "Хранилища" #line.dashed {
+        ContainerDb(auth_db, "auth-db", "PostgreSQL 17", "Пользователи.\nРоли и права доступа.\nOAuth-аккаунты.\nПодписки пользователей.", $tags="db")
+        ContainerDb(movies_db, "movies-db", "PostgreSQL 17", "Фильмы, персоны, жанры.\nИсточник данных для ETL.", $tags="db")
+        ContainerDb(redis, "Redis", "Redis 7", "Сессии пользователей.\nOAuth state.\nКэш ответов movies-service.\nКэш публичного ключа JWT.\nХранение счётчиков запросов slowapi.", $tags="db")
+        ContainerDb(elasticsearch, "Elasticsearch", "8.12", "Полнотекстовый поиск и фильтрация\nфильмов, персон, жанров.\nХранилище трейсов Jaeger.", $tags="db")
+        ContainerDb(clickhouse, "ClickHouse [NEW]", "ClickHouse", "Аналитическое хранилище.\nСобытия пользователей:\nклики, просмотры, кастомные события.", $tags="db")
+    }
+
+    rectangle "Мониторинг" #line.dashed {
+        Container(otel_collector, "otel-collector", "OpenTelemetry Collector", "Принимает трейсы по OTLP gRPC\nот всех сервисов.\nЭкспортирует в Jaeger Collector.")
+        Container(jaeger_collector, "jaeger-collector", "Jaeger 1.76", "Принимает спаны от otel-collector.\nСохраняет в Elasticsearch.")
+        Container(jaeger_query, "jaeger-query", "Jaeger 1.76", "UI для просмотра трейсов.\nДоступен через nginx по /tracers.")
+    }
+}
+
+'Связи
+Rel(user, nginx, "port 80", $tags="incoming")
+Rel(admin, nginx, "port 80", $tags="incoming")
+
+Rel(nginx, auth_service, "/api/v1/*", $tags="routing")
+Rel(nginx, movies_service, "/api/v1/films/**\n/api/v1/persons/**\n/api/v1/genres/**", $tags="routing")
+Rel(nginx, movies_admin, "/admin/**", $tags="routing")
+Rel(nginx, jaeger_query, "/tracers/**", $tags="routing")
+Rel(nginx, analytics_service, "/api/v1/analytics/**", $tags="routing")
+
+Rel(auth_service, auth_db, "SQL-запросы", $tags="auth")
+Rel(auth_service, redis, "Сессии · OAuth state · лимитер", $tags="auth")
+Rel(auth_service, otel_collector, "OTLP трейсы", $tags="auth")
+Rel(auth_service, google, "OAuth 2.0", $tags="auth")
+Rel(auth_service, yandex, "OAuth 2.0", $tags="auth")
+Rel(auth_service, vk, "OAuth 2.0", $tags="auth")
+
+Rel(movies_service, elasticsearch, "Полнотекстовый поиск", $tags="movies")
+Rel(movies_service, redis, "Кэш ответов API", $tags="movies")
+Rel(movies_service, auth_service, "Публичный ключ", $tags="movies")
+Rel(movies_service, otel_collector, "OTLP трейсы", $tags="movies")
+
+Rel(movies_admin, movies_db, "SQL-запросы", $tags="admin")
+Rel(movies_admin, auth_service, "Аутентификация JWT", $tags="admin")
+Rel(movies_admin, otel_collector, "OTLP трейсы", $tags="admin")
+
+Rel(movies_etl, movies_db, "Чтение данных", $tags="etl")
+Rel(movies_etl, elasticsearch, "Индексация", $tags="etl")
+
+Rel(otel_collector, jaeger_collector, "Экспорт спанов", $tags="monitoring")
+Rel(jaeger_collector, elasticsearch, "Сохранение трейсов", $tags="monitoring")
+Rel(jaeger_query, elasticsearch, "Чтение трейсов", $tags="monitoring")
+
+'analytics-service [NEW]
+Rel(analytics_service, kafka, "Публикация событий", $tags="analytics")
+Rel(analytics_service, redis, "Кэш публичного ключа JWT", $tags="analytics")
+Rel(analytics_service, auth_service, "Публичный ключ", $tags="analytics")
+Rel(analytics_service, otel_collector, "OTLP трейсы", $tags="analytics")
+
+'analytics-etl [NEW]
+Rel(analytics_etl, kafka, "Чтение событий из Kafka", $tags="analytics")
+Rel(analytics_etl, clickhouse, "Запись событий", $tags="analytics")
+
+SHOW_LEGEND()
+
+@enduml
