@@ -2,8 +2,8 @@
 !include <C4/C4_Container>
 
 skinparam linetype ortho
-skinparam nodesep 180
-skinparam ranksep 180
+skinparam nodesep 130
+skinparam ranksep 130
 
 LAYOUT_LEFT_RIGHT()
 
@@ -73,11 +73,11 @@ Rel(auth_service, vk, "OAuth 2.0", $tags="auth")
 
 Rel(movies_service, elasticsearch, "Полнотекстовый поиск", $tags="movies")
 Rel(movies_service, redis, "Кэш ответов API", $tags="movies")
-Rel(movies_service, auth_service, "GET /api/v1/jwt.key\nпубличный ключ RS256", $tags="movies")
+Rel(movies_service, auth_service, "Публичный ключ", $tags="movies")
 Rel(movies_service, otel_collector, "OTLP трейсы", $tags="movies")
 
 Rel(movies_admin, movies_db, "SQL-запросы", $tags="admin")
-Rel(movies_admin, auth_service, "POST /api/v1/login\nGET /api/v1/jwt.key", $tags="admin")
+Rel(movies_admin, auth_service, "Аутентификация JWT", $tags="admin")
 Rel(movies_admin, otel_collector, "OTLP трейсы", $tags="admin")
 
 Rel(movies_etl, movies_db, "Чтение данных", $tags="etl")
