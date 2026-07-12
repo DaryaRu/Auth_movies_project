@@ -95,3 +95,4 @@ analytics-service добавляет `user_id` из JWT и `timestamp`, публ
 ## Изменения в существующих компонентах
 
 - **nginx** — добавлен маршрут `/api/v1/analytics/**` → `analytics-service`
+- **analytics-service** — отправляет OTLP-трейсы в otel-collector
