@@ -256,6 +256,8 @@ services:
     env_file: .env
     environment:
       OTEL_SERVICE_NAME: ${ANALYTICS_OTEL_SERVICE_NAME:-analytics-service}
+    ports:
+      - "6000:6000"
     command: >
       sh -c "gunicorn src.main:app
       --workers 2
