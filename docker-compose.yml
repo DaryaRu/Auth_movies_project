@@ -249,6 +249,33 @@ services:
       elasticsearch:
         condition: service_healthy
 
+  analytics-service:
+    build: ./analytics
+    image: analytics-service-image
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      OTEL_SERVICE_NAME: ${ANALYTICS_OTEL_SERVICE_NAME:-analytics-service}
+    command: >
+      sh -c "gunicorn src.main:app
+      --workers 2
+      --worker-class uvicorn.workers.UvicornWorker
+      --bind 0.0.0.0:6000
+      --forwarded-allow-ips=*
+      --timeout 120
+      --error-logfile -"
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:6000/health')\""]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   nginx:
     image: nginx:1.31.2
     restart: unless-stopped
