@@ -1,4 +1,3 @@
-from contextlib import asynccontextmanager
 from logging import config as logging_config
 
 from fastapi import FastAPI
@@ -8,14 +7,10 @@ from opentelemetry.instrumentation.redis import RedisInstrumentor
 
 from src.core import logger
 from src.core.config import settings
+from src.core.lifespan import lifespan
 from src.core.middlewares import register_middlewares
 from src.core.routers import register_routers
 from src.core.tracers import configure_tracer
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    yield
 
 
 def create_app() -> FastAPI:
