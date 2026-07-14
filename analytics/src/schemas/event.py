@@ -1,3 +1,4 @@
+from datetime import datetime
 from enum import Enum
 from uuid import UUID
 
@@ -23,7 +24,17 @@ class EventType(str, Enum):
     # film_progress = "film_progress"
 
 
-class EventResponse(BaseModel):
+class EventResponseIn(BaseModel):
     event_type: EventType
     object_id: UUID | None = None
     payload: dict = {}
+    event_time: datetime
+
+
+class EventResponseOut(BaseModel):
+    user_id: UUID
+    event_type: EventType
+    object_id: UUID | None
+    payload: dict
+    event_time: datetime
+    timestamp: datetime

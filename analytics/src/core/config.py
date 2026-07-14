@@ -18,6 +18,9 @@ class Settings(BaseSettings):
 
     KAFKA_BROKERS: str
     KAFKA_TOPIC: str = "user-activity"
+    KAFKA_BUFFER_SIZE: int = 10000
+    KAFKA_ACKS: int = 1
+    KAFKA_RETRY_INTERVAL_SEC: int = 5
 
     REDIS_HOST: str
     REDIS_PORT: int
