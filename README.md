@@ -6,9 +6,10 @@
 - **movies-service** — API контента: фильмы, жанры, персоны. Верифицирует токены и проверяет уровень подписки.
 - **movies-admin** — Django-администрирование каталога фильмов. Вход через auth-service.
 - **movies-etl** — синхронизация данных из PostgreSQL в Elasticsearch.
+- **analytics-service** — приём событий пользователей и публикация в Kafka. Верифицирует JWT, отдаёт `202 Accepted` без ожидания подтверждения от брокера.
 - **nginx** — единая точка входа, проксирует запросы к сервисам, добавляет `X-Request-Id`.
 
-**Стек:** FastAPI, Django, PostgreSQL, Redis, Elasticsearch, JWT RS256, Argon2, OAuth 2.0, Docker
+**Стек:** FastAPI, Django, PostgreSQL, Redis, Elasticsearch, Kafka, JWT RS256, Argon2, OAuth 2.0, Docker
 
 
 ## Первый запуск
@@ -105,6 +106,10 @@ http://localhost/admin/              — Django-админка
 `make test-movies` — функциональные тесты movies-сервиса
 
 `make test-all` — тесты всех сервисов
+
+`make logs-analytics` — логи analytics-service
+
+`make analytics-event TOKEN=eyJhbGci...` — отправить тестовое событие (токен получить через `/api/v1/login/`)
 
 
 ## Переиндексация Elasticsearch
@@ -239,6 +244,43 @@ POST /api/v1/users/{user_id}/subscription/
 После следующего логина пользователя новый `subscription_level` отразится в JWT-токене.
 
 **Выставить уровень фильму:** в Django-админке (`http://localhost/admin/`) открыть карточку фильма и установить поле «Уровень подписки».
+
+
+## analytics-service
+
+Сервис принимает события пользователей и публикует их в Kafka-топик `user-activity`.
+
+**Гарантии доставки:** at-most-once на обоих уровнях. Потеря единичных событий при сбое не критична для бизнеса. At-least-once потребовало бы логики дедупликации на стороне ETL и усложнения схемы ClickHouse (ReplacingMergeTree вместо MergeTree). At-most-once даёт простую реализацию без дубликатов в хранилище.
+
+**Реализация at-most-once:**
+
+Клиент → analytics-service:
+- Сервис принимает событие, кладёт в `asyncio.Queue` и немедленно отвечает `202 Accepted` — не дожидаясь подтверждения от Kafka
+- При переполнении очереди (`KAFKA_BUFFER_SIZE=10000`) возвращает `503` и событие теряется
+- При остановке сервиса события в очереди теряются
+
+analytics-service → Kafka:
+- Фоновый воркер читает очередь и публикует через `send_and_wait` с `KAFKA_ACKS=1` (подтверждение от лидера)
+- При `KafkaError` событие логируется с уровнем `ERROR` и теряется — повторной отправки нет
+- При недоступности Kafka воркер уходит в цикл переподключения (`KAFKA_RETRY_INTERVAL_SEC=5`) — сервис продолжает принимать запросы, очередь заполняется
+
+ETL → ClickHouse:
+- ETL коммитит offset до вставки в ClickHouse; при сбое вставки offset уже зафиксирован и событие не повторяется
+
+**Сообщение в Kafka:** `user_id` (UUID из JWT), `event_type`, `object_id` (UUID объекта — фильм, жанр и т.п.; опционально), `payload` (произвольный JSON), `event_time` (время события на клиенте).
+
+**Поддерживаемые типы событий:** `film_view`, `films_list_view`, `film_search`, `genre_view`, `person_view`, `person_films_view`, `search_filter_used`, `trailer_click`, `page_time_spent`.
+
+### Проверка
+
+1. Поднять все контейнеры и создать суперпользователя:
+   ```bash
+   make fresh
+   make superuser
+   ```
+2. Получить токен: `POST /api/v1/login/` в Swagger → `http://localhost/api/auth/openapi`
+3. Отправить тестовое событие: открыть `http://localhost/api/analytics/openapi` → **Authorize** (вставить токен) → `POST /api/v1/analytics/events/` → ожидается `202`
+4. Убедиться что событие попало в Kafka: `http://localhost:8080` → Topics → `user-activity` → Messages
 
 
 ## Трассировка
