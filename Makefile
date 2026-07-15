@@ -80,3 +80,7 @@ test-movies:
 
 # Запускает тесты всех сервисов
 test-all: test-auth test-movies
+
+# analytics-service
+logs-analytics:
+	docker compose logs -f analytics-service
