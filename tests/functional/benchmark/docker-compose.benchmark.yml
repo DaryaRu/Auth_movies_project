@@ -1,0 +1,40 @@
+services:
+  # ClickHouse - для сравнения
+  ch-test:
+    image: clickhouse-server:amd64
+    container_name: clickhouse-benchmark
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    environment:
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB:-benchmark_db}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-123}
+    volumes:
+      - ./data/ch_data:/home/postgres/clickhouse
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      # Проверка стучится на внутренний порт 8123 внутри контейнера
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8123/ping"]
+      interval: 2s
+      timeout: 2s
+      retries: 10
+
+  # Vertica - для сравнения
+  vertica-test:
+    image: jbfavre/vertica:latest
+    container_name: vertica-server
+    ports:
+      - "5434:5433"
+    environment:
+      VERTICA_DB: ${VERTICA_DATABASE:docker}
+      VERTICA_PASSWORD: ${VERTICA_PASSWORD:-password}
+    volumes:
+      - ./data/vertica_data:/home/postgres/vertica
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
