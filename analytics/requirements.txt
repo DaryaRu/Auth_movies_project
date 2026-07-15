@@ -1,0 +1,14 @@
+fastapi[standard]==0.136.1
+gunicorn>=22,<24
+aiokafka==0.11.0
+redis==5.0.4
+fastapi-cache2==0.2.2
+python-jose[cryptography]==3.5.0
+httpx==0.28.1
+pydantic-settings==2.14.1
+opentelemetry-api==1.42.1
+opentelemetry-sdk==1.42.1
+opentelemetry-exporter-otlp==1.42.1
+opentelemetry-instrumentation-fastapi==0.63b1
+opentelemetry-instrumentation-redis==0.63b1
+opentelemetry-instrumentation-httpx==0.63b1
