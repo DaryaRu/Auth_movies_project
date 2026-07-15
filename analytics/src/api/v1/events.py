@@ -1,6 +1,5 @@
 import logging
 from asyncio import QueueFull
-from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import Response
@@ -22,7 +21,6 @@ async def create_event(event: EventResponseIn, user_id: CurrentUserDep) -> Respo
         object_id=event.object_id,
         payload=event.payload,
         event_time=event.event_time,
-        timestamp=datetime.now(timezone.utc),
     )
     try:
         kafka.buffer.put_nowait(event_out.model_dump(mode="json"))

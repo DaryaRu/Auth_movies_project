@@ -37,4 +37,3 @@ class EventResponseOut(BaseModel):
     object_id: UUID | None
     payload: dict
     event_time: datetime
-    timestamp: datetime
