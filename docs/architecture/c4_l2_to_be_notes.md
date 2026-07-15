@@ -24,9 +24,19 @@
 
 **Partition key:** `user_id` — события одного пользователя попадают в одну партицию, порядок гарантирован.
 
-**Партиции:** 6.
+**Партиции:** 3 (разработка) / 6 (production).
 
-**Гарантия доставки:** at least once — analytics-etl фиксирует offset только после успешной записи в ClickHouse.
+**Гарантия доставки:**
+- **client → analytics-service:** at-most-once — сервис принимает событие в in-memory буфер и немедленно отвечает 202; при краше сервиса события в буфере теряются (для аналитики допустимо)
+- **Kafka → ClickHouse:** at-most-once — ETL коммитит offset до вставки в ClickHouse; при сбое вставки события могут теряться (для аналитики допустимо; исключает накопление дубликатов в MergeTree)
+
+**Буферизация (analytics-service → Kafka):**
+
+Между приёмом события и отправкой в Kafka находится асинхронный in-memory буфер (`asyncio.Queue`):
+- Размер настраивается через `KAFKA_BUFFER_SIZE` (по умолчанию 10 000 сообщений)
+- При пиковом RPS ~15 событий/сек буфер рассчитан на ~11 минут — достаточно для перезапуска брокера
+- При переполнении буфера сервис возвращает 503 Service Unavailable
+- Факт потери события в Kafka логируется
 
 **Конфигурация:**
 - Брокеров: 3 — при падении 1 брокера кворум сохраняется
@@ -42,11 +52,12 @@ POST /api/v1/analytics/events/
 {
   "event_type": "film_view",
   "object_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-  "payload": {}
+  "payload": {},
+  "event_time": "2026-07-11T10:30:00Z"
 }
 ```
 
-analytics-service добавляет `user_id` из JWT и `timestamp`, публикует в Kafka:
+analytics-service добавляет `user_id` из JWT, публикует в топик:
 
 ```json
 {
@@ -54,9 +65,11 @@ analytics-service добавляет `user_id` из JWT и `timestamp`, публ
   "event_type": "film_view",
   "object_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
   "payload": {},
-  "timestamp": "2026-07-11T10:30:00Z"
+  "event_time": "2026-07-11T10:30:00Z"
 }
 ```
+
+`event_time` — время события на стороне клиента.
 
 `object_id` — идентификатор объекта события: `film_id`, `genre_id` или `person_id` в зависимости от `event_type`.
 
