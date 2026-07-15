@@ -1,25 +1,23 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Depends, HTTPException, Security, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from src.utils.jwt import decode_token
 
+_bearer = HTTPBearer()
+
 
 async def get_current_user(
-    authorization: Annotated[str | None, Header()] = None,
+    credentials: HTTPAuthorizationCredentials = Security(_bearer),
 ) -> UUID:
     exception_401 = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Not authenticated",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    if not authorization:
-        raise exception_401
-    scheme, _, token = authorization.partition(" ")
-    if scheme.lower() != "bearer" or not token:
-        raise exception_401
-    payload = await decode_token(token)
+    payload = await decode_token(credentials.credentials)
     if payload is None:
         raise exception_401
     user_id = payload.get("sub")
