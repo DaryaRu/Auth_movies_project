@@ -17,7 +17,7 @@ async def consume(
     event: EventMessage,
     logger: Logger,
 ):
-    if event.event_type != EventType.film_view:
+    if event.event_type != EventType.film_progress:
         return
     try:
         row = EventTransformer.transform(event)
