@@ -1,0 +1,27 @@
+<clickhouse>
+    <remote_servers>
+
+        <movie_cluster>
+
+            <shard>
+                <replica>
+                    <host>clickhouse-1</host>
+                    <port>9000</port>
+                </replica>
+
+                <replica>
+                    <host>clickhouse-2</host>
+                    <port>9000</port>
+                </replica>
+
+                <replica>
+                    <host>clickhouse-3</host>
+                    <port>9000</port>
+                </replica>
+
+            </shard>
+
+        </movie_cluster>
+
+    </remote_servers>
+</clickhouse>

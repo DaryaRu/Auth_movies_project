@@ -1,295 +1,295 @@
 services:
-  auth-db:
-    image: postgres:17
-    restart: unless-stopped
-    env_file: .env
-    volumes:
-      - auth_pg_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
+  # auth-db:
+  #   image: postgres:17
+  #   restart: unless-stopped
+  #   env_file: .env
+  #   volumes:
+  #     - auth_pg_data:/var/lib/postgresql/data
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+  #     interval: 15s
+  #     timeout: 5s
+  #     retries: 5
+  #     start_period: 10s
 
-  movies-db:
-    image: postgres:17
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: ${MOVIES_POSTGRES_DB}
-      POSTGRES_USER: ${MOVIES_POSTGRES_USER}
-      POSTGRES_PASSWORD: ${MOVIES_POSTGRES_PASSWORD}
-    volumes:
-      - movies_pg_data:/var/lib/postgresql/data
-      - ./movies_admin/movies.sql:/docker-entrypoint-initdb.d/init.sql:ro
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${MOVIES_POSTGRES_USER} -d ${MOVIES_POSTGRES_DB}"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
+  # movies-db:
+  #   image: postgres:17
+  #   restart: unless-stopped
+  #   environment:
+  #     POSTGRES_DB: ${MOVIES_POSTGRES_DB}
+  #     POSTGRES_USER: ${MOVIES_POSTGRES_USER}
+  #     POSTGRES_PASSWORD: ${MOVIES_POSTGRES_PASSWORD}
+  #   volumes:
+  #     - movies_pg_data:/var/lib/postgresql/data
+  #     - ./movies_admin/movies.sql:/docker-entrypoint-initdb.d/init.sql:ro
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U ${MOVIES_POSTGRES_USER} -d ${MOVIES_POSTGRES_DB}"]
+  #     interval: 15s
+  #     timeout: 5s
+  #     retries: 5
+  #     start_period: 10s
 
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.12.2
-    restart: unless-stopped
-    environment:
-      discovery.type: single-node
-      xpack.security.enabled: "false"
-      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
-    volumes:
-      - elastic_data:/usr/share/elasticsearch/data
-    healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:9200 >/dev/null || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
+  # elasticsearch:
+  #   image: docker.elastic.co/elasticsearch/elasticsearch:8.12.2
+  #   restart: unless-stopped
+  #   environment:
+  #     discovery.type: single-node
+  #     xpack.security.enabled: "false"
+  #     ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+  #   volumes:
+  #     - elastic_data:/usr/share/elasticsearch/data
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "curl -fsS http://localhost:9200 >/dev/null || exit 1"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 10
 
-  redis:
-    image: redis:7-alpine
-    restart: unless-stopped
-    command: >
-      redis-server
-      --maxclients 20000
-      --timeout 300
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 15s
-      timeout: 3s
-      retries: 5
+  # redis:
+  #   image: redis:7-alpine
+  #   restart: unless-stopped
+  #   command: >
+  #     redis-server
+  #     --maxclients 20000
+  #     --timeout 300
+  #   volumes:
+  #     - redis_data:/data
+  #   healthcheck:
+  #     test: ["CMD", "redis-cli", "ping"]
+  #     interval: 15s
+  #     timeout: 3s
+  #     retries: 5
 
-  jaeger-collector:
-    image: jaegertracing/jaeger-collector:1.76.0
-    environment:
-      - SPAN_STORAGE_TYPE=elasticsearch
-      - ES_SERVER_URLS=http://elasticsearch:9200
-      - COLLECTOR_OTLP_ENABLED=true
-    depends_on:
-      elasticsearch:
-        condition: service_healthy
+  # jaeger-collector:
+  #   image: jaegertracing/jaeger-collector:1.76.0
+  #   environment:
+  #     - SPAN_STORAGE_TYPE=elasticsearch
+  #     - ES_SERVER_URLS=http://elasticsearch:9200
+  #     - COLLECTOR_OTLP_ENABLED=true
+  #   depends_on:
+  #     elasticsearch:
+  #       condition: service_healthy
 
-  jaeger-query:
-    image: jaegertracing/jaeger-query:1.76.0
-    # ports:
-    #   - "16686:16686"
-    environment:
-      - SPAN_STORAGE_TYPE=elasticsearch
-      - ES_SERVER_URLS=http://elasticsearch:9200
-      - QUERY_BASE_PATH=/tracers
-    depends_on:
-      elasticsearch:
-        condition: service_healthy
+  # jaeger-query:
+  #   image: jaegertracing/jaeger-query:1.76.0
+  #   # ports:
+  #   #   - "16686:16686"
+  #   environment:
+  #     - SPAN_STORAGE_TYPE=elasticsearch
+  #     - ES_SERVER_URLS=http://elasticsearch:9200
+  #     - QUERY_BASE_PATH=/tracers
+  #   depends_on:
+  #     elasticsearch:
+  #       condition: service_healthy
 
-  otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.154.0-nightly.38e94c7
-    command: ["--config=/etc/otelcol/config.yaml"]
-    volumes:
-      - ./infra/otel-collector-config.yaml:/etc/otelcol/config.yaml
-    depends_on:
-      - jaeger-collector
-    # ports:
-    #   - "4317:4317"  # OTLP gRPC
-    #   - "4318:4318"  # OTLP HTTP
-    restart: unless-stopped
+  # otel-collector:
+  #   image: otel/opentelemetry-collector-contrib:0.154.0-nightly.38e94c7
+  #   command: ["--config=/etc/otelcol/config.yaml"]
+  #   volumes:
+  #     - ./infra/otel-collector-config.yaml:/etc/otelcol/config.yaml
+  #   depends_on:
+  #     - jaeger-collector
+  #   # ports:
+  #   #   - "4317:4317"  # OTLP gRPC
+  #   #   - "4318:4318"  # OTLP HTTP
+  #   restart: unless-stopped
 
-  auth-migrate:
-    image: auth-image
-    env_file: .env
-    command: alembic upgrade head
-    volumes:
-      - ./auth/src/migrations:/app/src/migrations
-    depends_on:
-      auth-db:
-        condition: service_healthy
+  # auth-migrate:
+  #   image: auth-image
+  #   env_file: .env
+  #   command: alembic upgrade head
+  #   volumes:
+  #     - ./auth/src/migrations:/app/src/migrations
+  #   depends_on:
+  #     auth-db:
+  #       condition: service_healthy
 
-  auth-service:
-    build: ./auth
-    image: auth-image
-    restart: unless-stopped
-    env_file: .env
-    command: >
-      sh -c "gunicorn src.main:app
-      --workers 4
-      --worker-class uvicorn.workers.UvicornWorker
-      --bind 0.0.0.0:8000
-      --forwarded-allow-ips=*
-      --timeout 120
-      --error-logfile -"
-    volumes:
-      - ./private.pem:/app/keys/private.pem:ro
-      - ./public.pem:/app/keys/public.pem:ro
-    healthcheck:
-      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
-      interval: 15s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
-    depends_on:
-      auth-migrate:
-        condition: service_completed_successfully
-      redis:
-        condition: service_healthy
+  # auth-service:
+  #   build: ./auth
+  #   image: auth-image
+  #   restart: unless-stopped
+  #   env_file: .env
+  #   command: >
+  #     sh -c "gunicorn src.main:app
+  #     --workers 4
+  #     --worker-class uvicorn.workers.UvicornWorker
+  #     --bind 0.0.0.0:8000
+  #     --forwarded-allow-ips=*
+  #     --timeout 120
+  #     --error-logfile -"
+  #   volumes:
+  #     - ./private.pem:/app/keys/private.pem:ro
+  #     - ./public.pem:/app/keys/public.pem:ro
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+  #     interval: 15s
+  #     timeout: 5s
+  #     retries: 3
+  #     start_period: 30s
+  #   depends_on:
+  #     auth-migrate:
+  #       condition: service_completed_successfully
+  #     redis:
+  #       condition: service_healthy
 
+  # movies-admin-migrate:
+  #   build: ./movies_admin
+  #   image: movies-admin-image
+  #   environment:
+  #     POSTGRES_DB: ${MOVIES_POSTGRES_DB}
+  #     POSTGRES_USER: ${MOVIES_POSTGRES_USER}
+  #     POSTGRES_PASSWORD: ${MOVIES_POSTGRES_PASSWORD}
+  #     POSTGRES_HOST: ${MOVIES_POSTGRES_HOST}
+  #     POSTGRES_PORT: ${MOVIES_POSTGRES_PORT}
+  #     DJANGO_SETTINGS_MODULE: ${DJANGO_SETTINGS_MODULE}
+  #     SECRET_KEY: ${DJANGO_SECRET_KEY}
+  #     ALLOWED_HOSTS: ${ALLOWED_HOSTS}
+  #     DEBUG: ${DEBUG}
+  #   command: >
+  #     sh -c "
+  #     python manage.py migrate movies --fake-initial &&
+  #     python manage.py migrate users --fake-initial &&
+  #     python manage.py migrate
+  #     "
+  #   depends_on:
+  #     movies-db:
+  #       condition: service_healthy
 
-  movies-admin-migrate:
-    build: ./movies_admin
-    image: movies-admin-image
-    environment:
-      POSTGRES_DB: ${MOVIES_POSTGRES_DB}
-      POSTGRES_USER: ${MOVIES_POSTGRES_USER}
-      POSTGRES_PASSWORD: ${MOVIES_POSTGRES_PASSWORD}
-      POSTGRES_HOST: ${MOVIES_POSTGRES_HOST}
-      POSTGRES_PORT: ${MOVIES_POSTGRES_PORT}
-      DJANGO_SETTINGS_MODULE: ${DJANGO_SETTINGS_MODULE}
-      SECRET_KEY: ${DJANGO_SECRET_KEY}
-      ALLOWED_HOSTS: ${ALLOWED_HOSTS}
-      DEBUG: ${DEBUG}
-    command: >
-      sh -c "
-      python manage.py migrate movies --fake-initial &&
-      python manage.py migrate users --fake-initial &&
-      python manage.py migrate
-      "
-    depends_on:
-      movies-db:
-        condition: service_healthy
+  # movies-admin:
+  #   image: movies-admin-image
+  #   restart: unless-stopped
+  #   environment:
+  #     POSTGRES_DB: ${MOVIES_POSTGRES_DB}
+  #     POSTGRES_USER: ${MOVIES_POSTGRES_USER}
+  #     POSTGRES_PASSWORD: ${MOVIES_POSTGRES_PASSWORD}
+  #     POSTGRES_HOST: ${MOVIES_POSTGRES_HOST}
+  #     POSTGRES_PORT: ${MOVIES_POSTGRES_PORT}
+  #     DJANGO_SETTINGS_MODULE: ${DJANGO_SETTINGS_MODULE}
+  #     SECRET_KEY: ${DJANGO_SECRET_KEY}
+  #     ALLOWED_HOSTS: ${ALLOWED_HOSTS}
+  #     DEBUG: ${DEBUG}
+  #     OTEL_SERVICE_NAME: ${ADMIN_OTEL_SERVICE_NAME}
+  #     OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
+  #     ENVIRONMENT: ${ENVIRONMENT}
+  #     OTEL_PYTHON_DJANGO_EXCLUDED_URLS: ${OTEL_PYTHON_DJANGO_EXCLUDED_URLS}
+  #     AUTH_API_LOGIN_URL: ${AUTH_API_LOGIN_URL}
+  #     AUTH_API_PUBLIC_KEY_URL: ${AUTH_API_PUBLIC_KEY_URL}
+  #     AUTH_API_SUBSCRIPTION_LEVELS_URL: ${AUTH_API_SUBSCRIPTION_LEVELS_URL}
+  #     JWT_ALGORITHM: ${JWT_ALGORITHM}
+  #     EXCLUDED_PATHS: ${ADMIN_EXCLUDED_PATHS}
+  #   command: >
+  #     sh -c "
+  #     python manage.py collectstatic --no-input &&
+  #     uwsgi --strict --ini uwsgi.ini
+  #     "
+  #   volumes:
+  #     - ./movies_admin/mediafiles:/opt/app/media/
+  #     - ./movies_admin/staticfiles:/opt/app/collected_static/
+  #   depends_on:
+  #     movies-admin-migrate:
+  #       condition: service_completed_successfully
 
-  movies-admin:
-    image: movies-admin-image
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: ${MOVIES_POSTGRES_DB}
-      POSTGRES_USER: ${MOVIES_POSTGRES_USER}
-      POSTGRES_PASSWORD: ${MOVIES_POSTGRES_PASSWORD}
-      POSTGRES_HOST: ${MOVIES_POSTGRES_HOST}
-      POSTGRES_PORT: ${MOVIES_POSTGRES_PORT}
-      DJANGO_SETTINGS_MODULE: ${DJANGO_SETTINGS_MODULE}
-      SECRET_KEY: ${DJANGO_SECRET_KEY}
-      ALLOWED_HOSTS: ${ALLOWED_HOSTS}
-      DEBUG: ${DEBUG}
-      OTEL_SERVICE_NAME: ${ADMIN_OTEL_SERVICE_NAME}
-      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
-      ENVIRONMENT: ${ENVIRONMENT}
-      OTEL_PYTHON_DJANGO_EXCLUDED_URLS: ${OTEL_PYTHON_DJANGO_EXCLUDED_URLS}
-      AUTH_API_LOGIN_URL: ${AUTH_API_LOGIN_URL}
-      AUTH_API_PUBLIC_KEY_URL: ${AUTH_API_PUBLIC_KEY_URL}
-      AUTH_API_SUBSCRIPTION_LEVELS_URL: ${AUTH_API_SUBSCRIPTION_LEVELS_URL}
-      JWT_ALGORITHM: ${JWT_ALGORITHM}
-      EXCLUDED_PATHS: ${ADMIN_EXCLUDED_PATHS}
-    command: >
-      sh -c "
-      python manage.py collectstatic --no-input &&
-      uwsgi --strict --ini uwsgi.ini
-      "
-    volumes:
-      - ./movies_admin/mediafiles:/opt/app/media/
-      - ./movies_admin/staticfiles:/opt/app/collected_static/
-    depends_on:
-      movies-admin-migrate:
-        condition: service_completed_successfully
+  # movies-service:
+  #   build: ./movies
+  #   image: movies-service-image
+  #   restart: unless-stopped
+  #   environment:
+  #     ELASTIC_HOST: ${ELASTIC_HOST}
+  #     ELASTIC_PORT: ${ELASTIC_PORT}
+  #     REDIS_HOST: ${REDIS_HOST}
+  #     REDIS_PORT: ${REDIS_PORT}
+  #     PROJECT_NAME: ${MOVIES_PROJECT_NAME}
+  #     ALLOW_HOSTS: "*"
+  #     ORIGINS: ${ORIGINS}
+  #     AUTH_API_PUBLIC_KEY_URL: ${AUTH_API_PUBLIC_KEY_URL}
+  #     DEBUG: ${DEBUG}
+  #     OTEL_SERVICE_NAME: ${MOVIES_OTEL_SERVICE_NAME}
+  #     OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
+  #     OTEL_PYTHON_FASTAPI_EXCLUDED_URLS: ${OTEL_PYTHON_FASTAPI_EXCLUDED_URLS}
+  #     EXCLUDED_PATHS: ${MOVIES_EXCLUDED_PATHS}
+  #     ENVIRONMENT: ${ENVIRONMENT}
+  #   command: >
+  #     gunicorn main:app
+  #     --workers 4
+  #     --worker-class uvicorn.workers.UvicornWorker
+  #     --bind 0.0.0.0:7000
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:7000/health')\""]
+  #     interval: 15s
+  #     timeout: 5s
+  #     retries: 3
+  #     start_period: 30s
+  #   depends_on:
+  #     elasticsearch:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
 
-  movies-service:
-    build: ./movies
-    image: movies-service-image
-    restart: unless-stopped
-    environment:
-      ELASTIC_HOST: ${ELASTIC_HOST}
-      ELASTIC_PORT: ${ELASTIC_PORT}
-      REDIS_HOST: ${REDIS_HOST}
-      REDIS_PORT: ${REDIS_PORT}
-      PROJECT_NAME: ${MOVIES_PROJECT_NAME}
-      ALLOW_HOSTS: "*"
-      ORIGINS: ${ORIGINS}
-      AUTH_API_PUBLIC_KEY_URL: ${AUTH_API_PUBLIC_KEY_URL}
-      DEBUG: ${DEBUG}
-      OTEL_SERVICE_NAME: ${MOVIES_OTEL_SERVICE_NAME}
-      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
-      OTEL_PYTHON_FASTAPI_EXCLUDED_URLS: ${OTEL_PYTHON_FASTAPI_EXCLUDED_URLS}
-      EXCLUDED_PATHS: ${MOVIES_EXCLUDED_PATHS}
-      ENVIRONMENT: ${ENVIRONMENT}
-    command: >
-      gunicorn main:app
-      --workers 4
-      --worker-class uvicorn.workers.UvicornWorker
-      --bind 0.0.0.0:7000
-    healthcheck:
-      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:7000/health')\""]
-      interval: 15s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
-    depends_on:
-      elasticsearch:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+  # movies-etl:
+  #   build: ./movies/etl
+  #   image: movies-etl-image
+  #   restart: unless-stopped
+  #   environment:
+  #     POSTGRES_DB: ${MOVIES_POSTGRES_DB}
+  #     POSTGRES_USER: ${MOVIES_POSTGRES_USER}
+  #     POSTGRES_PASSWORD: ${MOVIES_POSTGRES_PASSWORD}
+  #     POSTGRES_HOST: ${MOVIES_POSTGRES_HOST}
+  #     POSTGRES_PORT: ${MOVIES_POSTGRES_PORT}
+  #     ELASTIC_HOST: ${ELASTIC_HOST}
+  #     ELASTIC_PORT: ${ELASTIC_PORT}
+  #     STATE_FILE: ${ETL_STATE_FILE}
+  #     LOG_LEVEL: ${ETL_LOG_LEVEL}
+  #     ETL_CHUNK_SIZE: ${ETL_CHUNK_SIZE}
+  #     ETL_POLL_INTERVAL: ${ETL_POLL_INTERVAL}
+  #   volumes:
+  #     - etl_state:/app/state
+  #   depends_on:
+  #     movies-db:
+  #       condition: service_healthy
+  #     elasticsearch:
+  #       condition: service_healthy
 
-  movies-etl:
-    build: ./movies/etl
-    image: movies-etl-image
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: ${MOVIES_POSTGRES_DB}
-      POSTGRES_USER: ${MOVIES_POSTGRES_USER}
-      POSTGRES_PASSWORD: ${MOVIES_POSTGRES_PASSWORD}
-      POSTGRES_HOST: ${MOVIES_POSTGRES_HOST}
-      POSTGRES_PORT: ${MOVIES_POSTGRES_PORT}
-      ELASTIC_HOST: ${ELASTIC_HOST}
-      ELASTIC_PORT: ${ELASTIC_PORT}
-      STATE_FILE: ${ETL_STATE_FILE}
-      LOG_LEVEL: ${ETL_LOG_LEVEL}
-      ETL_CHUNK_SIZE: ${ETL_CHUNK_SIZE}
-      ETL_POLL_INTERVAL: ${ETL_POLL_INTERVAL}
-    volumes:
-      - etl_state:/app/state
-    depends_on:
-      movies-db:
-        condition: service_healthy
-      elasticsearch:
-        condition: service_healthy
+  # analytics-service:
+  #   build: ./analytics
+  #   image: analytics-service-image
+  #   restart: unless-stopped
+  #   env_file: .env
+  #   environment:
+  #     OTEL_SERVICE_NAME: ${ANALYTICS_OTEL_SERVICE_NAME:-analytics-service}
+  #   command: >
+  #     sh -c "gunicorn src.main:app
+  #     --workers 2
+  #     --worker-class uvicorn.workers.UvicornWorker
+  #     --bind 0.0.0.0:6000
+  #     --forwarded-allow-ips=*
+  #     --timeout 120
+  #     --error-logfile -"
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:6000/health')\""]
+  #     interval: 15s
+  #     timeout: 5s
+  #     retries: 3
+  #     start_period: 30s
+  #   depends_on:
+  #     auth-service:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
 
-  analytics-service:
-    build: ./analytics
-    image: analytics-service-image
-    restart: unless-stopped
-    env_file: .env
-    environment:
-      OTEL_SERVICE_NAME: ${ANALYTICS_OTEL_SERVICE_NAME:-analytics-service}
-    command: >
-      sh -c "gunicorn src.main:app
-      --workers 2
-      --worker-class uvicorn.workers.UvicornWorker
-      --bind 0.0.0.0:6000
-      --forwarded-allow-ips=*
-      --timeout 120
-      --error-logfile -"
-    healthcheck:
-      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:6000/health')\""]
-      interval: 15s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
-    depends_on:
-      auth-service:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-
-  nginx:
-    image: nginx:1.31.2
-    restart: unless-stopped
-    volumes:
-      - ./infra/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./infra/project.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./movies_admin/staticfiles:/static/
-      - ./movies_admin/mediafiles:/media/
-    depends_on:
-      - auth-service
-      - movies-service
-      - movies-admin
-    ports:
-      - "80:80"
+  # nginx:
+  #   image: nginx:1.31.2
+  #   restart: unless-stopped
+  #   volumes:
+  #     - ./infra/nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - ./infra/project.conf:/etc/nginx/conf.d/default.conf:ro
+  #     - ./movies_admin/staticfiles:/static/
+  #     - ./movies_admin/mediafiles:/media/
+  #   depends_on:
+  #     - auth-service
+  #     - movies-service
+  #     - movies-admin
+  #     - analytics-service
+  #   ports:
+  #     - "80:80"
 
   kafka-0:
     image: apache/kafka:3.7.0
@@ -344,8 +344,8 @@ services:
       CLUSTER_ID: abcdefghijklmnopqrstuv
     volumes:
       - kafka_2_data:/var/lib/kafka/data
-
-  kafka-topic-init:
+  
+  kafka-topic-init-1:
     image: apache/kafka:3.7.0
     restart: on-failure
     depends_on:
@@ -362,6 +362,23 @@ services:
       --config min.insync.replicas=${KAFKA_MIN_INSYNC_REPLICAS:-1}
       --config retention.ms=${KAFKA_RETENTION_MS:-604800000}
 
+  kafka-topic-init-2:
+    image: apache/kafka:3.7.0
+    restart: on-failure
+    depends_on:
+      - kafka-0
+      - kafka-1
+      - kafka-2
+    command: >
+      /opt/kafka/bin/kafka-topics.sh
+        --bootstrap-server kafka-0:9092
+        --create --if-not-exists
+        --topic user-activity.dlq
+        --partitions ${KAFKA_PARTITIONS:-3}
+        --replication-factor ${KAFKA_REPLICATION_FACTOR:-1}
+        --config min.insync.replicas=${KAFKA_MIN_INSYNC_REPLICAS:-1}
+        --config retention.ms=${KAFKA_DQL_RETENTION_MS:-604800000}
+
   ui:
     image: provectuslabs/kafka-ui:v0.7.0
     restart: unless-stopped
@@ -375,6 +392,91 @@ services:
       - kafka-1
       - kafka-2
 
+  zookeeper:
+    image: zookeeper:3.8
+    container_name: zookeeper
+    hostname: zookeeper
+    ports:
+      - "2181:2181"
+  
+  clickhouse-1:
+    image: clickhouse/clickhouse-server:23.8
+    container_name: clickhouse-1
+    hostname: clickhouse-1
+    environment:
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    volumes:
+      - ./infra/zookeeper.xml:/etc/clickhouse-server/config.d/zookeeper.xml:ro
+      - ./infra/macros_node1.xml:/etc/clickhouse-server/config.d/macros.xml:ro
+      - ./infra/cluster.xml:/etc/clickhouse-server/config.d/cluster.xml:ro
+      - clickhouse1_data:/var/lib/clickhouse
+    depends_on:
+      - zookeeper
+
+  clickhouse-2:
+    image: clickhouse/clickhouse-server:23.8
+    container_name: clickhouse-2
+    hostname: clickhouse-2
+    environment:
+        CLICKHOUSE_DB: ${CLICKHOUSE_DB}
+        CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+        CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+    ports:
+      - "8124:8123"
+      - "9001:9000"
+    volumes:
+      - ./infra/zookeeper.xml:/etc/clickhouse-server/config.d/zookeeper.xml:ro
+      - ./infra/macros_node2.xml:/etc/clickhouse-server/config.d/macros.xml:ro
+      - ./infra/cluster.xml:/etc/clickhouse-server/config.d/cluster.xml:ro
+      - clickhouse2_data:/var/lib/clickhouse
+    depends_on:
+      - zookeeper
+
+  clickhouse-3:
+    image: clickhouse/clickhouse-server:23.8
+    container_name: clickhouse-3
+    hostname: clickhouse-3
+    environment:
+        CLICKHOUSE_DB: ${CLICKHOUSE_DB}
+        CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+        CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+    ports:
+      - "8125:8123"
+      - "9002:9000"
+    volumes:
+      - ./infra/zookeeper.xml:/etc/clickhouse-server/config.d/zookeeper.xml:ro
+      - ./infra/macros_node3.xml:/etc/clickhouse-server/config.d/macros.xml:ro
+      - ./infra/cluster.xml:/etc/clickhouse-server/config.d/cluster.xml:ro
+      - clickhouse3_data:/var/lib/clickhouse
+    depends_on:
+      - zookeeper
+
+  analytics-etl:
+    build: ./analytics/etl
+    image: analytics-etl-image
+    restart: unless-stopped
+    environment:
+      CLICKHOUSE_URL: ${CLICKHOUSE_URL}
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      KAFKA_BROKERS: ${KAFKA_BROKERS}
+      KAFKA_TOPIC: ${KAFKA_TOPIC}
+      ANALITYCS_ETL_BATCH_SIZE: ${ANALITYCS_ETL_BATCH_SIZE}
+      ANALITYCS_ETL_FLUSH_INTERVAL: ${ANALITYCS_ETL_FLUSH_INTERVAL}
+    depends_on:
+      - kafka-0
+      - kafka-1
+      - kafka-2
+      - clickhouse-1
+      - clickhouse-2
+      - clickhouse-3
+
 volumes:
   auth_pg_data:
   redis_data:
@@ -384,3 +486,6 @@ volumes:
   kafka_0_data:
   kafka_1_data:
   kafka_2_data:
+  clickhouse1_data:
+  clickhouse2_data:
+  clickhouse3_data:
