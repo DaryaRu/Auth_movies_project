@@ -50,9 +50,10 @@ class PageTimeSpentPayload(BaseModel):
 
 
 class FilmProgressPayload(BaseModel):
-    """Payload для film_progress: просмотр фильма в секундах."""
+    """Payload для film_progress: позиция и длительность просмотра фильма."""
 
-    seconds_watched: int = Field(ge=0)
+    viewed_frame: int = Field(ge=0)
+    movie_duration: int = Field(ge=0)
 
 
 class VideoQualityChangedPayload(BaseModel):
