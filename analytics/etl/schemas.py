@@ -17,14 +17,6 @@ class EventType(str, Enum):
 
 
 class EventMessage(BaseModel):
-    user_id: UUID
-    event_type: EventType
-    object_id: UUID | None
-    payload: dict
-    event_time: datetime
-
-
-class MovieViewRow(BaseModel):
     model_config = ConfigDict(
         json_encoders={
             datetime: lambda dt: dt.strftime("%Y-%m-%d %H:%M:%S")
@@ -32,7 +24,7 @@ class MovieViewRow(BaseModel):
     )
     
     user_id: UUID
-    movie_id: UUID
-    viewed_frame: int
-    movie_duration: int
+    event_type: EventType
+    object_id: UUID | None
+    payload: dict
     event_time: datetime

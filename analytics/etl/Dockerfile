@@ -6,7 +6,7 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
 COPY requirements.txt ./
-COPY __init__.py transformers.py schemas.py main.py loaders.py extractors.py ./
+COPY __init__.py schemas.py main.py loaders.py extractors.py ./
 COPY core ./core
 COPY db ./db
 COPY repositories ./repositories

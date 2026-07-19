@@ -1,3 +1,4 @@
+import logging
 from typing import Any
 
 from aiochclient import ChClient
@@ -6,39 +7,45 @@ from loaders import ClickHouseLoader
 
 
 class MovieViewsRepository:
-    TABLE = "movie_views_local"
+    TABLE = "analytics.events_local"
 
     CREATE_TABLES = [
         """
-        CREATE TABLE IF NOT EXISTS movie_views_local
+        CREATE DATABASE IF NOT EXISTS analytics
+        ON CLUSTER movie_cluster
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS analytics.events_local
         ON CLUSTER movie_cluster
         (
             user_id UUID,
-            movie_id UUID,
-            viewed_frame UInt32,
-            movie_duration UInt32,
-            event_time DateTime
+            event_type LowCardinality(String),
+            object_id Nullable(UUID),
+            payload String,
+            event_time DateTime64(3, 'UTC'),
+            created_at DateTime64(3, 'UTC') DEFAULT now64(3)
         )
         ENGINE = ReplicatedMergeTree(
-            '/clickhouse/tables/{shard}/movie_views_local',
+            '/clickhouse/tables/{shard}/analytics/events_local',
             '{replica}'
         )
+        PARTITION BY toYYYYMM(event_time)
         ORDER BY (
-            movie_id,
+            event_type,
             event_time,
             user_id
         )
+        SETTINGS index_granularity = 8192
         """,
-
         """
-        CREATE TABLE IF NOT EXISTS movie_views
+        CREATE TABLE IF NOT EXISTS analytics.events
         ON CLUSTER movie_cluster
-        AS movie_views_local
+        AS analytics.events_local
         ENGINE = Distributed(
             movie_cluster,
-            default,
-            movie_views_local,
-            rand()
+            analytics,
+            events_local,
+            cityHash64(user_id)
         )
         """
     ]

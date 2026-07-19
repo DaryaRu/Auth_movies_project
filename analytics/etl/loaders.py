@@ -209,4 +209,3 @@ class ClickHouseLoader:
                         "Dropping batch because buffer overflow: %s rows",
                         len(batch),
                     )
-

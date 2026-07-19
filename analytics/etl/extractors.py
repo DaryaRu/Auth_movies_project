@@ -1,10 +1,10 @@
-from faststream import Logger
+from faststream import AckPolicy, Logger
 from faststream.kafka import KafkaBroker
+from pydantic import ValidationError
 
-from schemas import EventMessage, EventType
+from schemas import EventMessage
 import core.dependiences as deps
 from core.settings import settings
-from transformers import EventTransformer
 
 broker = KafkaBroker(settings.kafka_brokers_list)
 dlq_publisher = broker.publisher(
@@ -12,26 +12,25 @@ dlq_publisher = broker.publisher(
 )
 
 
-@broker.subscriber(settings.KAFKA_TOPIC)
+@broker.subscriber(settings.KAFKA_TOPIC, ack_policy=AckPolicy.ACK_FIRST)
 async def consume(
-    event: EventMessage,
+    payload: dict,
     logger: Logger,
 ):
-    if event.event_type != EventType.film_progress:
-        return
     try:
-        row = EventTransformer.transform(event)
-        await deps.movie_views_repository.save(
-            row.model_dump(mode="json")
-        )
-    except ValueError as exc:
+        event = EventMessage.model_validate(payload)
+    except ValidationError as exc:
         logger.error(f"Ошибка валидации данных: {exc}")
         await dlq_publisher.publish(
             {
-                "event": event.model_dump(mode="json"),
+                "event": payload,
                 "error": str(exc),
             }
         )
+    
+    try:
+        await deps.movie_views_repository.save(
+            event.model_dump(mode="json")
+        )
     except Exception as exc:
         logger.error(f"Ошибка: {exc}")
-        raise
