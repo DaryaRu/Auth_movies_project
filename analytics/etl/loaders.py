@@ -33,21 +33,15 @@ class ClickHouseLoader:
         self._failed_inserts = 0
 
     async def start(self):
-        self._flush_task = asyncio.create_task(
-            self._flush_loop()
-        )
+        self._flush_task = asyncio.create_task(self._flush_loop())
 
-        logger.info(
-            "ClickHouse loader started"
-        )
+        logger.info("ClickHouse loader started")
 
     async def stop(
         self,
         timeout: float = 30,
     ):
-        logger.info(
-            "Stopping ClickHouse loader"
-        )
+        logger.info("Stopping ClickHouse loader")
 
         self._closed = True
 
@@ -61,9 +55,7 @@ class ClickHouseLoader:
                     timeout=timeout,
                 )
             except TimeoutError:
-                logger.warning(
-                    "Loader shutdown timeout"
-                )
+                logger.warning("Loader shutdown timeout")
 
     async def add(
         self,
@@ -74,9 +66,7 @@ class ClickHouseLoader:
             buffer = self._buffers[table]
 
             if len(buffer) >= self._max_buffer_size:
-                raise RuntimeError(
-                    f"Buffer overflow for table {table}"
-                )
+                raise RuntimeError(f"Buffer overflow for table {table}")
 
             buffer.append(row)
 
@@ -112,9 +102,7 @@ class ClickHouseLoader:
                     )
 
             except Exception:
-                logger.exception(
-                    "Flush loop error"
-                )
+                logger.exception("Flush loop error")
 
                 await asyncio.sleep(1)
 
@@ -150,17 +138,16 @@ class ClickHouseLoader:
             )
 
     @async_backoff(
-        start_sleep_time=1,
+        start_sleep_time=0.5,
         factor=2,
-        border_sleep_time=30,
-        max_attempts=5,
+        border_sleep_time=2,
+        max_attempts=3,
     )
     async def _insert(
         self,
         table: str,
         batch: list[dict],
     ):
-        print(batch)
         await self._client.execute(
             f"""
             INSERT INTO {table}
@@ -191,21 +178,8 @@ class ClickHouseLoader:
         except Exception:
             self._failed_inserts += 1
 
-            logger.exception(
-                "Failed insert after retries: %s",
+            logger.error(
+                "Failed insert after retries, batch lost: table=%s rows=%s",
                 table,
+                len(batch),
             )
-
-            async with self._condition:
-                buffer = self._buffers[table]
-
-                if (
-                    len(buffer) + len(batch)
-                    <= self._max_buffer_size
-                ):
-                    buffer[0:0] = batch
-                else:
-                    logger.error(
-                        "Dropping batch because buffer overflow: %s rows",
-                        len(batch),
-                    )
