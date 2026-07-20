@@ -269,7 +269,21 @@ ETL → ClickHouse:
 
 **Сообщение в Kafka:** `user_id` (UUID из JWT), `event_type`, `object_id` (UUID объекта — фильм, жанр и т.п.; опционально), `payload` (произвольный JSON), `event_time` (время события на клиенте).
 
-**Поддерживаемые типы событий:** `film_view`, `films_list_view`, `film_search`, `genre_view`, `person_view`, `person_films_view`, `search_filter_used`, `trailer_click`, `page_time_spent`.
+**Поддерживаемые типы событий:** `film_view`, `films_list_view`, `film_search`, `genre_view`, `person_view`, `person_films_view`, `search_filter_used`, `trailer_click`, `page_time_spent`, `film_progress`, `video_quality_changed`, `film_start`, `video_completed`, `player_action`.
+
+### ETL: Kafka → ClickHouse
+
+`analytics-etl` — читает Kafka-топик `user-activity` и переносит события в ClickHouse.
+
+**Чтение из Kafka:**
+- Подписка на топик `user-activity` в consumer group `KAFKA_GROUP_ID` (по умолчанию `analytics-etl`) с `ack_policy=ACK_FIRST` — offset коммитится до обработки сообщения (at-most-once гарантия).
+- Каждое сообщение валидируется по той же union-схеме событий, что и analytics-service. Невалидные сообщения логируются и публикуются в dead-letter топик `user-activity.dlq`, не прерывая обработку остальных сообщений.
+- При недоступности Kafka-брокера переподключение идёт с паузой `KAFKA_RETRY_BACKOFF_MS` (по умолчанию 1000 мс).
+
+**Запись в ClickHouse:**
+- Валидные события буферизуются в памяти и вставляются пачками — по достижении `ANALITYCS_ETL_BATCH_SIZE` (по умолчанию 1000 строк) либо по таймеру `ANALITYCS_ETL_FLUSH_INTERVAL` (по умолчанию 5 сек), смотря что наступит раньше.
+- При сбое вставки — до 3 быстрых попыток с backoff (0.5с → 1с → 2с, под кратковременные сетевые сбои); если не помогло — батч логируется как потерянный и отбрасывается (что соответствует at-most-once).
+- Целевая таблица — `analytics.events`: `Distributed`-таблица (шардирование `cityHash64(user_id)`, `internal_replication=true`) поверх `analytics.events_local` (`ReplicatedMergeTree`, реплицируется на 3 узла кластера `movie_cluster` для отказоустойчивости). Схема: `user_id, event_type, object_id, payload (JSON-строка), event_time, created_at`.
 
 ### Проверка
 
@@ -281,6 +295,11 @@ ETL → ClickHouse:
 2. Получить токен: `POST /api/v1/login/` в Swagger → `http://localhost/api/auth/openapi`
 3. Отправить тестовое событие: открыть `http://localhost/api/analytics/openapi` → **Authorize** (вставить токен) → `POST /api/v1/analytics/events/` → ожидается `202`
 4. Убедиться что событие попало в Kafka: `http://localhost:8080` → Topics → `user-activity` → Messages
+5. Убедиться что analytics-etl перенес событие из Kafka:
+   ```bash
+   docker compose exec clickhouse-1 clickhouse-client \
+     --query "SELECT * FROM analytics.events ORDER BY event_time DESC LIMIT 5"
+   ```
 
 
 ## Трассировка
