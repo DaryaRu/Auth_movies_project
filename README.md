@@ -295,11 +295,7 @@ ETL → ClickHouse:
 2. Получить токен: `POST /api/v1/login/` в Swagger → `http://localhost/api/auth/openapi`
 3. Отправить тестовое событие: открыть `http://localhost/api/analytics/openapi` → **Authorize** (вставить токен) → `POST /api/v1/analytics/events/` → ожидается `202`
 4. Убедиться что событие попало в Kafka: `http://localhost:8080` → Topics → `user-activity` → Messages
-5. Убедиться что analytics-etl перенес событие из Kafka:
-   ```bash
-   docker compose exec clickhouse-1 clickhouse-client \
-     --query "SELECT * FROM analytics.events ORDER BY event_time DESC LIMIT 5"
-   ```
+5. Убедиться что analytics-etl перенес событие из Kafka: `make check-clickhouse`
 
 
 ## Трассировка
