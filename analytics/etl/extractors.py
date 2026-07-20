@@ -17,7 +17,11 @@ dlq_publisher = broker.publisher(
 _event_adapter = TypeAdapter(EventResponseIn)
 
 
-@broker.subscriber(settings.KAFKA_TOPIC, ack_policy=AckPolicy.ACK_FIRST)
+@broker.subscriber(
+    settings.KAFKA_TOPIC,
+    group_id=settings.KAFKA_GROUP_ID,
+    ack_policy=AckPolicy.ACK_FIRST,
+)
 async def consume(
     payload: dict,
     logger: Logger,

@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     KAFKA_TOPIC: str = "user-activity"
     KAFKA_DLQ_TOPIC: str = "user-activity.dlq"
     KAFKA_RETRY_BACKOFF_MS: int = 1000
+    KAFKA_GROUP_ID: str = "analytics-etl"
     CLICKHOUSE_URL: str
     CLICKHOUSE_USER: str
     CLICKHOUSE_PASSWORD: str
