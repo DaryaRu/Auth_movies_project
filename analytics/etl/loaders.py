@@ -151,6 +151,7 @@ class ClickHouseLoader:
         await self._client.execute(
             f"""
             INSERT INTO {table}
+            SETTINGS date_time_input_format = 'best_effort'
             FORMAT JSONEachRow
             """,
             *batch,
