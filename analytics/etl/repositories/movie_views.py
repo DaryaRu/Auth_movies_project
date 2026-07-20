@@ -1,13 +1,11 @@
-import logging
 from typing import Any
 
 from aiochclient import ChClient
-
 from loaders import ClickHouseLoader
 
 
 class MovieViewsRepository:
-    TABLE = "analytics.events_local"
+    TABLE = "analytics.events"
 
     CREATE_TABLES = [
         """
@@ -47,7 +45,7 @@ class MovieViewsRepository:
             events_local,
             cityHash64(user_id)
         )
-        """
+        """,
     ]
 
     def __init__(
