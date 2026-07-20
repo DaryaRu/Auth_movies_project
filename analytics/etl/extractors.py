@@ -6,7 +6,10 @@ from schemas import EventMessage
 import core.dependiences as deps
 from core.settings import settings
 
-broker = KafkaBroker(settings.kafka_brokers_list)
+broker = KafkaBroker(
+    settings.kafka_brokers_list,
+    retry_backoff_ms=settings.KAFKA_RETRY_BACKOFF_MS,
+)
 dlq_publisher = broker.publisher(
     settings.KAFKA_DLQ_TOPIC
 )
@@ -27,7 +30,8 @@ async def consume(
                 "error": str(exc),
             }
         )
-    
+        return
+
     try:
         await deps.movie_views_repository.save(
             event.model_dump(mode="json")
