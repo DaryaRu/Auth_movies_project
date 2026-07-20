@@ -84,3 +84,11 @@ test-all: test-auth test-movies
 # analytics-service
 logs-analytics:
 	docker compose logs -f analytics-service
+
+# Показывает логи analytics-etl, отфильтрованные по потреблению памяти (проверка FR-10/NFR-12)
+logs-etl:
+	docker compose logs -f analytics-etl | grep "Memory usage"
+
+# Показывает последние 5 событий в ClickHouse (проверка цепочки analytics-service → Kafka → analytics-etl → ClickHouse)
+check-clickhouse:
+	docker compose exec clickhouse-1 clickhouse-client --query "SELECT * FROM analytics.events ORDER BY event_time DESC LIMIT 5"

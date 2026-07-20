@@ -1,0 +1,4 @@
+pydantic-settings==2.14.1
+faststream[kafka,cli]==0.7.2
+aiochclient[aiohttp]==2.7.0
+psutil==7.0.0

@@ -66,9 +66,13 @@ POST /api/v1/analytics/events/
 `object_id` — идентификатор объекта события: `film_id`, `genre_id` или `person_id` в зависимости от `event_type`.
 
 `payload` — опциональный контекст:
-- `search_filter_used`: `{"genre": "action", "sort": "rating"}`
-- `video_quality_changed`: `{"from": "720p", "to": "1080p"}`
-- `film_view`, `genre_view`, `person_view`: `{}`
+- `search_filter_used`: `{"genre": "<genre_id>", "sort": "imdb_rating"}` (`sort` — `imdb_rating` или `-imdb_rating`)
+- `film_search`: `{"query": "matrix"}`
+- `page_time_spent`: `{"page": "film_detail", "seconds": 42}`
+- `film_progress`: `{"viewed_frame": 1200, "movie_duration": 5400}`
+- `video_quality_changed`: `{"old_quality": "720p", "new_quality": "1080p"}`
+- `player_action`: `{"action": "seek", "position_sec": 90}` (`action` — `play`, `pause` или `seek`)
+- `film_view`, `films_list_view`, `genre_view`, `person_view`, `person_films_view`, `trailer_click`, `film_start`, `video_completed`: `{}`
 
 Полное событие после обработки сервером (analytics-service добавляет `user_id` из JWT, публикует в Kafka):
 
@@ -119,9 +123,9 @@ POST /api/v1/analytics/events/
 |---|---|---|---|
 | **FR-06** | ETL должен непрерывно читать события из топика `user-activity` | Must | Требование задания 6: «непрерывный перенос данных» |
 | **FR-07** | ETL должен вставлять данные в ClickHouse в таблицу `analytics.events` | Must | Хранение в аналитическом хранилище |
-| **FR-08** | ETL должен быть устойчив к сбоям Kafka: при недоступности Kafka — периодически повторять подключение с exponential backoff (1с → 2с → 4с → ... → max 30с) | Must | Требование задания 6: «устойчивость к сбоям источника» |
+| **FR-08** | ETL должен быть устойчив к сбоям Kafka | Must | Требование задания 6: «устойчивость к сбоям источника» |
 | **FR-09** | ETL должен быть устойчив к сбоям ClickHouse: offset фиксируется до вставки; при недоступности ClickHouse событие теряется, ETL переходит к следующему сообщению, факт потери логируется | Must | Требование задания 6: «устойчивость к сбоям хранилища» |
-| **FR-10** | ETL должен экспортировать метрики потребления памяти (resident memory size) через healthcheck-эндпоинт `GET /health` — не логированием, а в виде структурированных данных в теле ответа | Must | Требование задания 6: «мониторинг памяти приложения» |
+| **FR-10** | ETL должен логировать потребление памяти (resident memory size) | Must | Требование задания 6: «мониторинг памяти приложения» |
 | **FR-11** | ETL должен загружать данные пакетно (batch insert), настраиваемый chunk_size: по умолчанию 1000 сообщений | Should | Производительность вставки в ClickHouse |
 
 #### 2.2.1 Схема таблицы ClickHouse
@@ -201,7 +205,7 @@ SETTINGS index_granularity = 8192;
 
 | Код | Требование | Обоснование |
 |---|---|---|
-| **NFR-12** | ETL должен предоставлять healthcheck-эндпоинт `GET /health` с информацией о: статусе, потреблении памяти, количестве обработанных сообщений, текущем offset в Kafka | Требование задания 6: мониторинг памяти + стандартный healthcheck |
+| **NFR-12** | ETL логирует потребление памяти каждые 30 секунд | Требование задания 6: мониторинг памяти |
 | **NFR-13** | Конфигурация ETL (адреса Kafka, ClickHouse, chunk_size, polling interval) должна настраиваться через environment variables | Совместимость с docker-compose |
 
 ### 3.8 Security (Безопасность)

@@ -131,7 +131,6 @@ services:
       redis:
         condition: service_healthy
 
-
   movies-admin-migrate:
     build: ./movies_admin
     image: movies-admin-image
@@ -288,6 +287,7 @@ services:
       - auth-service
       - movies-service
       - movies-admin
+      - analytics-service
     ports:
       - "80:80"
 
@@ -344,8 +344,8 @@ services:
       CLUSTER_ID: abcdefghijklmnopqrstuv
     volumes:
       - kafka_2_data:/var/lib/kafka/data
-
-  kafka-topic-init:
+  
+  kafka-topic-init-1:
     image: apache/kafka:3.7.0
     restart: on-failure
     depends_on:
@@ -362,6 +362,23 @@ services:
       --config min.insync.replicas=${KAFKA_MIN_INSYNC_REPLICAS:-1}
       --config retention.ms=${KAFKA_RETENTION_MS:-604800000}
 
+  kafka-topic-init-2:
+    image: apache/kafka:3.7.0
+    restart: on-failure
+    depends_on:
+      - kafka-0
+      - kafka-1
+      - kafka-2
+    command: >
+      /opt/kafka/bin/kafka-topics.sh
+        --bootstrap-server kafka-0:9092
+        --create --if-not-exists
+        --topic user-activity.dlq
+        --partitions ${KAFKA_PARTITIONS:-3}
+        --replication-factor ${KAFKA_REPLICATION_FACTOR:-1}
+        --config min.insync.replicas=${KAFKA_MIN_INSYNC_REPLICAS:-1}
+        --config retention.ms=${KAFKA_DLQ_RETENTION_MS:-604800000}
+
   ui:
     image: provectuslabs/kafka-ui:v0.7.0
     restart: unless-stopped
@@ -375,6 +392,95 @@ services:
       - kafka-1
       - kafka-2
 
+  zookeeper:
+    image: zookeeper:3.8
+    container_name: zookeeper
+    hostname: zookeeper
+    ports:
+      - "2181:2181"
+  
+  clickhouse-1:
+    image: clickhouse/clickhouse-server:23.8
+    container_name: clickhouse-1
+    hostname: clickhouse-1
+    environment:
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    volumes:
+      - ./infra/zookeeper.xml:/etc/clickhouse-server/config.d/zookeeper.xml:ro
+      - ./infra/macros_node1.xml:/etc/clickhouse-server/config.d/macros.xml:ro
+      - ./infra/cluster.xml:/etc/clickhouse-server/config.d/cluster.xml:ro
+      - clickhouse1_data:/var/lib/clickhouse
+    depends_on:
+      - zookeeper
+
+  clickhouse-2:
+    image: clickhouse/clickhouse-server:23.8
+    container_name: clickhouse-2
+    hostname: clickhouse-2
+    environment:
+        CLICKHOUSE_DB: ${CLICKHOUSE_DB}
+        CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+        CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+    ports:
+      - "8124:8123"
+      - "9001:9000"
+    volumes:
+      - ./infra/zookeeper.xml:/etc/clickhouse-server/config.d/zookeeper.xml:ro
+      - ./infra/macros_node2.xml:/etc/clickhouse-server/config.d/macros.xml:ro
+      - ./infra/cluster.xml:/etc/clickhouse-server/config.d/cluster.xml:ro
+      - clickhouse2_data:/var/lib/clickhouse
+    depends_on:
+      - zookeeper
+
+  clickhouse-3:
+    image: clickhouse/clickhouse-server:23.8
+    container_name: clickhouse-3
+    hostname: clickhouse-3
+    environment:
+        CLICKHOUSE_DB: ${CLICKHOUSE_DB}
+        CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+        CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+    ports:
+      - "8125:8123"
+      - "9002:9000"
+    volumes:
+      - ./infra/zookeeper.xml:/etc/clickhouse-server/config.d/zookeeper.xml:ro
+      - ./infra/macros_node3.xml:/etc/clickhouse-server/config.d/macros.xml:ro
+      - ./infra/cluster.xml:/etc/clickhouse-server/config.d/cluster.xml:ro
+      - clickhouse3_data:/var/lib/clickhouse
+    depends_on:
+      - zookeeper
+
+  analytics-etl:
+    build: ./analytics/etl
+    image: analytics-etl-image
+    restart: unless-stopped
+    environment:
+      CLICKHOUSE_URL: ${CLICKHOUSE_URL}
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      KAFKA_BROKERS: ${KAFKA_BROKERS}
+      KAFKA_TOPIC: ${KAFKA_TOPIC}
+      KAFKA_DLQ_TOPIC: ${KAFKA_DLQ_TOPIC}
+      KAFKA_GROUP_ID: ${KAFKA_GROUP_ID}
+      KAFKA_RETRY_BACKOFF_MS: ${KAFKA_RETRY_BACKOFF_MS}
+      ANALITYCS_ETL_BATCH_SIZE: ${ANALITYCS_ETL_BATCH_SIZE}
+      ANALITYCS_ETL_FLUSH_INTERVAL: ${ANALITYCS_ETL_FLUSH_INTERVAL}
+      ANALITYCS_ETL_MAX_BUFFER_SIZE: ${ANALITYCS_ETL_MAX_BUFFER_SIZE}
+    depends_on:
+      - kafka-0
+      - kafka-1
+      - kafka-2
+      - clickhouse-1
+      - clickhouse-2
+      - clickhouse-3
+
 volumes:
   auth_pg_data:
   redis_data:
@@ -384,3 +490,6 @@ volumes:
   kafka_0_data:
   kafka_1_data:
   kafka_2_data:
+  clickhouse1_data:
+  clickhouse2_data:
+  clickhouse3_data:

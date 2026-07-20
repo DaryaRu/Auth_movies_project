@@ -1,0 +1,13 @@
+.DS_Store
+.env
+.env.*
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+state.json
+tests/
