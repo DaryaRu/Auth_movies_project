@@ -1,8 +1,8 @@
 from faststream import AckPolicy, Logger
 from faststream.kafka import KafkaBroker
-from pydantic import ValidationError
+from pydantic import TypeAdapter, ValidationError
 
-from schemas import EventMessage
+from schemas import EventResponseIn
 import core.dependiences as deps
 from core.settings import settings
 
@@ -14,6 +14,8 @@ dlq_publisher = broker.publisher(
     settings.KAFKA_DLQ_TOPIC
 )
 
+_event_adapter = TypeAdapter(EventResponseIn)
+
 
 @broker.subscriber(settings.KAFKA_TOPIC, ack_policy=AckPolicy.ACK_FIRST)
 async def consume(
@@ -21,7 +23,7 @@ async def consume(
     logger: Logger,
 ):
     try:
-        event = EventMessage.model_validate(payload)
+        event = _event_adapter.validate_python(payload)
     except ValidationError as exc:
         logger.error(f"Ошибка валидации данных: {exc}")
         await dlq_publisher.publish(
