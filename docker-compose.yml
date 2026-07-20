@@ -377,7 +377,7 @@ services:
         --partitions ${KAFKA_PARTITIONS:-3}
         --replication-factor ${KAFKA_REPLICATION_FACTOR:-1}
         --config min.insync.replicas=${KAFKA_MIN_INSYNC_REPLICAS:-1}
-        --config retention.ms=${KAFKA_DQL_RETENTION_MS:-604800000}
+        --config retention.ms=${KAFKA_DLQ_RETENTION_MS:-604800000}
 
   ui:
     image: provectuslabs/kafka-ui:v0.7.0
