@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     REDIS_HOST: str
     REDIS_PORT: int
     PUBLIC_KEY_CACHE_TTL: int = 3600
+    EVENTS_RATE_LIMIT: str = "100/second"
 
     AUTH_API_PUBLIC_KEY_URL: str
     JWT_ALGORITHM: str
