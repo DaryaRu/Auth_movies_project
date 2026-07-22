@@ -16,7 +16,10 @@ async def http_client() -> aiohttp.ClientSession:
     """
     async with aiohttp.ClientSession(
         base_url=test_settings.api_url,
-        connector=aiohttp.TCPConnector(use_dns_cache=False),
+        # limit=0 снимает ограничения на число одновременных соединений.
+        # Нужно для test_create_event_buffer_full, чтобы запросы уходили
+        # одновременно, и гарантированно достигалось переполнение буфера.
+        connector=aiohttp.TCPConnector(use_dns_cache=False, limit=0),
         cookie_jar=aiohttp.DummyCookieJar(),
         timeout=aiohttp.ClientTimeout(total=None),
         headers={"X-Request-Id": str(uuid4())},
