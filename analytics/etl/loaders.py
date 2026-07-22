@@ -15,8 +15,10 @@ class ClickHouseLoader:
         batch_size: int = settings.ANALITYCS_ETL_BATCH_SIZE,
         flush_interval: float = settings.ANALITYCS_ETL_FLUSH_INTERVAL,
         max_buffer_size: int = settings.ANALITYCS_ETL_MAX_BUFFER_SIZE,
+        dlq_publisher=None,
     ):
         self._client = client
+        self._dlq_publisher = dlq_publisher
 
         self._batch_size = batch_size
         self._flush_interval = flush_interval
@@ -176,7 +178,7 @@ class ClickHouseLoader:
                 table,
             )
 
-        except Exception:
+        except Exception as exc:
             self._failed_inserts += 1
 
             logger.error(
@@ -184,3 +186,29 @@ class ClickHouseLoader:
                 table,
                 len(batch),
             )
+
+            await self._send_to_dlq(table, batch, exc)
+
+    async def _send_to_dlq(
+        self,
+        table: str,
+        batch: list[dict],
+        exc: Exception,
+    ):
+        if self._dlq_publisher is None:
+            return
+
+        for row in batch:
+            try:
+                await self._dlq_publisher.publish(
+                    {
+                        "event": row,
+                        "error": str(exc),
+                        "table": table,
+                    }
+                )
+            except Exception:
+                logger.exception(
+                    "Failed to publish row to DLQ: table=%s",
+                    table,
+                )

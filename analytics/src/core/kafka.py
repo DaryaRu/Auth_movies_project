@@ -40,8 +40,16 @@ async def _worker() -> None:
     while True:
         event = await kafka.buffer.get()
         try:
-            value = json.dumps(event).encode()
-            key = str(event.get("user_id", "")).encode()
+            try:
+                value = json.dumps(event).encode()
+                key = str(event.get("user_id", "")).encode()
+            except (TypeError, ValueError) as e:
+                logger.error(
+                    "Cannot serialize event, dropping: type=%s error=%s",
+                    event.get("event_type"),
+                    e,
+                )
+                continue
             await kafka.producer.send_and_wait(settings.KAFKA_TOPIC, value=value, key=key)
         except KafkaError as e:
             logger.error(
@@ -50,6 +58,12 @@ async def _worker() -> None:
                 e,
             )
             await _reconnect()
+        except Exception as e:
+            logger.exception(
+                "Unexpected error in Kafka worker: type=%s error=%s",
+                event.get("event_type"),
+                e,
+            )
         finally:
             kafka.buffer.task_done()
 

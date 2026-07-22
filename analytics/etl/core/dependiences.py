@@ -15,8 +15,11 @@ async def init_dependencies():
 
     await clickhouse.start()
 
+    from extractors import dlq_publisher
+
     loader = ClickHouseLoader(
         client=clickhouse.client,
+        dlq_publisher=dlq_publisher,
     )
 
     await loader.start()

@@ -274,6 +274,14 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      kafka-0:
+        condition: service_started
+      kafka-1:
+        condition: service_started
+      kafka-2:
+        condition: service_started
+      kafka-topic-init-1:
+        condition: service_completed_successfully
 
   nginx:
     image: nginx:1.31.2
@@ -344,7 +352,7 @@ services:
       CLUSTER_ID: abcdefghijklmnopqrstuv
     volumes:
       - kafka_2_data:/var/lib/kafka/data
-  
+
   kafka-topic-init-1:
     image: apache/kafka:3.7.0
     restart: on-failure
@@ -398,7 +406,7 @@ services:
     hostname: zookeeper
     ports:
       - "2181:2181"
-  
+
   clickhouse-1:
     image: clickhouse/clickhouse-server:23.8
     container_name: clickhouse-1
@@ -423,9 +431,9 @@ services:
     container_name: clickhouse-2
     hostname: clickhouse-2
     environment:
-        CLICKHOUSE_DB: ${CLICKHOUSE_DB}
-        CLICKHOUSE_USER: ${CLICKHOUSE_USER}
-        CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
     ports:
       - "8124:8123"
       - "9001:9000"
@@ -442,9 +450,9 @@ services:
     container_name: clickhouse-3
     hostname: clickhouse-3
     environment:
-        CLICKHOUSE_DB: ${CLICKHOUSE_DB}
-        CLICKHOUSE_USER: ${CLICKHOUSE_USER}
-        CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
     ports:
       - "8125:8123"
       - "9002:9000"
@@ -474,12 +482,22 @@ services:
       ANALITYCS_ETL_FLUSH_INTERVAL: ${ANALITYCS_ETL_FLUSH_INTERVAL}
       ANALITYCS_ETL_MAX_BUFFER_SIZE: ${ANALITYCS_ETL_MAX_BUFFER_SIZE}
     depends_on:
-      - kafka-0
-      - kafka-1
-      - kafka-2
-      - clickhouse-1
-      - clickhouse-2
-      - clickhouse-3
+      kafka-0:
+        condition: service_started
+      kafka-1:
+        condition: service_started
+      kafka-2:
+        condition: service_started
+      kafka-topic-init-1:
+        condition: service_completed_successfully
+      kafka-topic-init-2:
+        condition: service_completed_successfully
+      clickhouse-1:
+        condition: service_started
+      clickhouse-2:
+        condition: service_started
+      clickhouse-3:
+        condition: service_started
 
 volumes:
   auth_pg_data:

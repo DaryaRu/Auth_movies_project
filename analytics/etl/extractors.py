@@ -44,3 +44,9 @@ async def consume(
         )
     except Exception as exc:
         logger.error(f"Ошибка: {exc}")
+        await dlq_publisher.publish(
+            {
+                "event": payload,
+                "error": str(exc),
+            }
+        )
