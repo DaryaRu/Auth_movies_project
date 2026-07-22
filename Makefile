@@ -78,8 +78,15 @@ test-movies:
 	docker compose -f movies/tests/functional/docker-compose.yml --env-file movies/tests/functional/.env \
 		down -v
 
+# Запускает функциональные тесты analytics-сервиса
+test-analytics:
+	docker compose -f analytics/tests/functional/docker-compose.yml --env-file analytics/tests/functional/.env \
+		up --build --abort-on-container-exit --exit-code-from tests; \
+	docker compose -f analytics/tests/functional/docker-compose.yml --env-file analytics/tests/functional/.env \
+		down -v
+
 # Запускает тесты всех сервисов
-test-all: test-auth test-movies
+test-all: test-auth test-movies test-analytics
 
 # analytics-service
 logs-analytics:
