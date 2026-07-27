@@ -1,12 +1,17 @@
 """Модель подписки пользователя."""
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.databases.pg import Base, BaseORM
+
+if TYPE_CHECKING:
+    from src.models.subscriptions import SubscriptionORM
+    from src.models.users import UserORM
 
 
 class UserSubscriptionORM(Base, BaseORM):

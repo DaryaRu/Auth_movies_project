@@ -1,8 +1,14 @@
+from typing import TYPE_CHECKING
+
 from sqlalchemy import Boolean, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.databases.pg import Base, BaseORM
 from src.models.associations import role_permissions_table, user_roles_table
+
+if TYPE_CHECKING:
+    from src.models.permissions import PermissionORM
+    from src.models.users import UserORM
 
 
 class RoleORM(Base, BaseORM):

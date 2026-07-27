@@ -1,8 +1,15 @@
+from typing import TYPE_CHECKING
+
 from sqlalchemy import Index, String, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.databases.pg import Base, BaseORM
 from src.models.associations import user_roles_table
+
+if TYPE_CHECKING:
+    from src.models.oauth_accounts import OAuthAccountORM
+    from src.models.roles import RoleORM
+    from src.models.user_subscriptions import UserSubscriptionORM
 
 
 class UserORM(Base, BaseORM):
