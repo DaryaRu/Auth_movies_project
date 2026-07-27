@@ -1,0 +1,77 @@
+name: Movies project CI
+
+# Запуск workflow на каждый пуш и на каждый pull request в main.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+
+jobs:
+  lint:
+    name: Lint with ruff
+    # Используем runner внутри инфраструктуры github на базе ubuntu.
+    runs-on: ubuntu-latest
+    steps:
+      # Клонируем репозиторий в рабочую директорию раннера.
+      - uses: actions/checkout@v4
+
+      # Ставим Python нужной версии.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Ставим ruff.
+      - name: Install ruff
+        run: pip install ruff
+
+      # Запускаем проверку ruff всех сервисов.
+      - name: Run ruff
+        run: ruff check .
+
+  # Для запуска функциональных тестов используются имеющиеся команды из
+  # Makefile (test-auth/test-movies/test-analytics).
+  # Перед запуском предварительно для каждого сервиса создается свой .env
+  # и генерируются ключи через `make keys`, где это необходимо.
+  test-auth:
+    name: Functional auth tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate RSA keys for JWT
+        run: make keys
+
+      - name: Create .env for auth functional tests
+        run: cp auth/tests/functional/.env.example auth/tests/functional/.env
+
+      - name: Run auth functional tests
+        run: make test-auth
+
+  test-movies:
+    name: Functional movies tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create .env for movies functional tests
+        run: cp movies/tests/functional/.env.example movies/tests/functional/.env
+
+      - name: Run movies functional tests
+        run: make test-movies
+
+  test-analytics:
+    name: Functional analytics tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate RSA keys for JWT
+        run: make keys
+
+      - name: Create .env for analytics functional tests
+        run: cp analytics/tests/functional/.env.example analytics/tests/functional/.env
+
+      - name: Run analytics functional tests
+        run: make test-analytics
