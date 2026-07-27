@@ -59,14 +59,14 @@ def wait_for_vertica_ready() -> bool:
 
     ready = False
     # Делаем 30 попыток с интервалом в 10 секунд (всего 5 минут)
-    for i in range(30):
+    for _ in range(30):
         try:
             conn = vertica_python.connect(**conn_info)
             conn.close()
             ready = True
             print("  Vertica полностью готова к работе!")
             break
-        except Exception as e:
+        except Exception:
             # Если база еще создается или рестартует, пишем точку и ждем
             print(".", end="", flush=True)
             time.sleep(10)
