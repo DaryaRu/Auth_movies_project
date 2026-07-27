@@ -37,6 +37,7 @@ async def close_kafka() -> None:
 
 async def _worker() -> None:
     await _connect()
+    assert kafka.buffer is not None
     while True:
         event = await kafka.buffer.get()
         try:
@@ -50,6 +51,7 @@ async def _worker() -> None:
                     e,
                 )
                 continue
+            assert kafka.producer is not None
             await kafka.producer.send_and_wait(settings.KAFKA_TOPIC, value=value, key=key)
         except KafkaError as e:
             logger.error(
@@ -69,6 +71,7 @@ async def _worker() -> None:
 
 
 async def _connect() -> None:
+    assert kafka.producer is not None
     while True:
         try:
             await kafka.producer.start()
@@ -81,6 +84,7 @@ async def _connect() -> None:
 
 async def _reconnect() -> None:
     logger.warning("Kafka connection lost, reconnecting...")
+    assert kafka.producer is not None
     try:
         await kafka.producer.stop()
     except Exception:
