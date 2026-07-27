@@ -7,14 +7,13 @@ fetching person details, and retrieving films associated with a person.
 from http import HTTPStatus
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query
-from fastapi_cache.decorator import cache
-
 from api.v1.dependencies import PaginationDepend
 from core import config
+from dependencies import get_person_service
+from fastapi import APIRouter, Depends, HTTPException, Path, Query
+from fastapi_cache.decorator import cache
 from schemas.film_shorts import FilmShortResponse as FilmShort
 from schemas.persons import Person
-from dependencies import get_person_service
 from services.persons import PersonService
 
 router = APIRouter()

@@ -1,6 +1,5 @@
 import aiohttp
 from aiochclient import ChClient
-
 from core.settings import settings
 
 

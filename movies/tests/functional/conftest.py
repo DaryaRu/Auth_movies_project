@@ -5,10 +5,9 @@ import uuid
 import aiohttp
 import pytest_asyncio
 from elasticsearch import AsyncElasticsearch
-from redis.asyncio import Redis
-
 from functional.settings import test_settings
 from functional.utils.helpers import create_index, delete_index, load_data
+from redis.asyncio import Redis
 
 pytest_plugins = [
     'functional.fixtures.films',

@@ -3,7 +3,6 @@ from urllib.parse import urlencode
 
 import aiohttp
 from jose import jwt
-
 from src.core.config import settings
 from src.exceptions import ProviderException
 from src.integrations.oauth.base_provider import OAuthBaseProvider

@@ -2,15 +2,13 @@ import logging
 import time
 from logging import config as logging_config
 
+from core import config, logger
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 from opentelemetry import trace
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
-
-from core import config
-from core import logger
 
 logging_config.dictConfig(logger.LOGGING)
 

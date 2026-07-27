@@ -2,9 +2,8 @@
 
 from typing import Annotated, Any
 
-from fastapi import Depends, Header, HTTPException, Query, status
-
 from core import config
+from fastapi import Depends, Header, HTTPException, Query, status
 from utils.jwt import decode_token
 
 

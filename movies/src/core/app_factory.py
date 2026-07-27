@@ -1,5 +1,10 @@
 from logging import config as logging_config
 
+from core import config, logger
+from core.lifespan import lifespan
+from core.middlewares import register_middlewares
+from core.routers import register_routers
+from core.tracers import configure_tracer
 from elastic_transport import ConnectionError as ESConnectionError
 from fastapi import FastAPI, Request, status
 from fastapi.responses import ORJSONResponse
@@ -14,12 +19,6 @@ from opentelemetry.instrumentation.fastapi import (
 )
 from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
 from opentelemetry.instrumentation.redis import RedisInstrumentor
-
-from core import config, logger
-from core.lifespan import lifespan
-from core.middlewares import register_middlewares
-from core.routers import register_routers
-from core.tracers import configure_tracer
 
 
 def create_app() -> FastAPI:

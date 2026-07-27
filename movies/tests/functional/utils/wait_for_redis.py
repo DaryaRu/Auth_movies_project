@@ -3,9 +3,8 @@
 import asyncio
 import logging
 
-from redis.asyncio import Redis
-
 from functional.settings import test_settings
+from redis.asyncio import Redis
 
 
 async def wait_for_redis() -> None:

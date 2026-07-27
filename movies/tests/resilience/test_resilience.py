@@ -1,8 +1,8 @@
 """Tests for API behaviour when Elasticsearch or Redis is unavailable."""
 
-import pytest
 from unittest.mock import AsyncMock, patch
 
+import pytest
 from elastic_transport import ConnectionError as ESConnectionError
 from redis.exceptions import RedisError
 

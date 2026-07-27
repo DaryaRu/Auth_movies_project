@@ -1,10 +1,9 @@
 """Composition Root."""
 
-from elasticsearch import AsyncElasticsearch
-from fastapi import Depends
-
 from core import config
 from db.elastic import get_elastic
+from elasticsearch import AsyncElasticsearch
+from fastapi import Depends
 from repositories.films import FilmRepository
 from repositories.genres import GenresRepository
 from repositories.persons import PersonsRepository

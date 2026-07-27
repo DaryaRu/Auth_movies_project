@@ -1,7 +1,6 @@
 """Fixture for tests /genres endpoints."""
 
 import pytest_asyncio
-
 from functional.settings import test_settings
 from functional.testdata.es_mapping import GENRE_INDEX_SCHEMA
 from functional.testdata.genres import GENRES_DATA

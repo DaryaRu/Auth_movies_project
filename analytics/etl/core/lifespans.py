@@ -1,11 +1,11 @@
 import asyncio
 from contextlib import asynccontextmanager
 
-from monitorings.memory import memory_monitor
 from core.dependiences import (
-    init_dependencies,
     close_dependencies,
+    init_dependencies,
 )
+from monitorings.memory import memory_monitor
 
 
 @asynccontextmanager

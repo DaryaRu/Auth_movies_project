@@ -12,6 +12,7 @@ Benchmark-скрипт для тестирования производител�
     python benchmark_ch.py
 """
 
+import contextlib
 import json
 import os
 import random
@@ -30,7 +31,6 @@ import clickhouse_connect
 import clickhouse_connect.driver
 from clickhouse_connect.driver import Client
 from dotenv import load_dotenv
-import contextlib
 
 clickhouse_connect.client = clickhouse_connect.driver
 

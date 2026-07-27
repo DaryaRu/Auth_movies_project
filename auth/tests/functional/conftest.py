@@ -8,10 +8,9 @@ import aiohttp
 import asyncpg
 import pytest
 import pytest_asyncio
-from redis.asyncio import Redis
-
 from functional.settings import test_settings
 from functional.utils.helpers import create_data, delete_data
+from redis.asyncio import Redis
 
 pytest_plugins = [
     "functional.fixtures.users",

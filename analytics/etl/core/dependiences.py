@@ -2,7 +2,6 @@ from db.clickhouse_db import ClickHouseClient
 from loaders import ClickHouseLoader
 from repositories.movie_views import MovieViewsRepository
 
-
 clickhouse = ClickHouseClient()
 
 loader = None
