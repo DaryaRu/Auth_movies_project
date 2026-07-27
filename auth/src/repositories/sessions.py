@@ -103,7 +103,7 @@ class SessionRedisRepository(SessionAbstractRepository):
         
     async def get_user_session(self, sid: str) -> dict[str, Any]:
         key = f"session:{sid}"
-        session = await self._redis.hgetall(key)
+        session = await self._redis.hgetall(key)  # type: ignore[misc]
         return session
         
     async def delete_user_session(self, sid: str) -> None:
@@ -122,7 +122,7 @@ class SessionRedisRepository(SessionAbstractRepository):
             
     async def delete_all_user_session(self, user_id: str) -> None:
         user_sessions_key = f"user_sessions:{user_id}"
-        sids = await self._redis.smembers(user_sessions_key)
+        sids = await self._redis.smembers(user_sessions_key)  # type: ignore[misc]
         if not sids:
             return
         async with self._redis.pipeline(transaction=True) as pipe:
@@ -136,7 +136,7 @@ class SessionRedisRepository(SessionAbstractRepository):
         user_id: str,
         current_sid: str
     ) -> list[dict]:
-        sids = await self._redis.smembers(f"user_sessions:{user_id}")
+        sids = await self._redis.smembers(f"user_sessions:{user_id}")  # type: ignore[misc]
         if not sids:
             return []
         result = []
@@ -144,7 +144,7 @@ class SessionRedisRepository(SessionAbstractRepository):
             for sid in sids:
                 pipe.hgetall(f"session:{sid}")
             sessions = await pipe.execute()
-        for sid, session in zip(sids, sessions):
+        for sid, session in zip(sids, sessions, strict=True):
             if not session:
                 continue
             result.append({
@@ -163,7 +163,7 @@ class SessionRedisRepository(SessionAbstractRepository):
         ip: str,
         user_agent: str,
     ) -> None:
-        sids = await self._redis.smembers(f"user_sessions:{user_id}")
+        sids = await self._redis.smembers(f"user_sessions:{user_id}")  # type: ignore[misc]
         if not sids:
             return
 
@@ -172,7 +172,7 @@ class SessionRedisRepository(SessionAbstractRepository):
                 pipe.hgetall(f"session:{sid}")
             sessions = await pipe.execute()
 
-        for sid, session in zip(sids, sessions):
+        for sid, session in zip(sids, sessions, strict=True):
             if not session:
                 continue
             if session.get("ip") == ip and session.get("user_agent") == user_agent:

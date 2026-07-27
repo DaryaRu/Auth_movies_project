@@ -3,11 +3,11 @@
 from datetime import date, datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
 from src.schemas.subscriptions import SubscriptionResponseScheme
 
-USER_SUBSCRIPTION_EXAMPLE = {
+USER_SUBSCRIPTION_EXAMPLE: dict[str, JsonValue] = {
     "subscription_code": "premium",
     "expires_at": "2027-01-01",
 }

@@ -7,6 +7,7 @@ from redis.asyncio import Redis
 from src.core.config import settings
 from src.exceptions import InvalidProviderException, OAuthStateException
 from src.integrations.oauth.providers_factory import OAuthProviderFactory
+from src.integrations.oauth.vk_provider import VkOAuthProvider
 from src.schemas.oauth import AuthProvider
 from src.services.auth import AuthService
 
@@ -31,6 +32,7 @@ class OAuthService:
         )
         strategy = self._provider_factory.get(provider)
         if provider == AuthProvider.VK:
+            assert isinstance(strategy, VkOAuthProvider)
             auth_url = strategy.get_auth_url(state)
             code_verifier = strategy.get_code_verifier()
             if code_verifier:
@@ -62,6 +64,7 @@ class OAuthService:
         strategy = self._provider_factory.get(provider)
 
         if provider == AuthProvider.VK:
+            assert isinstance(strategy, VkOAuthProvider)
             code_verifier = await self._redis.get(f"vk_pkce:{state}")
             await self._redis.delete(f"vk_pkce:{state}")
             oauth_user = await strategy.get_user_info_with_pkce(
@@ -92,7 +95,7 @@ class OAuthService:
             AuthProvider(provider_str)
         except ValueError:
             logging.error(f"Неизвестный провайдер для отвязки: {provider_str}")
-            raise InvalidProviderException()
+            raise InvalidProviderException() from None
 
         (
             remaining_providers,

@@ -214,7 +214,7 @@ async def get_user_active_sessions(
 ):
     return await session_service.get_active_sessions(
         user_id=current_user.id,
-        current_sid=token_payload.get("sid"),
+        current_sid=token_payload["sid"],
     )
 
 

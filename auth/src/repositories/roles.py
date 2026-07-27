@@ -245,7 +245,8 @@ class RolesPostgreSQLRepository(RolesAbstractRepository, BasePostgreSQLRepositor
         try:
             await self._session.execute(query)
         except IntegrityError as ex:
-            if isinstance(ex.orig.__cause__, UniqueViolationError):
+            cause = ex.orig.__cause__ if ex.orig is not None else None
+            if isinstance(cause, UniqueViolationError):
                 raise ObjectAlreadyexistsException from ex
             raise
 
@@ -273,7 +274,8 @@ class RolesPostgreSQLRepository(RolesAbstractRepository, BasePostgreSQLRepositor
         try:
             await self._session.execute(query)
         except IntegrityError as ex:
-            if isinstance(ex.orig.__cause__, UniqueViolationError):
+            cause = ex.orig.__cause__ if ex.orig is not None else None
+            if isinstance(cause, UniqueViolationError):
                 raise ObjectAlreadyexistsException from ex
             raise
 
