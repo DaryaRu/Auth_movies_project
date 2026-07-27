@@ -62,7 +62,6 @@ class OAuthStateException(AuthServiceException):
     
 class AuthServiceHTTPException(HTTPException):
     status_code = 500
-    detail = None
 
     def __init__(self, detail: str | None = None):
         if detail is None:

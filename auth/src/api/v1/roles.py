@@ -45,9 +45,9 @@ async def create_role(
 ) -> RoleResponseScheme:
     """Создаёт новую роль. Доступно только суперпользователям."""
     try:
-        return await role_service.create_role(data)
+        return await role_service.create_role(data)  # type: ignore[return-value]
     except RoleAlreadyExistsException as exc:
-        raise RoleAlreadyExistsHTTPException(detail=exc.detail)
+        raise RoleAlreadyExistsHTTPException(detail=exc.detail) from exc
 
 
 @router.get(
@@ -59,7 +59,7 @@ async def get_all_roles(
     staff_user: StaffUserDep,
 ) -> list[RoleResponseScheme]:
     """Возвращает список всех ролей. Доступно только суперпользователям."""
-    return await role_service.get_all_roles()
+    return await role_service.get_all_roles()  # type: ignore[return-value]
 
 
 @router.get(
@@ -73,9 +73,9 @@ async def get_role(
 ) -> RoleDetailScheme:
     """Возвращает роль по идентификатору вместе со списком прав. Доступно только суперпользователям."""
     try:
-        return await role_service.get_role_detail(role_id)
+        return await role_service.get_role_detail(role_id)  # type: ignore[return-value]
     except RoleNotFoundException as exc:
-        raise RoleNotFoundHTTPException(detail=exc.detail)
+        raise RoleNotFoundHTTPException(detail=exc.detail) from exc
 
 
 @router.patch(
@@ -90,11 +90,11 @@ async def update_role(
 ) -> RoleResponseScheme:
     """Обновляет поля роли. Доступно только суперпользователям."""
     try:
-        return await role_service.update_role(role_id, data)
+        return await role_service.update_role(role_id, data)  # type: ignore[return-value]
     except RoleNotFoundException as exc:
-        raise RoleNotFoundHTTPException(detail=exc.detail)
+        raise RoleNotFoundHTTPException(detail=exc.detail) from exc
     except RoleAlreadyExistsException as exc:
-        raise RoleAlreadyExistsHTTPException(detail=exc.detail)
+        raise RoleAlreadyExistsHTTPException(detail=exc.detail) from exc
 
 
 @router.delete(
@@ -111,9 +111,9 @@ async def delete_role(
     try:
         await role_service.delete_role(role_id)
     except RoleNotFoundException as exc:
-        raise RoleNotFoundHTTPException(detail=exc.detail)
+        raise RoleNotFoundHTTPException(detail=exc.detail) from exc
     except SystemRoleCannotBeDeletedException as exc:
-        raise SystemRoleCannotBeDeletedHTTPException(detail=exc.detail)
+        raise SystemRoleCannotBeDeletedHTTPException(detail=exc.detail) from exc
 
 
 @router.post(
@@ -133,11 +133,11 @@ async def assign_role_to_user(
             user_id=user_id, role_id=role_id
         )
     except UserNotFoundException as exc:
-        raise UserNotFoundHTTPException(detail=exc.detail)
+        raise UserNotFoundHTTPException(detail=exc.detail) from exc
     except RoleNotFoundException as exc:
-        raise RoleNotFoundHTTPException(detail=exc.detail)
+        raise RoleNotFoundHTTPException(detail=exc.detail) from exc
     except UserRoleAlreadyExistsException as exc:
-        raise UserRoleAlreadyExistsHTTPException(detail=exc.detail)
+        raise UserRoleAlreadyExistsHTTPException(detail=exc.detail) from exc
 
 
 @router.delete(
@@ -157,11 +157,11 @@ async def remove_role_from_user(
             user_id=user_id, role_id=role_id
         )
     except UserNotFoundException as exc:
-        raise UserNotFoundHTTPException(detail=exc.detail)
+        raise UserNotFoundHTTPException(detail=exc.detail) from exc
     except RoleNotFoundException as exc:
-        raise RoleNotFoundHTTPException(detail=exc.detail)
+        raise RoleNotFoundHTTPException(detail=exc.detail) from exc
     except UserRoleNotFoundException as exc:
-        raise UserRoleNotFoundHTTPException(detail=exc.detail)
+        raise UserRoleNotFoundHTTPException(detail=exc.detail) from exc
 
 
 @router.post(
@@ -181,11 +181,11 @@ async def assign_permission_to_role(
             role_id=role_id, permission_id=permission_id
         )
     except RoleNotFoundException as exc:
-        raise RoleNotFoundHTTPException(detail=exc.detail)
+        raise RoleNotFoundHTTPException(detail=exc.detail) from exc
     except PermissionNotFoundException as exc:
-        raise PermissionNotFoundHTTPException(detail=exc.detail)
+        raise PermissionNotFoundHTTPException(detail=exc.detail) from exc
     except RolePermissionAlreadyExistsException as exc:
-        raise RolePermissionAlreadyExistsHTTPException(detail=exc.detail)
+        raise RolePermissionAlreadyExistsHTTPException(detail=exc.detail) from exc
 
 
 @router.delete(
@@ -205,8 +205,8 @@ async def remove_permission_from_role(
             role_id=role_id, permission_id=permission_id
         )
     except RoleNotFoundException as exc:
-        raise RoleNotFoundHTTPException(detail=exc.detail)
+        raise RoleNotFoundHTTPException(detail=exc.detail) from exc
     except PermissionNotFoundException as exc:
-        raise PermissionNotFoundHTTPException(detail=exc.detail)
+        raise PermissionNotFoundHTTPException(detail=exc.detail) from exc
     except RolePermissionNotFoundException as exc:
-        raise RolePermissionNotFoundHTTPException(detail=exc.detail)
+        raise RolePermissionNotFoundHTTPException(detail=exc.detail) from exc

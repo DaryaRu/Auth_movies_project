@@ -1,7 +1,6 @@
 from urllib.parse import urlencode
 
 from authlib.integrations.httpx_client import AsyncOAuth2Client
-
 from src.core.config import settings
 from src.exceptions import ProviderException
 from src.integrations.oauth.base_provider import OAuthBaseProvider
@@ -36,7 +35,7 @@ class GoogleOAuthProvider(OAuthBaseProvider):
                 resp = await client.get("https://www.googleapis.com/oauth2/v3/userinfo")
                 google_user = resp.json()
         except Exception:
-            raise ProviderException()
+            raise ProviderException() from None
         return OAuthUserInfoScheme(
             provider=AuthProvider.GOOGLE,
             provider_user_id=str(google_user["sub"]),

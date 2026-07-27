@@ -2,7 +2,9 @@ from contextlib import asynccontextmanager
 from logging import config as logging_config
 
 from fastapi import FastAPI
-from opentelemetry.instrumentation.aiohttp_client import AioHttpClientInstrumentor
+from opentelemetry.instrumentation.aiohttp_client import (
+    AioHttpClientInstrumentor,
+)
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
 from opentelemetry.instrumentation.redis import RedisInstrumentor
@@ -12,10 +14,10 @@ from slowapi.errors import RateLimitExceeded
 from src.core import logger
 from src.core.cache import close_cache, init_cache
 from src.core.config import settings
+from src.core.limiter import limiter, rate_limit_exceeded_handler
 from src.core.middlewares import register_middlewares
 from src.core.routers import register_routers
 from src.core.tracers import configure_tracer
-from src.core.limiter import limiter, rate_limit_exceeded_handler
 from src.databases.pg import engine
 
 
@@ -40,12 +42,10 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    limiter.storage_uri = settings.REDIS_LIMITER_URL
     if settings.ENVIRONMENT == "test":
         limiter.enabled = False
     app.state.limiter = limiter
-
-    app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
+    app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)  # type: ignore[arg-type]
 
     FastAPIInstrumentor.instrument_app(app, excluded_urls=settings.OTEL_PYTHON_FASTAPI_EXCLUDED_URLS)
     AioHttpClientInstrumentor().instrument()

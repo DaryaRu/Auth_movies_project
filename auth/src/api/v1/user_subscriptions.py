@@ -38,13 +38,13 @@ async def assign_subscription(
 ) -> UserSubscriptionResponseScheme:
     """Назначает подписку пользователю. Текущая активная подписка деактивируется. Доступно только суперпользователям."""
     try:
-        return await user_subscription_service.assign_subscription(user_id, data)
+        return await user_subscription_service.assign_subscription(user_id, data)  # type: ignore[return-value]
     except UserNotFoundException as exc:
-        raise UserNotFoundHTTPException(detail=exc.detail)
+        raise UserNotFoundHTTPException(detail=exc.detail) from exc
     except SubscriptionNotFoundException as exc:
-        raise SubscriptionNotFoundHTTPException(detail=exc.detail)
+        raise SubscriptionNotFoundHTTPException(detail=exc.detail) from exc
     except SubscriptionInactiveException as exc:
-        raise SubscriptionInactiveHTTPException(detail=exc.detail)
+        raise SubscriptionInactiveHTTPException(detail=exc.detail) from exc
 
 
 @router.get(
@@ -56,7 +56,7 @@ async def get_my_subscription(
     user_subscription_service: UserSubscriptionServiceDep,
 ) -> UserSubscriptionResponseScheme | None:
     """Возвращает активную подписку текущего пользователя."""
-    return await user_subscription_service.get_active_subscription(current_user.id)
+    return await user_subscription_service.get_active_subscription(current_user.id)  # type: ignore[return-value]
 
 
 @router.get(
@@ -69,7 +69,7 @@ async def get_user_subscription(
     staff_user: StaffUserDep,
 ) -> UserSubscriptionResponseScheme | None:
     """Возвращает активную подписку пользователя. Доступно только суперпользователям."""
-    return await user_subscription_service.get_active_subscription(user_id)
+    return await user_subscription_service.get_active_subscription(user_id)  # type: ignore[return-value]
 
 
 @router.get(
@@ -81,7 +81,7 @@ async def get_my_subscription_history(
     user_subscription_service: UserSubscriptionServiceDep,
 ) -> list[UserSubscriptionResponseScheme]:
     """Возвращает историю подписок текущего пользователя, новые первые."""
-    return await user_subscription_service.get_subscription_history(current_user.id)
+    return await user_subscription_service.get_subscription_history(current_user.id)  # type: ignore[return-value]
 
 
 @router.get(
@@ -94,7 +94,7 @@ async def get_user_subscription_history(
     staff_user: StaffUserDep,
 ) -> list[UserSubscriptionResponseScheme]:
     """Возвращает историю подписок пользователя. Доступно только суперпользователям."""
-    return await user_subscription_service.get_subscription_history(user_id)
+    return await user_subscription_service.get_subscription_history(user_id)  # type: ignore[return-value]
 
 
 @router.delete(
@@ -111,4 +111,4 @@ async def cancel_subscription(
     try:
         await user_subscription_service.cancel_subscription(user_id)
     except UserSubscriptionNotFoundException as exc:
-        raise UserSubscriptionNotFoundHTTPException(detail=exc.detail)
+        raise UserSubscriptionNotFoundHTTPException(detail=exc.detail) from exc

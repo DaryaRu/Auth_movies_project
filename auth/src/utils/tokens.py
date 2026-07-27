@@ -79,7 +79,7 @@ class JWTTokenService:
             )
         except (JWTError, AttributeError) as exc:
             logging.error(exc)
-            raise DecodeTokenException()
+            raise DecodeTokenException() from exc
         
         required = {"sub", "exp", "type", "iat", "sid"}
         if not required.issubset(decode_token):

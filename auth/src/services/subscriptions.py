@@ -113,7 +113,7 @@ class SubscriptionService(BaseService):
                 id=subscription_id, **update_data
             )
         except ObjectAlreadyexistsException:
-            raise SubscriptionAlreadyExistsException()
+            raise SubscriptionAlreadyExistsException() from None
 
     async def delete_subscription(self, subscription_id: UUID) -> None:
         """
@@ -126,5 +126,5 @@ class SubscriptionService(BaseService):
         try:
             await self._db.subscriptions.delete_subscription(subscription_id)
         except IntegrityError:
-            raise SubscriptionInUseException()
+            raise SubscriptionInUseException() from None
 
