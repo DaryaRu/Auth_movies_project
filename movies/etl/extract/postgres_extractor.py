@@ -21,6 +21,7 @@ from extract.queries import (
     PERSON_DETAILS,
     query_changed_entities,
 )
+from models import FilmWork, Genre, Person
 from psycopg.rows import dict_row
 from transform.transformer import (
     build_film_work,
@@ -29,8 +30,6 @@ from transform.transformer import (
     group_genres_by_film,
     group_persons_by_film,
 )
-
-from models import FilmWork, Genre, Person
 
 logger = logging.getLogger(__name__)
 
@@ -283,8 +282,10 @@ def normalize_checkpoint(value: datetime | str) -> str:
 def build_checkpoint_state(row: RowData) -> CheckpointState:
     """Build a checkpoint state from the last processed row."""
 
-    result = {
-        "modified": normalize_checkpoint(row["modified"]),
+    modified_value = row["modified"]
+    assert isinstance(modified_value, (datetime, str))
+    result: CheckpointState = {
+        "modified": normalize_checkpoint(modified_value),
         "id": str(row["id"]),
     }
     return result

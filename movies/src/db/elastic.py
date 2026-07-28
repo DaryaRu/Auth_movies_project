@@ -8,4 +8,5 @@ es: Optional[AsyncElasticsearch] = None
 
 
 async def get_elastic() -> AsyncElasticsearch:
+    assert es is not None
     return es

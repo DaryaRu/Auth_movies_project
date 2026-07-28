@@ -84,7 +84,7 @@ class EtlOrchestrator:
     def run_once(self) -> None:
         for entity_type, state_key in FILM_WORK_STATE_KEYS.items():
             self._run_pipeline(
-                extract_func=lambda cp: self.extractor.extract_film_works(
+                extract_func=lambda cp, entity_type=entity_type: self.extractor.extract_film_works(
                     entity_type,
                     cp,
                 ),

@@ -53,7 +53,7 @@ def register_middlewares(app: FastAPI):
         allow_headers=["*"],
     )
     app.add_middleware(
-        ProxyHeadersMiddleware, trusted_hosts=config.ALLOW_HOSTS
+        ProxyHeadersMiddleware, trusted_hosts=config.ALLOW_HOSTS  # type: ignore[arg-type]
         )
 
     app.middleware("http")(add_process_time_header)

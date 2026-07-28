@@ -120,7 +120,7 @@ class FilmWorkAdmin(admin.ModelAdmin):
     def get_genres(self, obj):
         return ', '.join([genre.name for genre in obj.genres.all()])
 
-    get_genres.short_description = _('Genres')
+    get_genres.short_description = _('Genres')  # type: ignore[attr-defined]
 
     def get_autocomplete_fields(self, request):
         return super().get_autocomplete_fields(request)
