@@ -23,10 +23,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # Клонируем репозиторий в рабочую директорию раннера.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # Ставим Python нужной версии.
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: "pip"
@@ -47,7 +47,7 @@ jobs:
     outputs:
       matrix: ${{ steps.build-matrix.outputs.matrix }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - id: build-matrix
         run: echo "matrix=$(python3 .github/scripts/build_mypy_matrix.py)" >> "$GITHUB_OUTPUT"
@@ -60,18 +60,22 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.build.outputs.matrix) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
       # uv вместо pip (умеет сам кэшировать скачанные пакеты между запусками).
+      # cache-dependency-glob — один статичный паттерн на весь репозиторий:
+      # выражения GitHub Actions не поддерживают \n как перевод строки внутри
+      # строкового литерала, поэтому join(matrix.requirements, '\n') не
+      # работал (склеивал пути буквальным "\n", а не переносом строки).
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v8.1.0
         with:
           enable-cache: true
-          cache-dependency-glob: ${{ join(matrix.requirements, '\n') }}
+          cache-dependency-glob: "**/requirements.txt"
 
       # pydantic ставим для mypy-плагина pydantic.mypy.
       # --system — ставим в Python из actions/setup-python, а не в venv
@@ -97,7 +101,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [lint]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Generate RSA keys for JWT
         run: make keys
@@ -113,7 +117,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [lint]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Create .env for movies functional tests
         run: cp movies/tests/functional/.env.example movies/tests/functional/.env
@@ -126,7 +130,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [lint]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Generate RSA keys for JWT
         run: make keys
