@@ -1,12 +1,20 @@
 name: Movies project CI
 
-# Запуск workflow на каждый пуш и на каждый pull request в main.
+# Запуск workflow на каждый пуш и на каждый pull request в main, а также вручную.
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
+# Отменяет предыдущий прогон на той же ветке/PR при новом пуше.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   lint:
@@ -21,14 +29,62 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: "pip"
 
-      # Ставим ruff.
+      # Ставим ruff фиксированной версии, чтобы новый релиз ruff не сломал CI.
       - name: Install ruff
-        run: pip install ruff
+        run: pip install ruff==0.15.10
 
       # Запускаем проверку ruff всех сервисов.
       - name: Run ruff
         run: ruff check .
+
+  # Строит матрицу mypy автоматически по расположению requirements.txt.
+  build:
+    name: Build mypy matrix
+    runs-on: ubuntu-latest
+    needs: [lint]
+    outputs:
+      matrix: ${{ steps.build-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: build-matrix
+        run: echo "matrix=$(python3 .github/scripts/build_mypy_matrix.py)" >> "$GITHUB_OUTPUT"
+
+  mypy:
+    name: mypy check ${{ matrix.path }}
+    runs-on: ubuntu-latest
+    needs: [build]
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.build.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # uv вместо pip (умеет сам кэшировать скачанные пакеты между запусками).
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: ${{ join(matrix.requirements, '\n') }}
+
+      # pydantic ставим для mypy-плагина pydantic.mypy.
+      # --system — ставим в Python из actions/setup-python, а не в venv
+      # (uv по умолчанию требует активное virtualenv).
+      - name: Install mypy and dependencies
+        run: |
+          uv pip install --system mypy pydantic
+          for req in ${{ join(matrix.requirements, ' ') }}; do
+            uv pip install --system -r "$req"
+          done
+
+      - name: Run mypy
+        run: mypy ${{ matrix.path }}
 
   # Для запуска функциональных тестов используются имеющиеся команды из
   # Makefile (test-auth/test-movies/test-analytics).
@@ -37,6 +93,7 @@ jobs:
   test-auth:
     name: Functional auth tests
     runs-on: ubuntu-latest
+    needs: [lint]
     steps:
       - uses: actions/checkout@v4
 
@@ -52,6 +109,7 @@ jobs:
   test-movies:
     name: Functional movies tests
     runs-on: ubuntu-latest
+    needs: [lint]
     steps:
       - uses: actions/checkout@v4
 
@@ -64,6 +122,7 @@ jobs:
   test-analytics:
     name: Functional analytics tests
     runs-on: ubuntu-latest
+    needs: [lint]
     steps:
       - uses: actions/checkout@v4
 
