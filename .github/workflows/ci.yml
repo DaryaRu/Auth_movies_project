@@ -76,11 +76,13 @@ jobs:
       # pydantic ставим для mypy-плагина pydantic.mypy.
       # --system — ставим в Python из actions/setup-python, а не в venv
       # (uv по умолчанию требует активное virtualenv).
+      # uwsgi не нужен для mypy. Исключаем его при установке.
       - name: Install mypy and dependencies
         run: |
           uv pip install --system mypy pydantic
           for req in ${{ join(matrix.requirements, ' ') }}; do
-            uv pip install --system -r "$req"
+            grep -vE '^uwsgi' "$req" > /tmp/mypy_reqs.txt
+            uv pip install --system -r /tmp/mypy_reqs.txt
           done
 
       - name: Run mypy
