@@ -1,4 +1,4 @@
-fastapi[standart]==0.136.1
+fastapi[standard]==0.136.1
 alembic==1.18.4
 SQLAlchemy==2.0.50
 redis==5.0.4
