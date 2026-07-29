@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from typing import AsyncGenerator
 from uuid import uuid4
 
 import aiohttp
@@ -10,7 +11,7 @@ from analytics.tests.settings import test_settings
 
 
 @pytest_asyncio.fixture(scope="function")
-async def http_client() -> aiohttp.ClientSession:
+async def http_client() -> AsyncGenerator[aiohttp.ClientSession, None]:
     """Function-scoped HTTP-клиент для тестов.
     DummyCookieJar нужен, чтобы куки не отправлялись и не переходили между тестами, для изоляция.
     """

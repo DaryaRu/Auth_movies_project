@@ -1,4 +1,4 @@
-from typing import Any, Iterable
+from typing import Any, Collection, Iterable
 
 import asyncpg
 from argon2 import PasswordHasher
@@ -10,9 +10,9 @@ async def delete_data(pg_client: asyncpg.Connection, table: str) -> None:
     DELETE FROM {table};
     '''
     await pg_client.execute(query)
-    
-    
-async def create_data(pg_client: asyncpg.Connection, table: str, columns: Iterable[str], data: Iterable[Any]) -> None:
+
+
+async def create_data(pg_client: asyncpg.Connection, table: str, columns: Collection[str], data: Iterable[Any]) -> None:
     column_names = ', '.join(columns)
     values_part = ', '.join(f'${i}' for i in range(1, len(columns) + 1))
     query = f'''

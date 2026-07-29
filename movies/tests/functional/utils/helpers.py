@@ -37,7 +37,9 @@ async def load_data(
         es_client,
         [{"_index": index, "_id": doc["id"], **doc} for doc in data],
         refresh=True,
+        stats_only=False,
     )
+    assert isinstance(errors, list)
     if errors:
         pytest.fail(
             f"Failed to index {len(errors)} document(s) into '{index}': "
