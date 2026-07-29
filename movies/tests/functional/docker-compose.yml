@@ -24,7 +24,10 @@ services:
       retries: 10
 
   fastapi:
-    build: ../..
+    build:
+      context: ../..
+      args:
+        PYTHON_VERSION: ${PYTHON_VERSION:-3.12}
     image: fastapi-image
     env_file: .env
     working_dir: /app/src

@@ -96,10 +96,15 @@ jobs:
   # Makefile (test-auth/test-movies/test-analytics).
   # Перед запуском предварительно для каждого сервиса создается свой .env
   # и генерируются ключи через `make keys`, где это необходимо.
+  # Матрица python версий прогоняет один и тот же набор тестов на разных образах.
   test-auth:
-    name: Functional auth tests
+    name: Functional auth tests (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     needs: [lint]
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
     steps:
       - uses: actions/checkout@v5
 
@@ -110,12 +115,16 @@ jobs:
         run: cp auth/tests/functional/.env.example auth/tests/functional/.env
 
       - name: Run auth functional tests
-        run: make test-auth
+        run: make test-auth PYTHON_VERSION=${{ matrix.python-version }}
 
   test-movies:
-    name: Functional movies tests
+    name: Functional movies tests (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     needs: [lint]
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
     steps:
       - uses: actions/checkout@v5
 
@@ -123,12 +132,16 @@ jobs:
         run: cp movies/tests/functional/.env.example movies/tests/functional/.env
 
       - name: Run movies functional tests
-        run: make test-movies
+        run: make test-movies PYTHON_VERSION=${{ matrix.python-version }}
 
   test-analytics:
-    name: Functional analytics tests
+    name: Functional analytics tests (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     needs: [lint]
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
     steps:
       - uses: actions/checkout@v5
 
@@ -139,4 +152,4 @@ jobs:
         run: cp analytics/tests/functional/.env.example analytics/tests/functional/.env
 
       - name: Run analytics functional tests
-        run: make test-analytics
+        run: make test-analytics PYTHON_VERSION=${{ matrix.python-version }}
