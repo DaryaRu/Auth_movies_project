@@ -1,5 +1,6 @@
 .env
 .venv
+.mypy-check-venvs
 __pycache__
 .pytest_cache
 private.pem

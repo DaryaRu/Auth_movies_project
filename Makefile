@@ -93,6 +93,12 @@ test-analytics:
 # Запускает тесты всех сервисов
 test-all: test-auth test-movies test-analytics
 
+# Прогоняет mypy локально по той же матрице, что и CI (build_mypy_matrix.py) —
+# без Docker и без ожидания GitHub Actions. Окружения кэшируются в
+# .mypy-check-venvs/, повторные запуски быстрее первого.
+mypy:
+	python3 .github/scripts/run_mypy_matrix.py
+
 # analytics-service
 logs-analytics:
 	docker compose logs -f analytics-service
