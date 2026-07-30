@@ -2,9 +2,9 @@
 
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
-SUBSCRIPTION_EXAMPLE = {
+SUBSCRIPTION_EXAMPLE: dict[str, JsonValue] = {
     "code": "free",
     "description": "Свободный доступ к фильмам",
     "level": 0,

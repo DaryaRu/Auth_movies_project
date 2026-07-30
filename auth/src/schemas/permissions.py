@@ -1,11 +1,12 @@
 import re
+from typing import overload
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, JsonValue, field_validator
 
 CODE_REGEX = re.compile(r"^[a-z0-9_]+:[a-z0-9_]+$")
 
-PERMISSION_EXAMPLE = {
+PERMISSION_EXAMPLE: dict[str, JsonValue] = {
     "code": "content:edit",
     "name": "Редактировать фильмы",
     "description": "Позволяет редактировать карточки фильмов в каталоге",
@@ -13,6 +14,10 @@ PERMISSION_EXAMPLE = {
 }
 
 
+@overload
+def _validate_code(v: str) -> str: ...
+@overload
+def _validate_code(v: None) -> None: ...
 def _validate_code(v: str | None) -> str | None:
     if v is not None and not CODE_REGEX.match(v):
         raise ValueError(

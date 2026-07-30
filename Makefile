@@ -1,3 +1,8 @@
+# Версия Python для функциональных тестов по умолчанию 3.12,
+# для матрицы передать явно: make test-auth PYTHON_VERSION=3.10
+PYTHON_VERSION ?= 3.12
+export PYTHON_VERSION
+
 # Первый запуск: генерирует ключи, собирает образы, поднимает контейнеры.
 # Миграции применяются автоматически через сервис auth-migrate при старте.
 init: keys build up
@@ -87,6 +92,12 @@ test-analytics:
 
 # Запускает тесты всех сервисов
 test-all: test-auth test-movies test-analytics
+
+# Прогоняет mypy локально по той же матрице, что и CI (build_mypy_matrix.py) —
+# без Docker и без ожидания GitHub Actions. Окружения кэшируются в
+# .mypy-check-venvs/, повторные запуски быстрее первого.
+mypy:
+	python3 .github/scripts/run_mypy_matrix.py
 
 # analytics-service
 logs-analytics:

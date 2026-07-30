@@ -2,18 +2,20 @@
 
 import pytest
 from aiohttp import ClientSession
-
 from functional.settings import test_settings
 from functional.testdata.genres import GENRES_DATA
+
 from tests.functional.src.cases import (
-    DetailCase, ListCase, SortCase, ValidationErrorCase
+    DetailCase,
+    ListCase,
+    SortCase,
+    ValidationErrorCase,
 )
 from tests.functional.utils.check_methods import (
     assert_cache_isolated,
     assert_required_fields,
     assert_status_return_json,
 )
-
 
 GENRES_URL = f"{test_settings.api_prefix}/genres"
 

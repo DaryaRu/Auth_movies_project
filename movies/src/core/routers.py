@@ -1,6 +1,5 @@
-from fastapi import FastAPI
-
 from api.v1 import films, genres, persons
+from fastapi import FastAPI
 
 
 def register_routers(app: FastAPI) -> None:

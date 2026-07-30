@@ -1,12 +1,11 @@
 import base64
 import hashlib
-import secrets
 import logging
-from urllib.parse import urlencode
+import secrets
 from typing import Optional
+from urllib.parse import urlencode
 
 from authlib.integrations.httpx_client import AsyncOAuth2Client
-
 from src.core.config import settings
 from src.exceptions import ProviderException
 from src.integrations.oauth.base_provider import OAuthBaseProvider
@@ -170,7 +169,7 @@ class VkOAuthProvider(OAuthBaseProvider):
             raise
         except Exception as e:
             logger.error(f"VK OAuth error: {e}", exc_info=True)
-            raise ProviderException()
+            raise ProviderException() from e
 
     async def revoke_token(self, token: str) -> None:
         try:

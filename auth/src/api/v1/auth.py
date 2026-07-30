@@ -12,6 +12,7 @@ from src.api.v1.dependencies import (
     TokenPayloadDep,
 )
 from src.core.config import settings
+from src.core.limiter import limiter
 from src.exceptions import (
     DecodeTokenException,
     InvalidTokenHTTPException,
@@ -39,7 +40,6 @@ from src.schemas.users import (
     UserRequestScheme,
     UserResponseScheme,
 )
-from src.core.limiter import limiter
 
 router = APIRouter(tags=["Auth"])
 
@@ -60,7 +60,7 @@ async def create_user(
     try:
         created_user = await auth_service.register_user(user)
     except UserAlreadyexistsException as exc:
-        raise UserAlreadyexistsHTTPException(detail=exc.detail)
+        raise UserAlreadyexistsHTTPException(detail=exc.detail) from exc
     return created_user
 
 
@@ -83,11 +83,11 @@ async def login(
             user, ip_address=ip_address, user_agent=user_agent
         )
     except UserNotFoundException as exc:
-        raise UserNotFoundHTTPException(detail=exc.detail)
+        raise UserNotFoundHTTPException(detail=exc.detail) from exc
     except VerifyPasswordException as exc:
-        raise VerifyPasswordHTTPException(detail=exc.detail)
+        raise VerifyPasswordHTTPException(detail=exc.detail) from exc
     except PasswordNotSetException as exc:
-        raise PasswordNotSetHTTPException(detail=exc.detail)
+        raise PasswordNotSetHTTPException(detail=exc.detail) from exc
 
     response.set_cookie(
         key="refresh_token",
@@ -137,7 +137,7 @@ async def refresh_token(
         TokenTypeExeption,
         TokenExeption,
     ) as exc:
-        raise InvalidTokenHTTPException(detail=exc.detail)
+        raise InvalidTokenHTTPException(detail=exc.detail) from exc
 
     response.set_cookie(
         key="refresh_token",
@@ -214,7 +214,7 @@ async def get_user_active_sessions(
 ):
     return await session_service.get_active_sessions(
         user_id=current_user.id,
-        current_sid=token_payload.get("sid"),
+        current_sid=token_payload["sid"],
     )
 
 
@@ -255,11 +255,11 @@ async def change_email(
         )
         return updated_user
     except UserAlreadyexistsException as exc:
-        raise UserAlreadyexistsHTTPException(detail=exc.detail)
+        raise UserAlreadyexistsHTTPException(detail=exc.detail) from exc
     except UserNotFoundException as exc:
-        raise UserNotFoundHTTPException(detail=exc.detail)
+        raise UserNotFoundHTTPException(detail=exc.detail) from exc
     except VerifyPasswordException as exc:
-        raise VerifyPasswordHTTPException(detail=exc.detail)
+        raise VerifyPasswordHTTPException(detail=exc.detail) from exc
 
 
 @router.patch(
@@ -289,9 +289,9 @@ async def change_password(
 
         return Response(status_code=status.HTTP_204_NO_CONTENT)
     except UserNotFoundException as exc:
-        raise UserNotFoundHTTPException(detail=exc.detail)
+        raise UserNotFoundHTTPException(detail=exc.detail) from exc
     except VerifyPasswordException as exc:
-        raise VerifyPasswordHTTPException(detail=exc.detail)
+        raise VerifyPasswordHTTPException(detail=exc.detail) from exc
 
 
 @router.post(
@@ -311,6 +311,6 @@ async def set_password(
         await auth_service.set_password(user_id=user.id, data=data)
         return Response(status_code=status.HTTP_204_NO_CONTENT)
     except UserNotFoundException as exc:
-        raise UserNotFoundHTTPException(detail=exc.detail)
+        raise UserNotFoundHTTPException(detail=exc.detail) from exc
     except PasswordAlreadySetException as exc:
-        raise PasswordAlreadySetHTTPException(detail=exc.detail)
+        raise PasswordAlreadySetHTTPException(detail=exc.detail) from exc

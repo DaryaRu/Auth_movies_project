@@ -4,10 +4,9 @@ import logging
 from typing import Any
 
 import httpx
-from jose import ExpiredSignatureError, JWTError, jwt
-
 from core import config
 from db import redis
+from jose import ExpiredSignatureError, JWTError, jwt
 
 logger = logging.getLogger(__name__)
 

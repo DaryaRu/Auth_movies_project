@@ -30,7 +30,7 @@ async def _create_superuser(
         await AuthService(
             HashArgon2Service(),
             JWTTokenService(),
-            SessionService(SessionRedisRepository(redis.redis)),
+            SessionService(SessionRedisRepository(redis.redis)),  # type: ignore[arg-type]
             db,
         ).create_admin(admin)
 
@@ -74,7 +74,7 @@ def create(
         rich.print(
             "[red]Не удалось создать администратора[/red]"
         )
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from None
 
 
 if __name__ == "__main__":

@@ -3,20 +3,24 @@ from typing import Optional
 
 from fastapi import APIRouter, Query, Request, Response
 
-from src.api.v1.dependencies import OAuthServiceDep, CurrentUserDep, TokenPayloadDep
-
+from src.api.v1.dependencies import (
+    CurrentUserDep,
+    OAuthServiceDep,
+    TokenPayloadDep,
+)
 from src.core.config import settings
+from src.core.limiter import limiter
 from src.exceptions import (
+    LastAuthMethodRestrictionException,
+    LastAuthMethodRestrictionHTTPException,
+    OAuthAccountNotLinkedException,
+    OAuthAccountNotLinkedHTTPException,
     OAuthStateException,
     OAuthStateHTTPException,
     ProviderException,
     ProviderHTTPException,
     UserNotFoundException,
     UserNotFoundHTTPException,
-    OAuthAccountNotLinkedException,
-    OAuthAccountNotLinkedHTTPException,
-    LastAuthMethodRestrictionException,
-    LastAuthMethodRestrictionHTTPException,
 )
 from src.schemas.oauth import (
     AuthProvider,
@@ -24,7 +28,6 @@ from src.schemas.oauth import (
 )
 from src.schemas.oauth_accounts import OAuthUnlinkResponseScheme
 from src.schemas.tokens import JWTAccessToken
-from src.core.limiter import limiter
 
 router = APIRouter(tags=["OAuth"])
 
@@ -72,9 +75,9 @@ async def oauth_callback(
             device_id=device_id,
         )
     except OAuthStateException as exc:
-        raise OAuthStateHTTPException(detail=exc.detail)
+        raise OAuthStateHTTPException(detail=exc.detail) from exc
     except ProviderException as exc:
-        raise ProviderHTTPException(detail=exc.detail)
+        raise ProviderHTTPException(detail=exc.detail) from exc
 
     response.set_cookie(
         key="refresh_token",
@@ -114,11 +117,11 @@ async def oauth_unlink(
             current_sid=current_sid
         )
     except UserNotFoundException as exc:
-        raise UserNotFoundHTTPException(detail=exc.detail)
+        raise UserNotFoundHTTPException(detail=exc.detail) from exc
     except OAuthAccountNotLinkedException as exc:
-        raise OAuthAccountNotLinkedHTTPException(detail=exc.detail)
+        raise OAuthAccountNotLinkedHTTPException(detail=exc.detail) from exc
     except LastAuthMethodRestrictionException as exc:
-        raise LastAuthMethodRestrictionHTTPException(detail=exc.detail)
+        raise LastAuthMethodRestrictionHTTPException(detail=exc.detail) from exc
 
     if current_session_deleted:
         response.delete_cookie(

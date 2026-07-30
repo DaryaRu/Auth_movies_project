@@ -1,12 +1,12 @@
-from functools import lru_cache
 import http
 import logging
+from functools import lru_cache
 from typing import Any
 
 import requests
 from django.conf import settings
-from django.contrib.auth.backends import BaseBackend
 from django.contrib.auth import get_user_model
+from django.contrib.auth.backends import BaseBackend
 from jose import JWTError, jwt
 
 User = get_user_model()

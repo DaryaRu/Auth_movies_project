@@ -1,10 +1,9 @@
+import core.dependiences as deps
+from core.settings import settings
 from faststream import AckPolicy, Logger
 from faststream.kafka import KafkaBroker
 from pydantic import TypeAdapter, ValidationError
-
 from schemas import EventResponseIn
-import core.dependiences as deps
-from core.settings import settings
 
 broker = KafkaBroker(
     settings.kafka_brokers_list,

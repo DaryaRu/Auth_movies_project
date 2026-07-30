@@ -8,13 +8,12 @@ from http import HTTPStatus
 from typing import Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query
-from fastapi_cache.decorator import cache
-
 from api.v1.dependencies import PaginationDepend
 from core import config
-from schemas.genres import GenreResponse as Genre
 from dependencies import get_genre_service
+from fastapi import APIRouter, Depends, HTTPException, Path, Query
+from fastapi_cache.decorator import cache
+from schemas.genres import GenreResponse as Genre
 from services.genres import GenreService
 
 router = APIRouter()

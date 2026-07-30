@@ -1,17 +1,16 @@
 """Base Elasticsearch repository."""
 
 import socket
-from abc import ABC
-from urllib3.exceptions import NameResolutionError
+from typing import Any
 
+from elastic_transport import ConnectionError, ConnectionTimeout
 from elasticsearch import AsyncElasticsearch, BadRequestError, NotFoundError
-from elastic_transport import ConnectionTimeout, ConnectionError
-
 from exceptions import ObjectNotFoundException
+from urllib3.exceptions import NameResolutionError
 from utils.decorators import backoff
 
 
-class BaseElasticRepository(ABC):
+class BaseElasticRepository:
     """Base repository for Elasticsearch operations."""
 
     def __init__(self, elastic_client: AsyncElasticsearch, index: str):
@@ -66,7 +65,7 @@ class BaseElasticRepository(ABC):
         source: list[str] | None = None,
     ) -> list[dict]:
         """Search documents with optional query, sort, and pagination."""
-        body = {
+        body: dict[str, Any] = {
             "query": query or {"match_all": {}},
         }
         if source:

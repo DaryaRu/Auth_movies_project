@@ -1,14 +1,22 @@
 """Load documents into Elasticsearch."""
 
 import logging
+from typing import Any, Protocol
+from uuid import UUID
 
 from backoff import backoff
 from config import Settings
 from elasticsearch import Elasticsearch, helpers
-from pydantic import BaseModel
-
 
 logger = logging.getLogger(__name__)
+
+
+class IndexableDocument(Protocol):
+    """Structural type for pydantic models indexable into Elasticsearch."""
+
+    id: UUID
+
+    def model_dump(self, *, mode: str = ...) -> dict[str, Any]: ...
 
 
 class ElasticsearchWriter:
@@ -47,7 +55,7 @@ class ElasticsearchWriter:
     def bulk_save(
         self,
         index: str,
-        documents: list[BaseModel],
+        documents: list[IndexableDocument],
     ) -> None:
         """Index documents batch into Elasticsearch."""
         if not documents:

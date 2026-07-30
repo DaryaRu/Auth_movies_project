@@ -2,21 +2,26 @@
 
 import pytest
 from aiohttp import ClientSession
-
 from functional.settings import test_settings
 from functional.testdata.films import (
+    FILM_DATA_LIST_LENGTH,
     FILMS_DATA,
     TEST_GENRE_ID,
     TEST_PERSON_ID,
-    FILM_DATA_LIST_LENGTH,
-)
-from tests.functional.src.cases import (
-    DetailCase, ListCase, ValidationErrorCase, SearchCase, SortCase
-)
-from tests.functional.utils.check_methods import (
-    assert_cache_isolated, assert_required_fields, assert_status_return_json
 )
 
+from tests.functional.src.cases import (
+    DetailCase,
+    ListCase,
+    SearchCase,
+    SortCase,
+    ValidationErrorCase,
+)
+from tests.functional.utils.check_methods import (
+    assert_cache_isolated,
+    assert_required_fields,
+    assert_status_return_json,
+)
 
 FILMS_URL = f"{test_settings.api_prefix}/films"
 PERSON_FILMS_URL = f"{test_settings.api_prefix}/persons/{TEST_PERSON_ID}/film"

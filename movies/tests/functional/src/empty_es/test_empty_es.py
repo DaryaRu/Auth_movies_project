@@ -1,8 +1,8 @@
 """Functional tests for empty Elasticsearch indices."""
 
 from aiohttp import ClientSession
-
 from functional.settings import test_settings
+
 from tests.functional.utils.check_methods import assert_status_return_json
 
 FILMS_URL = f"{test_settings.api_prefix}/films"

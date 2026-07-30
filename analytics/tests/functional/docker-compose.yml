@@ -20,7 +20,10 @@ services:
       retries: 10
   
   test-auth-service:
-    build: ../../../auth
+    build:
+      context: ../../../auth
+      args:
+        PYTHON_VERSION: ${PYTHON_VERSION:-3.12}
     image: fastapi-auth-image
     restart: unless-stopped
     env_file: .env
@@ -58,7 +61,10 @@ services:
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
 
   test-analytics-service:
-    build: ../../../analytics
+    build:
+      context: ../../../analytics
+      args:
+        PYTHON_VERSION: ${PYTHON_VERSION:-3.12}
     image: analytics-service-image
     restart: unless-stopped
     env_file: 
@@ -91,7 +97,10 @@ services:
         condition: service_started
 
   tests:
-    build: ../../../analytics     
+    build:
+      context: ../../../analytics
+      args:
+        PYTHON_VERSION: ${PYTHON_VERSION:-3.12}
     image: analytics-test-image
     env_file: .env
     working_dir: /app

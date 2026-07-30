@@ -103,7 +103,7 @@ class RoleService(BaseService):
         try:
             return await self._db.roles.update_role(id=role_id, **update_data)
         except ObjectAlreadyexistsException:
-            raise RoleAlreadyExistsException()
+            raise RoleAlreadyExistsException() from None
 
     async def delete_role(self, role_id: UUID) -> None:
         """
@@ -132,7 +132,7 @@ class RoleService(BaseService):
         try:
             await self._db.roles.assign_role_to_user(user_id=user_id, role_id=role_id)
         except ObjectAlreadyexistsException:
-            raise UserRoleAlreadyExistsException()
+            raise UserRoleAlreadyExistsException() from None
 
     async def remove_role_from_user(self, user_id: UUID, role_id: UUID) -> None:
         """
@@ -169,7 +169,7 @@ class RoleService(BaseService):
                 role_id=role_id, permission_id=permission_id
             )
         except ObjectAlreadyexistsException:
-            raise RolePermissionAlreadyExistsException()
+            raise RolePermissionAlreadyExistsException() from None
 
     async def remove_permission_from_role(
         self, role_id: UUID, permission_id: UUID

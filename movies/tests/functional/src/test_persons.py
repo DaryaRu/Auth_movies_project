@@ -1,8 +1,9 @@
 from typing import Callable
+
 import aiohttp
 import pytest
-
 from functional.settings import test_settings
+
 from tests.functional.src.cases import SearchCase, ValidationErrorCase
 from tests.functional.utils.check_methods import (
     assert_cache_isolated,

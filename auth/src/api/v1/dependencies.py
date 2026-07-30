@@ -56,6 +56,7 @@ async def get_db():
         
         
 def get_session_service() -> SessionService:
+    assert redis.redis is not None
     return SessionService(
         SessionRedisRepository(redis.redis)
     )
@@ -94,9 +95,9 @@ async def get_token_payload(
     try:
         data = auth_service.decode_token(token)
     except DecodeTokenException as exc:
-        raise DecodeTokenHTTPException(detail=exc.detail)
+        raise DecodeTokenHTTPException(detail=exc.detail) from exc
     except TokenKeysException as exc:
-        raise TokenKeysHTTPException(detail=exc.detail)
+        raise TokenKeysHTTPException(detail=exc.detail) from exc
     session = await session_service.get_session(data["sid"])
     if not session:
         raise InvalidTokenHTTPException(detail="Невалидный токен")
@@ -138,6 +139,7 @@ def get_oauth_service(
     auth_service: "AuthServiceDep",
     oauth_provider_factory: OAuthProviderFactory = Depends(get_oauth_provider_factory),
 ) -> OAuthService:
+    assert redis.redis is not None
     return OAuthService(oauth_provider_factory, auth_service, redis.redis)
     
 

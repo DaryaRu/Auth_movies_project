@@ -2,7 +2,6 @@
 
 import pytest
 import pytest_asyncio
-
 from functional.settings import test_settings
 from functional.testdata.es_mapping import (
     MOVIES_INDEX_SCHEMA,

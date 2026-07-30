@@ -2,9 +2,8 @@ from typing import Awaitable, Callable
 
 import pytest
 import pytest_asyncio
-
-from functional.testdata.es_mapping import PERSON_INDEX_SCHEMA
 from functional.settings import test_settings
+from functional.testdata.es_mapping import PERSON_INDEX_SCHEMA
 
 
 @pytest.fixture(scope='session')

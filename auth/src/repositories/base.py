@@ -7,12 +7,13 @@ from sqlalchemy import delete, insert, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.databases.pg import BaseORM
 from src.exceptions import (
     ObjectAlreadyexistsException,
     ObjectNotFoundException,
 )
 
-ModelT = TypeVar("ModelT")
+ModelT = TypeVar("ModelT", bound=BaseORM)
 
 
 class BasePostgreSQLRepository(Generic[ModelT]):
@@ -53,9 +54,10 @@ class BasePostgreSQLRepository(Generic[ModelT]):
         except IntegrityError as ex:
             logging.exception(f"Не удалось добавить данные в БД,"
                               f"входные данные={kwargs}")
-            if isinstance(ex.orig.__cause__, UniqueViolationError):
+            cause = ex.orig.__cause__ if ex.orig is not None else None
+            if isinstance(cause, UniqueViolationError):
                 raise ObjectAlreadyexistsException from ex
-            elif isinstance(ex.orig.__cause__, ForeignKeyViolationError):
+            elif isinstance(cause, ForeignKeyViolationError):
                 raise ObjectNotFoundException from ex
             else:
                 logging.exception(

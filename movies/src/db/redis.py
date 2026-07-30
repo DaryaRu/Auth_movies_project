@@ -27,7 +27,7 @@ class FaultTolerantRedisBackend(RedisBackend):
         → пользователь не видит сбоя
     """
 
-    async def get_with_ttl(self, key: str) -> tuple[int, str]:
+    async def get_with_ttl(self, key: str) -> tuple[int, Optional[bytes]]:
         try:
             return await super().get_with_ttl(key)
         except RedisError as e:
@@ -35,7 +35,7 @@ class FaultTolerantRedisBackend(RedisBackend):
             # (0, None) — сигнал cache miss для @cache декоратора
             return 0, None
 
-    async def set(self, key: str, value: str, expire: int = None):
+    async def set(self, key: str, value: bytes, expire: Optional[int] = None) -> None:
         try:
             await super().set(key, value, expire)
         except RedisError as e:

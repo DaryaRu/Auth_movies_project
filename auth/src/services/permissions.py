@@ -85,7 +85,7 @@ class PermissionService(BaseService):
                 id=permission_id, **update_data
             )
         except ObjectAlreadyexistsException:
-            raise PermissionAlreadyExistsException()
+            raise PermissionAlreadyExistsException() from None
 
     async def delete_permission(self, permission_id: UUID) -> None:
         """

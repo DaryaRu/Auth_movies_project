@@ -6,6 +6,7 @@ from django.utils.translation import gettext_lazy as _
 
 from users.managers import CustomUserManager
 
+
 class User(AbstractBaseUser, PermissionsMixin):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField(_("email"), max_length=255, blank=True)

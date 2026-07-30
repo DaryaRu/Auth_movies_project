@@ -51,4 +51,4 @@ class SessionService:
         await self._repo.delete_all_user_session(user_id)
         
     async def get_active_sessions(self, user_id: UUID, current_sid: str) -> list[dict]:
-        return await self._repo.get_user_sessions(user_id, str(current_sid))
+        return await self._repo.get_user_sessions(str(user_id), current_sid)

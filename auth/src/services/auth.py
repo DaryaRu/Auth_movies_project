@@ -446,7 +446,7 @@ class AuthService(BaseService):
         self,
         user_id: UUID,
         auth_method: str,
-        current_sid: str | None = None,
+        current_sid: str,
     ) -> bool:
         """Аннулирует в Redis все активные сессии пользователя,
         созданные через определенный метод входа."""

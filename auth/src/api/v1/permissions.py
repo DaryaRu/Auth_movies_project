@@ -30,9 +30,9 @@ async def create_permission(
 ) -> PermissionResponseScheme:
     """Создаёт новое право доступа. Доступно только суперпользователям."""
     try:
-        return await permission_service.create_permission(data)
+        return await permission_service.create_permission(data)  # type: ignore[return-value]
     except PermissionAlreadyExistsException as exc:
-        raise PermissionAlreadyExistsHTTPException(detail=exc.detail)
+        raise PermissionAlreadyExistsHTTPException(detail=exc.detail) from exc
 
 
 @router.get(
@@ -44,7 +44,7 @@ async def get_all_permissions(
     staff_user: StaffUserDep,
 ) -> list[PermissionResponseScheme]:
     """Возвращает список всех прав доступа. Доступно только суперпользователям."""
-    return await permission_service.get_all_permissions()
+    return await permission_service.get_all_permissions()  # type: ignore[return-value]
 
 
 @router.patch(
@@ -59,11 +59,11 @@ async def update_permission(
 ) -> PermissionResponseScheme:
     """Обновляет поля права доступа. Доступно только суперпользователям."""
     try:
-        return await permission_service.update_permission(permission_id, data)
+        return await permission_service.update_permission(permission_id, data)  # type: ignore[return-value]
     except PermissionNotFoundException as exc:
-        raise PermissionNotFoundHTTPException(detail=exc.detail)
+        raise PermissionNotFoundHTTPException(detail=exc.detail) from exc
     except PermissionAlreadyExistsException as exc:
-        raise PermissionAlreadyExistsHTTPException(detail=exc.detail)
+        raise PermissionAlreadyExistsHTTPException(detail=exc.detail) from exc
 
 
 @router.delete(
@@ -80,4 +80,4 @@ async def delete_permission(
     try:
         await permission_service.delete_permission(permission_id)
     except PermissionNotFoundException as exc:
-        raise PermissionNotFoundHTTPException(detail=exc.detail)
+        raise PermissionNotFoundHTTPException(detail=exc.detail) from exc

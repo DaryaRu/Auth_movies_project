@@ -3,9 +3,8 @@
 import asyncio
 import logging
 
-from redis.asyncio import Redis
-
 from functional.settings import test_settings
+from redis.asyncio import Redis
 
 
 async def wait_for_redis() -> None:
@@ -16,7 +15,7 @@ async def wait_for_redis() -> None:
     delay = test_settings.service_wait_delay
     client = Redis(host=host, port=port)
     for attempt in range(1, max_attempts + 1):
-        if await client.ping():
+        if await client.ping():  # type: ignore[misc]
             await client.aclose()
             return
         logging.warning(

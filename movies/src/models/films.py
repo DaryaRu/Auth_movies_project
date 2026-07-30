@@ -3,10 +3,9 @@
 from datetime import date
 from uuid import UUID
 
-from pydantic import BaseModel
-
 from models.genres import Genre
 from models.persons import Person
+from pydantic import BaseModel
 
 
 class FilmShort(BaseModel):

@@ -1,17 +1,23 @@
 """Инфраструктурные фикстуры: HTTP-клиенты и подключение к БД."""
 
 import asyncio
-from typing import Any, AsyncGenerator, Awaitable, Callable, Iterable
+from typing import (
+    Any,
+    AsyncGenerator,
+    Awaitable,
+    Callable,
+    Collection,
+    Iterable,
+)
 from uuid import uuid4
 
 import aiohttp
 import asyncpg
 import pytest
 import pytest_asyncio
-from redis.asyncio import Redis
-
 from functional.settings import test_settings
 from functional.utils.helpers import create_data, delete_data
+from redis.asyncio import Redis
 
 pytest_plugins = [
     "functional.fixtures.users",
@@ -20,7 +26,7 @@ pytest_plugins = [
 ]
 
 WriteData = Callable[
-    [str, Iterable[str], Iterable[Any]],
+    [str, Collection[str], Iterable[Any]],
     Awaitable[None],
 ]
 
@@ -34,7 +40,7 @@ def event_loop():
 
 
 @pytest_asyncio.fixture(scope="function")
-async def http_client() -> aiohttp.ClientSession:
+async def http_client() -> AsyncGenerator[aiohttp.ClientSession, None]:
     """Function-scoped HTTP-клиент для тестов.
     DummyCookieJar нужен, чтобы куки не отправлялись и не переходили между тестами, для изоляция.
     """
@@ -49,7 +55,7 @@ async def http_client() -> aiohttp.ClientSession:
 
 
 @pytest_asyncio.fixture(scope="function")
-async def cookie_http_client() -> aiohttp.ClientSession:
+async def cookie_http_client() -> AsyncGenerator[aiohttp.ClientSession, None]:
     """Клиент для тестов с cookie (login, refresh, logout).
     CookieJar(unsafe=True) сохраняет Set-Cookie и автоматически отправляет куки в следующих запросах.
     unsafe=True нужен для hostname без точки (fastapi-auth).
@@ -67,7 +73,7 @@ async def cookie_http_client() -> aiohttp.ClientSession:
 
 
 @pytest_asyncio.fixture(scope="session")
-async def session_http_client() -> aiohttp.ClientSession:
+async def session_http_client() -> AsyncGenerator[aiohttp.ClientSession, None]:
     """Клиент только для session-scoped фикстур, которым нужны API-вызовы
     (например, superuser_token, regular_user_token).
     Один экземпляр на всю сессию, куки не сохраняются.
@@ -100,7 +106,7 @@ async def pg_write_data(pg_client: asyncpg.Connection) -> AsyncGenerator[WriteDa
     used_tables: set[str] = set()
 
     async def inner(
-        table: str, columns: Iterable[str], data: Iterable[Any]
+        table: str, columns: Collection[str], data: Iterable[Any]
     ) -> None:
         await create_data(pg_client, table, columns, data)
         used_tables.add(table)

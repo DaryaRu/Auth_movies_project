@@ -1,10 +1,10 @@
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
 from src.schemas.permissions import PermissionResponseScheme
 
-ROLE_EXAMPLE = {
+ROLE_EXAMPLE: dict[str, JsonValue] = {
     "name": "content_manager",
     "description": "Контент-менеджер — управляет каталогом фильмов",
     "is_active": True,

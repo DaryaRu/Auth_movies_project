@@ -30,7 +30,7 @@ def create_app() -> FastAPI:
 
     limiter.enabled = settings.ENVIRONMENT != "test"
     app.state.limiter = limiter
-    app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
+    app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)  # type: ignore[arg-type]
 
     FastAPIInstrumentor.instrument_app(app, excluded_urls=settings.OTEL_PYTHON_FASTAPI_EXCLUDED_URLS)
     HTTPXClientInstrumentor().instrument()

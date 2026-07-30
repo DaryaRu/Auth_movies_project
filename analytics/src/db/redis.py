@@ -11,14 +11,14 @@ redis: Optional[Redis] = None
 
 
 class FaultTolerantRedisBackend(RedisBackend):
-    async def get_with_ttl(self, key: str) -> tuple[int, str]:
+    async def get_with_ttl(self, key: str) -> tuple[int, Optional[bytes]]:
         try:
             return await super().get_with_ttl(key)
         except RedisError as e:
             logger.warning("Redis unavailable, cache miss: %s (%s)", key, e)
             return 0, None
 
-    async def set(self, key: str, value: str, expire: int = None):
+    async def set(self, key: str, value: bytes, expire: Optional[int] = None) -> None:
         try:
             await super().set(key, value, expire)
         except RedisError as e:

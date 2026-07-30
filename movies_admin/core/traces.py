@@ -1,3 +1,4 @@
+from django.conf import settings
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
     OTLPSpanExporter,
@@ -11,8 +12,6 @@ from opentelemetry.sdk.trace.export import (
     BatchSpanProcessor,
     ConsoleSpanExporter,
 )
-
-from django.conf import settings
 
 
 def configure_tracer() -> None:

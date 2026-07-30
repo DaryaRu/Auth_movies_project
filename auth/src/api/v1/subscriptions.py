@@ -34,11 +34,11 @@ async def create_subscription(
 ) -> SubscriptionResponseScheme:
     """Создаёт новый тип подписки. Доступно только суперпользователям."""
     try:
-        return await subscription_service.create_subscription(data)
+        return await subscription_service.create_subscription(data)  # type: ignore[return-value]
     except SubscriptionAlreadyExistsException as exc:
-        raise SubscriptionAlreadyExistsHTTPException(detail=exc.detail)
+        raise SubscriptionAlreadyExistsHTTPException(detail=exc.detail) from exc
     except SubscriptionLevelAlreadyExistsException as exc:
-        raise SubscriptionLevelAlreadyExistsHTTPException(detail=exc.detail)
+        raise SubscriptionLevelAlreadyExistsHTTPException(detail=exc.detail) from exc
 
 
 @router.get(
@@ -50,7 +50,7 @@ async def get_all_subscriptions(
     staff_user: StaffUserDep,
 ) -> list[SubscriptionResponseScheme]:
     """Возвращает все типы подписок. Доступно только суперпользователям."""
-    return await subscription_service.get_all_subscriptions()
+    return await subscription_service.get_all_subscriptions()  # type: ignore[return-value]
 
 
 @router.get(
@@ -76,11 +76,11 @@ async def get_subscription(
 ) -> SubscriptionResponseScheme:
     """Возвращает тип подписки по идентификатору. Доступно только суперпользователям."""
     try:
-        return await subscription_service.get_subscription_by_id(
+        return await subscription_service.get_subscription_by_id(  # type: ignore[return-value]
             subscription_id
         )
     except SubscriptionNotFoundException as exc:
-        raise SubscriptionNotFoundHTTPException(detail=exc.detail)
+        raise SubscriptionNotFoundHTTPException(detail=exc.detail) from exc
 
 
 @router.patch(
@@ -95,15 +95,15 @@ async def update_subscription(
 ) -> SubscriptionResponseScheme:
     """Обновляет поля типа подписки. Доступно только суперпользователям."""
     try:
-        return await subscription_service.update_subscription(
+        return await subscription_service.update_subscription(  # type: ignore[return-value]
             subscription_id, data
         )
     except SubscriptionNotFoundException as exc:
-        raise SubscriptionNotFoundHTTPException(detail=exc.detail)
+        raise SubscriptionNotFoundHTTPException(detail=exc.detail) from exc
     except SubscriptionAlreadyExistsException as exc:
-        raise SubscriptionAlreadyExistsHTTPException(detail=exc.detail)
+        raise SubscriptionAlreadyExistsHTTPException(detail=exc.detail) from exc
     except SubscriptionLevelAlreadyExistsException as exc:
-        raise SubscriptionLevelAlreadyExistsHTTPException(detail=exc.detail)
+        raise SubscriptionLevelAlreadyExistsHTTPException(detail=exc.detail) from exc
 
 
 @router.delete(
@@ -120,6 +120,6 @@ async def delete_subscription(
     try:
         await subscription_service.delete_subscription(subscription_id)
     except SubscriptionNotFoundException as exc:
-        raise SubscriptionNotFoundHTTPException(detail=exc.detail)
+        raise SubscriptionNotFoundHTTPException(detail=exc.detail) from exc
     except SubscriptionInUseException as exc:
-        raise SubscriptionInUseHTTPException(detail=exc.detail)
+        raise SubscriptionInUseHTTPException(detail=exc.detail) from exc

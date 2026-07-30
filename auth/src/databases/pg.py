@@ -1,7 +1,8 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import UUID, DateTime
+from sqlalchemy import UUID as SQLAlchemyUUID
+from sqlalchemy import DateTime
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import (
     DeclarativeBase,
@@ -29,8 +30,8 @@ def utc_now() -> datetime:
 class BaseORM:
     """Базовый класс для моделей SQLAlchemy"""
 
-    id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True),
+    id: Mapped[uuid.UUID] = mapped_column(
+        SQLAlchemyUUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
     )

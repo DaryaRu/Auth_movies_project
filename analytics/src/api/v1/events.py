@@ -19,9 +19,10 @@ logger = logging.getLogger(__name__)
 @limiter.limit(settings.EVENTS_RATE_LIMIT)
 async def create_event(request: Request, event: EventResponseIn, user_id: CurrentUserDep) -> Response:
     message = {"user_id": str(user_id), **event.model_dump(mode="json")}
+    assert kafka.buffer is not None
     try:
         kafka.buffer.put_nowait(message)
     except QueueFull:
         logger.error("Kafka buffer is full, rejecting event: type=%s", event.event_type)
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Service temporarily unavailable")
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Service temporarily unavailable") from None
     return Response(status_code=202)

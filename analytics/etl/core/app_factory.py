@@ -1,9 +1,8 @@
 import logging
 
-from faststream import FastStream
-
 from core.lifespans import lifespan
 from extractors import broker
+from faststream import FastStream
 
 
 def create_app() -> FastStream:

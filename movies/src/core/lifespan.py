@@ -1,15 +1,14 @@
 import logging
 from contextlib import asynccontextmanager
 
-from elasticsearch import AsyncElasticsearch
-from fastapi import FastAPI
-from fastapi_cache import FastAPICache
-from redis.asyncio import Redis
-
 from core import config
 from core.cache import key_builder
 from db import elastic, redis
 from db.redis import FaultTolerantRedisBackend
+from elasticsearch import AsyncElasticsearch
+from fastapi import FastAPI
+from fastapi_cache import FastAPICache
+from redis.asyncio import Redis
 
 
 @asynccontextmanager

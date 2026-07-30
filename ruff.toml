@@ -1,5 +1,18 @@
 line-length = 79
 
+[lint]
+select = [
+    "E4",  # pycodestyle: импорты (несколько на строке, импорт не в начале файла)
+    "E7",  # pycodestyle: конструкции
+    "E9",  # pycodestyle:  ошибки синтаксиса, отступов или ввода-вывода
+    "F",   # pyflakes: неиспользуемые импорты/переменные, undefined names
+    "I",   # isort: сортировка и группировка импортов
+    "B",   # flake8-bugbear: вероятные баги и подозрительные конструкции
+]
+
+[lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Path", "fastapi.Security"]
+
 [lint.per-file-ignores]
 "auth/src/migrations/env.py" = ["E402", "F403"]
 "auth/src/models/__init__.py" = ["F403"]
