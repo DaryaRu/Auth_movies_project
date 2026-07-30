@@ -1,7 +1,7 @@
 fastapi[standard]==0.111.0
 python-jose[cryptography]==3.5.0
 elasticsearch[async]==8.13.2
-redis==5.0.4
+redis==7.4.0
 gunicorn>=22,<24
 fastapi-cache2==0.2.2
 Jinja2==3.1.6
