@@ -30,7 +30,7 @@ services:
     ports:
       - "5434:5433"
     environment:
-      VERTICA_DB: ${VERTICA_DATABASE:docker}
+      VERTICA_DB: ${VERTICA_DATABASE:-docker}
       VERTICA_PASSWORD: ${VERTICA_PASSWORD:-password}
     volumes:
       - ./data/vertica_data:/home/postgres/vertica
@@ -38,3 +38,31 @@ services:
       nofile:
         soft: 262144
         hard: 262144
+
+  # Postgres - для сравнения
+  postgres:
+    image: postgres:17
+    container_name: postgres-benchmark
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+    volumes:
+      - ./data/pg_data:/var/lib/postgresql/data
+    restart: always
+  
+  # MongoDB - для сравнения
+  mongodb:
+    image: mongo:latest
+    container_name: mongo-benchmark
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./data/mongo_data:/data/db
+    restart: always
+
+volumes:
+  pg_data:
+  mongo_data:
