@@ -122,6 +122,24 @@ services:
       timeout: 3s
       retries: 5
 
+  user-actions-db:
+    image: postgres:17
+    container_name: user-actions-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: user_actions
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - user_actions_pg_data:/var/lib/postgresql/data
+      - ./user_actions/migrations/001_initial.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d user_actions"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   jaeger-collector:
     image: jaegertracing/jaeger-collector:1.76.0
     environment:
@@ -371,6 +389,41 @@ services:
         gelf-address: "udp://127.0.0.1:12201"
         tag: "{{.Name}}"
 
+  user-actions-service:
+    build: ./user_actions
+    image: user-actions-service-image
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      OTEL_SERVICE_NAME: ${USER_ACTIONS_OTEL_SERVICE_NAME:-user-actions-service}
+      POSTGRES_HOST: user-actions-db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: user_actions
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    command: >
+      sh -c "gunicorn src.main:app
+      --workers 2
+      --worker-class uvicorn.workers.UvicornWorker
+      --bind 0.0.0.0:5000
+      --forwarded-allow-ips=*
+      --timeout 120
+      --error-logfile -"
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:5000/health')\""]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      user-actions-db:
+        condition: service_healthy
+
+
   nginx:
     image: nginx:1.31.2
     restart: unless-stopped
@@ -383,6 +436,8 @@ services:
       - auth-service
       - movies-service
       - movies-admin
+      - analytics-service
+      - user-actions-service
     ports:
       - "80:80"
 
@@ -603,6 +658,7 @@ volumes:
   elastic_data:
   elastic_logs_data:
   movies_pg_data:
+  user_actions_pg_data:
   etl_state:
   kafka_0_data:
   kafka_1_data:

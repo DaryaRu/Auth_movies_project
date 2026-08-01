@@ -117,3 +117,7 @@ logs-etl:
 # Показывает последние 5 событий в ClickHouse (проверка цепочки analytics-service → Kafka → analytics-etl → ClickHouse)
 check-clickhouse:
 	docker compose exec clickhouse-1 clickhouse-client --query "SELECT * FROM analytics.events ORDER BY event_time DESC LIMIT 5"
+
+# user-actions-service
+logs-user-actions:
+	docker compose logs -f user-actions-service
