@@ -97,8 +97,16 @@ test-analytics:
 	docker compose -f analytics/tests/functional/docker-compose.yml --env-file analytics/tests/functional/.env \
 		down -v
 
+# Запускает функциональные тесты user-actions-сервиса
+test-user-actions:
+	docker compose -f user_actions/tests/functional/docker-compose.yml --env-file user_actions/tests/functional/.env \
+		up --build --abort-on-container-exit --exit-code-from tests; \
+	sleep 2; \
+	docker compose -f user_actions/tests/functional/docker-compose.yml --env-file user_actions/tests/functional/.env \
+		down -v
+
 # Запускает тесты всех сервисов
-test-all: test-auth test-movies test-analytics
+test-all: test-auth test-movies test-analytics test-user-actions
 
 # Прогоняет mypy локально по той же матрице, что и CI (build_mypy_matrix.py) —
 # без Docker и без ожидания GitHub Actions. Окружения кэшируются в

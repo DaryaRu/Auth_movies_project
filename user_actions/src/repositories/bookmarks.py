@@ -19,6 +19,6 @@ class BookmarkRepository(BaseRepository):
         """Удалить закладку по user_id и movie_id."""
         return await self.delete_by_filters({"user_id": user_id, "movie_id": movie_id})
 
-    async def get_user_bookmarks(self, user_id: UUID) -> list[dict[str, Any]]:
+    async def get_user_bookmarks(self, user_id: UUID) -> tuple[list[dict[str, Any]], int]:
         """Получить все закладки пользователя."""
         return await self.find_by_user(user_id)

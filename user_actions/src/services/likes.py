@@ -54,11 +54,11 @@ class LikeService:
         """Удалить оценку пользователя для фильма."""
         return await self.repo.delete_by_user_and_movie(user_id, movie_id)
 
-    async def get_user_likes(self, user_id: UUID) -> list[dict[str, Any]]:
+    async def get_user_likes(self, user_id: UUID) -> tuple[list[dict[str, Any]], int]:
         """Получить все оценки пользователя."""
         return await self.repo.get_user_likes(user_id)
 
-    async def get_movie_likes(self, movie_id: UUID) -> list[dict[str, Any]]:
+    async def get_movie_likes(self, movie_id: UUID) -> tuple[list[dict[str, Any]], int]:
         """Получить все оценки для фильма."""
         return await self.repo.get_movie_likes(movie_id)
 

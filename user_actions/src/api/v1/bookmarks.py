@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
-from src.api.v1.dependencies import RequiredTokenPayloadDep
+from src.api.v1.dependencies import CurrentUserDep
 from src.core.config import settings
 from src.repositories.bookmarks import BookmarkRepository
 from src.schemas.bookmarks import (
@@ -41,7 +41,7 @@ BookmarkServiceDep = Depends(get_bookmark_service)
 async def create_bookmark(
     request: Request,
     bookmark_data: BookmarkCreate,
-    user_id: RequiredTokenPayloadDep,
+    user_id: CurrentUserDep,
     bookmark_service: BookmarkService = BookmarkServiceDep,
 ) -> BookmarkResponse:
     """Добавить закладку."""
@@ -58,7 +58,7 @@ async def create_bookmark(
 @limiter.limit(settings.BOOKMARKS_RATE_LIMIT)
 async def get_my_bookmarks(
     request: Request,
-    user_id: RequiredTokenPayloadDep,
+    user_id: CurrentUserDep,
     bookmark_service: BookmarkService = BookmarkServiceDep,
 ) -> BookmarksListResponse:
     """Получить мои закладки."""
@@ -77,7 +77,7 @@ async def get_my_bookmarks(
 @limiter.limit(settings.BOOKMARKS_RATE_LIMIT)
 async def delete_bookmark(
     request: Request,
-    user_id: RequiredTokenPayloadDep,
+    user_id: CurrentUserDep,
     movie_id: UUID = Path(..., description="UUID фильма"),
     bookmark_service: BookmarkService = BookmarkServiceDep,
 ) -> None:

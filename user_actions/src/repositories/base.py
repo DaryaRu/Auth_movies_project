@@ -142,11 +142,11 @@ class BaseRepository(Generic[T]):
             values.append(value)
 
         where_clause = "WHERE " + " AND ".join(where_parts)
-        query = f"DELETE FROM {self.table_name} {where_clause}"
+        query = f"DELETE FROM {self.table_name} {where_clause} RETURNING id"
 
         conn = await PostgreSQL.get_connection()
         try:
-            result = await conn.execute(query, *values)
-            return result == "DELETE 1"
+            row = await conn.fetchrow(query, *values)
+            return row is not None
         finally:
             await PostgreSQL.release_connection(conn)

@@ -41,7 +41,6 @@ class BookmarkService:
         """Удалить закладку."""
         return await self.repo.delete_by_user_and_movie(user_id, movie_id)
 
-    async def get_user_bookmarks(self, user_id: UUID) -> list[dict[str, Any]]:
+    async def get_user_bookmarks(self, user_id: UUID) -> tuple[list[dict[str, Any]], int]:
         """Получить все закладки пользователя."""
         return await self.repo.get_user_bookmarks(user_id)
-

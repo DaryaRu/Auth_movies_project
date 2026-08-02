@@ -1,10 +1,14 @@
 """Сервис для рецензий."""
 
 from datetime import datetime
-from typing import Any, Literal
+from typing import Any
 from uuid import UUID
 
-from src.repositories.reviews import ReviewRepository, ReviewSortField, ReviewSortOrder
+from src.repositories.reviews import (
+    ReviewRepository,
+    ReviewSortField,
+    ReviewSortOrder,
+)
 
 
 class ReviewService:
@@ -57,7 +61,7 @@ class ReviewService:
             update_data["rating"] = rating
         update_data["updated_at"] = datetime.utcnow()
 
-        updated = await self.repo.update(UUID(existing["id"]), update_data)
+        updated = await self.repo.update(existing["id"], update_data)
         return dict(updated) if updated else None
 
     async def get_review(self, user_id: UUID, movie_id: UUID) -> dict[str, Any] | None:

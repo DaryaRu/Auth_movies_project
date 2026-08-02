@@ -1,15 +1,15 @@
 """Зависимости для API."""
 
-from typing import Annotated, Any
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, HTTPException, Query, Security, status
+from fastapi import Depends, HTTPException, Query, Request, Security, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from src.core.config import settings
 from src.utils.jwt import decode_token
 
-_bearer = HTTPBearer(auto_error=False)
+_bearer = HTTPBearer()
 
 
 class PaginationParams:
@@ -42,43 +42,32 @@ def get_pagination_params(
     return PaginationParams(page=page, page_size=page_size)
 
 
-PaginationDepend = Annotated[PaginationParams, Depends(get_pagination_params)]
-
-__all__ = [
-    "PaginationDepend", 
-    "PaginationParams", 
-    "OptionalTokenPayloadDep", 
-    "RequiredTokenPayloadDep"
-]
-
-async def get_token_payload(
-    credentials: Annotated[HTTPAuthorizationCredentials | None, Security(_bearer)] = None,
-) -> dict[str, Any] | None:
-    """Декодирует Bearer-токен из Swagger/Заголовка. Возвращает None если токен отсутствует."""
-    if credentials is None:
-        return None
-    
-    return await decode_token(credentials.credentials)
-
-
-async def require_token_payload(
-    payload: Annotated[dict[str, Any] | None, Depends(get_token_payload)],
+async def get_current_user(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Security(_bearer),
 ) -> UUID:
-    """Требует валидный JWT-токен. Возвращает 401 если токен отсутствует или невалиден."""
+    """Получить текущего пользователя из JWT-токена."""
+    exception_401 = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Not authenticated",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    payload = await decode_token(credentials.credentials)
     if payload is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise exception_401
     user_id = payload.get("sub")
     if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token payload",
-        )
-    return UUID(user_id)
+        raise exception_401
+    user_uuid = UUID(user_id)
+    request.state.user_id = user_uuid
+    return user_uuid
 
 
-OptionalTokenPayloadDep = Annotated[dict[str, Any] | None, Depends(get_token_payload)]
-RequiredTokenPayloadDep = Annotated[UUID, Depends(require_token_payload)]
+PaginationDepend = Annotated[PaginationParams, Depends(get_pagination_params)]
+CurrentUserDep = Annotated[UUID, Depends(get_current_user)]
+
+__all__ = [
+    "PaginationDepend",
+    "PaginationParams",
+    "CurrentUserDep",
+]

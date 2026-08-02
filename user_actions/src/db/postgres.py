@@ -34,6 +34,7 @@ class PostgreSQL:
         """Получение соединения из пула."""
         if cls.pool is None:
             await cls.connect()
+        assert cls.pool is not None
         return await cls.pool.acquire()
 
     @classmethod

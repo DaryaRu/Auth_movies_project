@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
-from src.api.v1.dependencies import RequiredTokenPayloadDep
+from src.api.v1.dependencies import CurrentUserDep
 from src.core.config import settings
 from src.repositories.likes import LikeRepository
 from src.schemas.likes import (
@@ -42,7 +42,7 @@ LikeServiceDep = Depends(get_like_service)
 async def create_or_update_like(
     request: Request,
     like_data: LikeCreate,
-    user_id: RequiredTokenPayloadDep,
+    user_id: CurrentUserDep,
     like_service: LikeService = LikeServiceDep,
 ) -> LikeResponse:
     """Создать или обновить оценку."""
@@ -59,7 +59,7 @@ async def create_or_update_like(
 @limiter.limit(settings.LIKES_RATE_LIMIT)
 async def get_my_likes(
     request: Request,
-    user_id: RequiredTokenPayloadDep,
+    user_id: CurrentUserDep,
     like_service: LikeService = LikeServiceDep,
 ) -> LikesListResponse:
     """Получить мои оценки."""
@@ -81,7 +81,7 @@ async def get_movie_likes(
 ) -> list[LikeResponse]:
     """Получить оценки фильма."""
     likes_list, total = await like_service.get_movie_likes(movie_id)
-    return [LikeResponse(**item) for item in likes_list]
+    return [LikeResponse(**item) for item in likes_list]  # type: ignore[arg-type]
 
 
 @router.get(
@@ -110,7 +110,7 @@ async def get_movie_stats(
 @limiter.limit(settings.LIKES_RATE_LIMIT)
 async def delete_like(
     request: Request,
-    user_id: RequiredTokenPayloadDep,
+    user_id: CurrentUserDep,
     movie_id: UUID = Path(..., description="UUID фильма"),
     like_service: LikeService = LikeServiceDep,
 ) -> None:

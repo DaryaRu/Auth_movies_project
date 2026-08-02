@@ -4,11 +4,19 @@ from http import HTTPStatus
 from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Path,
+    Query,
+    Request,
+    status,
+)
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
-from src.api.v1.dependencies import RequiredTokenPayloadDep
+from src.api.v1.dependencies import CurrentUserDep, PaginationDepend
 from src.core.config import settings
 from src.repositories.review_likes import ReviewLikeRepository
 from src.repositories.reviews import (
@@ -24,24 +32,6 @@ from src.schemas.reviews import (
 )
 from src.services.review_likes import ReviewLikeService
 from src.services.reviews import ReviewService
-
-
-class PaginationParams:
-    """Параметры пагинации для endpoints."""
-
-    def __init__(
-        self,
-        page: int = Query(default=1, ge=1, description="Номер страницы"),
-        page_size: int = Query(
-            default=settings.PAGINATION_DEFAULT_PAGE_SIZE,
-            ge=1,
-            le=settings.PAGINATION_MAX_PAGE_SIZE,
-            description="Количество элементов на странице",
-        ),
-    ):
-        self.page = page
-        self.page_size = page_size
-
 
 router = APIRouter(prefix="/reviews", tags=["reviews"])
 limiter = Limiter(key_func=get_remote_address)
@@ -93,7 +83,7 @@ SortOrderQuery = Annotated[
 async def create_review(
     request: Request,
     review_data: ReviewCreate,
-    user_id: RequiredTokenPayloadDep,
+    user_id: CurrentUserDep,
     review_service: ReviewService = ReviewServiceDep,
 ) -> ReviewResponse:
     """Создать рецензию."""
@@ -106,7 +96,7 @@ async def create_review(
         raise HTTPException(
             status_code=HTTPStatus.CONFLICT,
             detail=str(e),
-        )
+        ) from e
 
 
 @router.get(
@@ -118,10 +108,10 @@ async def create_review(
 @limiter.limit(settings.REVIEWS_RATE_LIMIT)
 async def get_my_reviews(
     request: Request,
-    user_id: RequiredTokenPayloadDep,
-    pagination: Annotated[PaginationParams, Depends(PaginationParams)],
-    sort_by: Annotated[ReviewSortField, SortByQuery],
-    sort_order: Annotated[ReviewSortOrder, SortOrderQuery],
+    user_id: CurrentUserDep,
+    pagination: PaginationDepend,
+    sort_by: Annotated[ReviewSortField, SortByQuery] = "created_at",
+    sort_order: Annotated[ReviewSortOrder, SortOrderQuery] = "DESC",
     review_service: ReviewService = ReviewServiceDep,
     review_like_service: ReviewLikeService = ReviewLikeServiceDep,
 ) -> ReviewsListResponse:
@@ -173,10 +163,10 @@ async def get_my_reviews(
 @limiter.limit(settings.REVIEWS_RATE_LIMIT)
 async def get_movie_reviews(
     request: Request,
-    pagination: Annotated[PaginationParams, Depends(PaginationParams)],
+    pagination: PaginationDepend,
     movie_id: UUID = Path(..., description="UUID фильма"),
-    sort_by: ReviewSortField = SortByQuery,
-    sort_order: ReviewSortOrder = SortOrderQuery,
+    sort_by: Annotated[ReviewSortField, SortByQuery] = "created_at",
+    sort_order: Annotated[ReviewSortOrder, SortOrderQuery] = "DESC",
     review_service: ReviewService = ReviewServiceDep,
     review_like_service: ReviewLikeService = ReviewLikeServiceDep,
 ) -> ReviewsListResponse:
@@ -188,14 +178,12 @@ async def get_movie_reviews(
         sort_by=sort_by,
         sort_order=sort_order,
     )
-    
-    # Добавляем статистику лайков к каждой рецензии
-    review_ids = [UUID(item["id"]) for item in result["items"]]
+    review_ids = [item["id"] for item in result["items"]]
     likes_stats = await review_like_service.get_reviews_stats(review_ids)
-    
+
     items_with_stats = []
     for item in result["items"]:
-        review_id = UUID(item["id"])
+        review_id = item["id"]
         stats = likes_stats.get(review_id, {"likes": 0, "dislikes": 0, "total": 0, "score": 0})
         items_with_stats.append({
             **item,
@@ -203,7 +191,7 @@ async def get_movie_reviews(
             "dislikes_count": stats["dislikes"],
             "score": stats["score"],
         })
-    
+
     return ReviewsListResponse(
         items=[ReviewResponse(**item) for item in items_with_stats],
         total=result["total"],
@@ -236,7 +224,7 @@ async def get_movie_stats(
 @limiter.limit(settings.REVIEWS_RATE_LIMIT)
 async def update_review(
     request: Request,
-    user_id: RequiredTokenPayloadDep,
+    user_id: CurrentUserDep,
     movie_id: UUID = Path(..., description="UUID фильма"),
     review_data: ReviewUpdate | None = None,
     review_service: ReviewService = ReviewServiceDep,
@@ -267,7 +255,7 @@ async def update_review(
 @limiter.limit(settings.REVIEWS_RATE_LIMIT)
 async def delete_review(
     request: Request,
-    user_id: RequiredTokenPayloadDep,
+    user_id: CurrentUserDep,
     movie_id: UUID = Path(..., description="UUID фильма"),
     review_service: ReviewService = ReviewServiceDep,
 ) -> None:

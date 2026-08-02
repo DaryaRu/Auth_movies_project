@@ -3,6 +3,9 @@
 from logging import config as logging_config
 
 from fastapi import FastAPI
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
+from opentelemetry.instrumentation.redis import RedisInstrumentor
 from slowapi.errors import RateLimitExceeded
 
 from src.core import logger
@@ -11,11 +14,14 @@ from src.core.lifespan import lifespan
 from src.core.limiter import limiter, rate_limit_exceeded_handler
 from src.core.middlewares import register_middlewares
 from src.core.routers import register_routers
+from src.core.tracers import configure_tracer
 
 
 def create_app() -> FastAPI:
     """Создает и настраивает приложение FastAPI."""
     logging_config.dictConfig(logger.LOGGING)
+
+    configure_tracer()
 
     app = FastAPI(
         title=settings.PROJECT_NAME,
@@ -32,5 +38,9 @@ def create_app() -> FastAPI:
 
     register_middlewares(app)
     register_routers(app)
+
+    FastAPIInstrumentor.instrument_app(app, excluded_urls=settings.OTEL_PYTHON_FASTAPI_EXCLUDED_URLS)
+    HTTPXClientInstrumentor().instrument()
+    RedisInstrumentor().instrument()
 
     return app
