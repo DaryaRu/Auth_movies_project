@@ -311,6 +311,7 @@ services:
     build: ./analytics
     image: analytics-service-image
     container_name: analytics-service
+    profiles: ["analytics"]
     restart: unless-stopped
     env_file: .env
     environment:
@@ -360,12 +361,12 @@ services:
       - auth-service
       - movies-service
       - movies-admin
-      - analytics-service
     ports:
       - "80:80"
 
   kafka-0:
     image: apache/kafka:3.7.0
+    profiles: ["analytics"]
     restart: unless-stopped
     ports:
       - "9094:9094"
@@ -384,6 +385,7 @@ services:
 
   kafka-1:
     image: apache/kafka:3.7.0
+    profiles: ["analytics"]
     restart: unless-stopped
     ports:
       - "9095:9095"
@@ -402,6 +404,7 @@ services:
 
   kafka-2:
     image: apache/kafka:3.7.0
+    profiles: ["analytics"]
     restart: unless-stopped
     ports:
       - "9096:9096"
@@ -420,6 +423,7 @@ services:
 
   kafka-topic-init-1:
     image: apache/kafka:3.7.0
+    profiles: ["analytics"]
     restart: on-failure
     depends_on:
       - kafka-0
@@ -437,6 +441,7 @@ services:
 
   kafka-topic-init-2:
     image: apache/kafka:3.7.0
+    profiles: ["analytics"]
     restart: on-failure
     depends_on:
       - kafka-0
@@ -454,6 +459,7 @@ services:
 
   ui:
     image: provectuslabs/kafka-ui:v0.7.0
+    profiles: ["analytics"]
     restart: unless-stopped
     ports:
       - "8080:8080"
@@ -469,6 +475,7 @@ services:
     image: zookeeper:3.8
     container_name: zookeeper
     hostname: zookeeper
+    profiles: ["analytics"]
     ports:
       - "2181:2181"
 
@@ -476,6 +483,7 @@ services:
     image: clickhouse/clickhouse-server:23.8
     container_name: clickhouse-1
     hostname: clickhouse-1
+    profiles: ["analytics"]
     environment:
       CLICKHOUSE_DB: ${CLICKHOUSE_DB}
       CLICKHOUSE_USER: ${CLICKHOUSE_USER}
@@ -495,6 +503,7 @@ services:
     image: clickhouse/clickhouse-server:23.8
     container_name: clickhouse-2
     hostname: clickhouse-2
+    profiles: ["analytics"]
     environment:
       CLICKHOUSE_DB: ${CLICKHOUSE_DB}
       CLICKHOUSE_USER: ${CLICKHOUSE_USER}
@@ -514,6 +523,7 @@ services:
     image: clickhouse/clickhouse-server:23.8
     container_name: clickhouse-3
     hostname: clickhouse-3
+    profiles: ["analytics"]
     environment:
       CLICKHOUSE_DB: ${CLICKHOUSE_DB}
       CLICKHOUSE_USER: ${CLICKHOUSE_USER}
@@ -532,6 +542,7 @@ services:
   analytics-etl:
     build: ./analytics/etl
     image: analytics-etl-image
+    profiles: ["analytics"]
     restart: unless-stopped
     environment:
       CLICKHOUSE_URL: ${CLICKHOUSE_URL}
