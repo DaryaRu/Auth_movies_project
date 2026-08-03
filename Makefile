@@ -39,6 +39,13 @@ build-nc:
 up:
 	docker compose up -d --remove-orphans
 
+# То же, что up, но дополнительно поднимает сервисы c profile analytics
+# (Kafka, ClickHouse, analytics-service, analytics-etl),
+# которые нужны только для работы с аналитикой.
+# По дефолту они не поднимаются, так как потребуется много памяти на все.
+up-analytics:
+	docker compose --profile analytics up -d --remove-orphans
+
 # Останавливает контейнеры без удаления томов
 down:
 	docker compose down
