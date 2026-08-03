@@ -81,9 +81,31 @@ services:
       ELASTICSEARCH_HOSTS: ${ELASTICSEARCH_LOGS_URL}
     ports:
       - "5601:5601"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:5601/api/status >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
     depends_on:
       elasticsearch-logs:
         condition: service_healthy
+
+  # Создание Data View в Kibana через Saved Objects API, чтобы не создавать вручную.
+  # Так как id зафиксирован, повторный запуск просто получит ошибку от
+  # Kibana (Duplicate data view). curl без -f, контейнер выйдет с 0.
+  # restart: on-failure на случай настоящего сбоя.
+  # Чтобы посмотреть содержимое индексов после создания паттерна, нужно перейти в Kibana → Discover.
+  kibana-data-view-init:
+    image: curlimages/curl:8.11.0
+    restart: on-failure
+    depends_on:
+      kibana:
+        condition: service_healthy
+    entrypoint: >
+      sh -c "curl -sS -X POST http://kibana:5601/api/data_views/data_view
+      -H 'kbn-xsrf: true' -H 'Content-Type: application/json'
+      -d '{\"data_view\": {\"id\": \"logs-data-view\", \"title\": \"auth-service-*,movies-service-*,movies-admin-*,analytics-service-*\", \"name\": \"logs\", \"timeFieldName\": \"@timestamp\"}}'"
 
   redis:
     image: redis:7-alpine
