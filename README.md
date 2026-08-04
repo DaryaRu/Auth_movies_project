@@ -351,6 +351,10 @@ UI Jaeger доступен на `http://localhost/tracers/` — показыва
 SENTRY_DSN=https://...@....ingest.sentry.io/...
 ```
 
+**Проверка:**
+```bash
+make test-sentry-error  # тестовое исключение с auth/movies/movies-admin/user-actions
+```
 Смотреть в Sentry → Issues.
 
 
