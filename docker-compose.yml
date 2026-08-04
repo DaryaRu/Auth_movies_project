@@ -44,6 +44,69 @@ services:
       timeout: 5s
       retries: 10
 
+  # ES под логи (ELK).
+  elasticsearch-logs:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.12.2
+    restart: unless-stopped
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+    volumes:
+      - elastic_logs_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9200 >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.12.2
+    restart: unless-stopped
+    volumes:
+      - ./infra/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+    ports:
+      - "12201:12201/udp"
+    environment:
+      - "LS_JAVA_OPTS=-Xms256m -Xmx256m"
+      - "ELASTICSEARCH_LOGS_URL=${ELASTICSEARCH_LOGS_URL}"
+    depends_on:
+      elasticsearch-logs:
+        condition: service_healthy
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.12.2
+    restart: unless-stopped
+    environment:
+      ELASTICSEARCH_HOSTS: ${ELASTICSEARCH_LOGS_URL}
+    ports:
+      - "5601:5601"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:5601/api/status >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    depends_on:
+      elasticsearch-logs:
+        condition: service_healthy
+
+  # Создание Data View в Kibana через Saved Objects API, чтобы не создавать вручную.
+  # Так как id зафиксирован, повторный запуск просто получит ошибку от
+  # Kibana (Duplicate data view). curl без -f, контейнер выйдет с 0.
+  # restart: on-failure на случай настоящего сбоя.
+  # Чтобы посмотреть содержимое индексов после создания паттерна, нужно перейти в Kibana → Discover.
+  kibana-data-view-init:
+    image: curlimages/curl:8.11.0
+    restart: on-failure
+    depends_on:
+      kibana:
+        condition: service_healthy
+    entrypoint: >
+      sh -c "curl -sS -X POST http://kibana:5601/api/data_views/data_view
+      -H 'kbn-xsrf: true' -H 'Content-Type: application/json'
+      -d '{\"data_view\": {\"id\": \"logs-data-view\", \"title\": \"auth-service-*,movies-service-*,movies-admin-*,analytics-service-*\", \"name\": \"logs\", \"timeFieldName\": \"@timestamp\"}}'"
+
   redis:
     image: redis:7-alpine
     restart: unless-stopped
@@ -106,6 +169,7 @@ services:
   auth-service:
     build: ./auth
     image: auth-image
+    container_name: auth-service
     restart: unless-stopped
     env_file: .env
     command: >
@@ -130,6 +194,11 @@ services:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
+    logging:
+      driver: gelf
+      options:
+        gelf-address: "udp://127.0.0.1:12201"
+        tag: "{{.Name}}"
 
   movies-admin-migrate:
     build: ./movies_admin
@@ -156,6 +225,7 @@ services:
 
   movies-admin:
     image: movies-admin-image
+    container_name: movies-admin
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${MOVIES_POSTGRES_DB}
@@ -187,10 +257,16 @@ services:
     depends_on:
       movies-admin-migrate:
         condition: service_completed_successfully
+    logging:
+      driver: gelf
+      options:
+        gelf-address: "udp://127.0.0.1:12201"
+        tag: "{{.Name}}"
 
   movies-service:
     build: ./movies
     image: movies-service-image
+    container_name: movies-service
     restart: unless-stopped
     environment:
       ELASTIC_HOST: ${ELASTIC_HOST}
@@ -223,6 +299,11 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    logging:
+      driver: gelf
+      options:
+        gelf-address: "udp://127.0.0.1:12201"
+        tag: "{{.Name}}"
 
   movies-etl:
     build: ./movies/etl
@@ -251,6 +332,8 @@ services:
   analytics-service:
     build: ./analytics
     image: analytics-service-image
+    container_name: analytics-service
+    profiles: ["analytics"]
     restart: unless-stopped
     env_file: .env
     environment:
@@ -282,6 +365,11 @@ services:
         condition: service_started
       kafka-topic-init-1:
         condition: service_completed_successfully
+    logging:
+      driver: gelf
+      options:
+        gelf-address: "udp://127.0.0.1:12201"
+        tag: "{{.Name}}"
 
   nginx:
     image: nginx:1.31.2
@@ -295,12 +383,12 @@ services:
       - auth-service
       - movies-service
       - movies-admin
-      - analytics-service
     ports:
       - "80:80"
 
   kafka-0:
     image: apache/kafka:3.7.0
+    profiles: ["analytics"]
     restart: unless-stopped
     ports:
       - "9094:9094"
@@ -319,6 +407,7 @@ services:
 
   kafka-1:
     image: apache/kafka:3.7.0
+    profiles: ["analytics"]
     restart: unless-stopped
     ports:
       - "9095:9095"
@@ -337,6 +426,7 @@ services:
 
   kafka-2:
     image: apache/kafka:3.7.0
+    profiles: ["analytics"]
     restart: unless-stopped
     ports:
       - "9096:9096"
@@ -355,6 +445,7 @@ services:
 
   kafka-topic-init-1:
     image: apache/kafka:3.7.0
+    profiles: ["analytics"]
     restart: on-failure
     depends_on:
       - kafka-0
@@ -372,6 +463,7 @@ services:
 
   kafka-topic-init-2:
     image: apache/kafka:3.7.0
+    profiles: ["analytics"]
     restart: on-failure
     depends_on:
       - kafka-0
@@ -389,6 +481,7 @@ services:
 
   ui:
     image: provectuslabs/kafka-ui:v0.7.0
+    profiles: ["analytics"]
     restart: unless-stopped
     ports:
       - "8080:8080"
@@ -404,6 +497,7 @@ services:
     image: zookeeper:3.8
     container_name: zookeeper
     hostname: zookeeper
+    profiles: ["analytics"]
     ports:
       - "2181:2181"
 
@@ -411,6 +505,7 @@ services:
     image: clickhouse/clickhouse-server:23.8
     container_name: clickhouse-1
     hostname: clickhouse-1
+    profiles: ["analytics"]
     environment:
       CLICKHOUSE_DB: ${CLICKHOUSE_DB}
       CLICKHOUSE_USER: ${CLICKHOUSE_USER}
@@ -430,6 +525,7 @@ services:
     image: clickhouse/clickhouse-server:23.8
     container_name: clickhouse-2
     hostname: clickhouse-2
+    profiles: ["analytics"]
     environment:
       CLICKHOUSE_DB: ${CLICKHOUSE_DB}
       CLICKHOUSE_USER: ${CLICKHOUSE_USER}
@@ -449,6 +545,7 @@ services:
     image: clickhouse/clickhouse-server:23.8
     container_name: clickhouse-3
     hostname: clickhouse-3
+    profiles: ["analytics"]
     environment:
       CLICKHOUSE_DB: ${CLICKHOUSE_DB}
       CLICKHOUSE_USER: ${CLICKHOUSE_USER}
@@ -467,6 +564,7 @@ services:
   analytics-etl:
     build: ./analytics/etl
     image: analytics-etl-image
+    profiles: ["analytics"]
     restart: unless-stopped
     environment:
       CLICKHOUSE_URL: ${CLICKHOUSE_URL}
@@ -503,6 +601,7 @@ volumes:
   auth_pg_data:
   redis_data:
   elastic_data:
+  elastic_logs_data:
   movies_pg_data:
   etl_state:
   kafka_0_data:

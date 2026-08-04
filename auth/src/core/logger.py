@@ -31,6 +31,9 @@ LOGGING = {
             "level": "DEBUG",
             "class": "logging.StreamHandler",
             "formatter": "verbose",
+            # Прописываем stream, чтобы логи по умолчанию не записывались
+            # в stderr и не интерпретировались GELF с неверным уровнем.
+            "stream": "ext://sys.stdout",
         },
         "default": {
             "formatter": "default",
