@@ -18,7 +18,7 @@ from src.schemas.likes import (
 )
 from src.services.likes import LikeService
 
-router = APIRouter(prefix="/likes", tags=["likes"])
+router = APIRouter(prefix="/user-actions/likes", tags=["likes"])
 limiter = Limiter(key_func=get_remote_address)
 
 

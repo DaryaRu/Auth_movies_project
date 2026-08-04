@@ -22,7 +22,7 @@ class TestSettings(BaseSettings):
     postgres_password: str = Field(default="postgres", alias="POSTGRES_PASSWORD")
 
     api_url: str = Field(default="http://test-user-actions-service:6001", alias="API_URL")
-    api_prefix: str = Field(default="/api/v1", alias="API_PREFIX")
+    api_prefix: str = Field(default="/api/v1/user-actions", alias="API_PREFIX")
     environment: str = Field(default="test", alias="ENVIRONMENT")
     private_key_path: str = Field(alias="PRIVATE_KEY_PATH")
 
