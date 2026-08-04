@@ -17,7 +17,7 @@ from src.schemas.bookmarks import (
 )
 from src.services.bookmarks import BookmarkService
 
-router = APIRouter(prefix="/bookmarks", tags=["bookmarks"])
+router = APIRouter(prefix="/user-actions/bookmarks", tags=["bookmarks"])
 limiter = Limiter(key_func=get_remote_address)
 
 
