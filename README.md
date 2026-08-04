@@ -329,4 +329,38 @@ ETL → ClickHouse:
 
 ## Трассировка
 
-UI Jaeger доступен на `http://localhost/tracers/` — показывает трейсы всех запросов к auth-service, movies-service и movies-admin.
+UI Jaeger доступен на `http://localhost/tracers/` — показывает трейсы всех запросов к auth-service, movies-service, movies-admin и user-actions-service.
+
+
+## Логирование (ELK)
+
+Логи `auth-service`, `movies-service`, `movies-admin`, `analytics-service`, `user-actions-service` уходят через Docker GELF-драйвер → Logstash → отдельный Elasticsearch (`elasticsearch-logs`) → индексы вида `<имя сервиса>-YYYY.MM.DD`.
+
+**Проверка:**
+1. Открыть Kibana: `http://localhost:5601`
+2. Data View создаётся автоматически при (`kibana-data-view-init`, паттерн `auth-service-*,movies-service-*,movies-admin-*,analytics-service-*,user-actions-service-*`, имя "logs")
+3. Discover → data view "logs" → Time range "Last 15 minutes", чтобы посмотреть свежие записи
+
+
+## Sentry (для мониторинга ошибок)
+
+Необработанные исключения из auth-service, movies-service, movies-admin, analytics-service, user-actions-service отправляются в Sentry (sentry.io). Трейсы в Jaeger.
+
+**Настройка:** создать проект на [sentry.io](https://sentry.io) → Settings → Projects → [проект] → SDK Setup → Client Keys (DSN), вписать в `.env`:
+```
+SENTRY_DSN=https://...@....ingest.sentry.io/...
+```
+
+Смотреть в Sentry → Issues.
+
+
+## CI
+
+GitHub Actions (`.github/workflows/ci.yml`) на каждый push/PR в `main`:
+
+- **lint** — ruff
+- **mypy** — по всем сервисам, матрица строится автоматически по расположению `requirements.txt` (`.github/scripts/build_mypy_matrix.py`)
+- **функциональные тесты** — auth, movies, analytics, user-actions, каждый на Python 3.10/3.11/3.12
+- **notify** — уведомление о результатах прогона в Telegram
+
+Чтобы проверить локально mypy, использовать `make mypy` (та же матрица, окружения кэшируются в `.mypy-check-venvs/`).
