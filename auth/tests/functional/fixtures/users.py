@@ -1,7 +1,7 @@
 """Фикстуры пользователей: данные, создание в БД, токены и заголовки авторизации."""
 
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Awaitable, Callable, Iterable
 
 import aiohttp
@@ -26,8 +26,8 @@ def active_user_data() -> dict[str, Any]:
         "password": "testpassword123",
         "is_superuser": False,
         "is_active": True,
-        "created_at": datetime.now(UTC),
-        "updated_at": datetime.now(UTC),
+        "created_at": datetime.now(timezone.utc),
+        "updated_at": datetime.now(timezone.utc),
     }
 
 
@@ -56,8 +56,8 @@ def superuser_data() -> dict[str, Any]:
         "password": "superpassword123",
         "is_superuser": True,
         "is_active": True,
-        "created_at": datetime.now(UTC),
-        "updated_at": datetime.now(UTC),
+        "created_at": datetime.now(timezone.utc),
+        "updated_at": datetime.now(timezone.utc),
     }
 
 
@@ -100,8 +100,8 @@ def regular_user_for_roles_data() -> dict[str, Any]:
         "password": "regularpassword123",
         "is_superuser": False,
         "is_active": True,
-        "created_at": datetime.now(UTC),
-        "updated_at": datetime.now(UTC),
+        "created_at": datetime.now(timezone.utc),
+        "updated_at": datetime.now(timezone.utc),
     }
 
 
