@@ -15,11 +15,11 @@ import jwt
 import pytest
 import pytest_asyncio
 
-from user_actions.tests.functional.utils.helpers import (
+from tests.functional.utils.helpers import (
     create_data,
     delete_data,
 )
-from user_actions.tests.settings import test_settings
+from tests.settings import test_settings
 
 WriteData = Callable[
     [str, Collection[str], Iterable[Any]],

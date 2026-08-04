@@ -21,10 +21,67 @@ services:
       timeout: 3s
       retries: 10
 
-  user-actions-app:
+  auth-db:
+    image: postgres:17
+    env_file: .env
+    environment:
+      POSTGRES_DB: ${AUTH_POSTGRES_DB:-auth_db}
+      POSTGRES_USER: ${AUTH_POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${AUTH_POSTGRES_PASSWORD:-postgres}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${AUTH_POSTGRES_USER:-postgres} -d ${AUTH_POSTGRES_DB:-auth_db}"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  auth-service:
     build:
-      context: ../../..
-      dockerfile: user_actions/Dockerfile
+      context: ../../../auth
+      dockerfile: Dockerfile
+      args:
+        PYTHON_VERSION: ${PYTHON_VERSION:-3.12}
+    image: auth-image
+    env_file: .env
+    environment:
+      POSTGRES_HOST: ${AUTH_POSTGRES_HOST:-auth-db}
+      POSTGRES_PORT: ${AUTH_POSTGRES_PORT:-5432}
+      POSTGRES_DB: ${AUTH_POSTGRES_DB:-auth_db}
+      POSTGRES_USER: ${AUTH_POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${AUTH_POSTGRES_PASSWORD:-postgres}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_ALGORITHM: RS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 30
+      REFRESH_TOKEN_EXPIRE_DAYS: 7
+      DEBUG: 1
+      ENVIRONMENT: test
+    command: >
+      sh -c "gunicorn src.main:app
+      --workers 2
+      --worker-class uvicorn.workers.UvicornWorker
+      --bind 0.0.0.0:7000
+      --forwarded-allow-ips=*
+      --timeout 120
+      --error-logfile -"
+    volumes:
+      - ../../../private.pem:/app/keys/private.pem:ro
+      - ../../../public.pem:/app/keys/public.pem:ro
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:7000/health')\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    depends_on:
+      auth-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  test-user-actions-service:
+    build:
+      context: ../../
+      dockerfile: Dockerfile
       args:
         PYTHON_VERSION: ${PYTHON_VERSION:-3.12}
     image: user-actions-image
@@ -47,21 +104,25 @@ services:
       - ../../../public.pem:/app/keys/public.pem:ro
 
   tests:
-    image: user-actions-image
+    build:
+      context: ../../
+      dockerfile: tests/functional/Dockerfile
+      args:
+        PYTHON_VERSION: ${PYTHON_VERSION:-3.12}
+    image: user-actions-tests-image
     env_file: .env
     working_dir: /app
     volumes:
-      - ../../../user_actions:/app/user_actions
       - ../../../private.pem:/app/keys/private.pem:ro
       - ../../../public.pem:/app/keys/public.pem:ro
     ports:
       - "5679:5678"
     depends_on:
-      user-actions-app:
+      test-user-actions-service:
         condition: service_healthy
       postgres:
         condition: service_healthy
-    entrypoint: sh /app/user_actions/tests/functional/entrypoint.sh
+    entrypoint: sh /app/tests/functional/entrypoint.sh
 
 
 volumes:

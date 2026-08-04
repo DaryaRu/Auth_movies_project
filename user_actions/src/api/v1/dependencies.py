@@ -9,7 +9,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from src.core.config import settings
 from src.utils.jwt import decode_token
 
-_bearer = HTTPBearer()
+_bearer = HTTPBearer(auto_error=False)
 
 
 class PaginationParams:
@@ -44,7 +44,7 @@ def get_pagination_params(
 
 async def get_current_user(
     request: Request,
-    credentials: HTTPAuthorizationCredentials = Security(_bearer),
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Security(_bearer)] = None,
 ) -> UUID:
     """Получить текущего пользователя из JWT-токена."""
     exception_401 = HTTPException(
@@ -52,6 +52,8 @@ async def get_current_user(
         detail="Not authenticated",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    if credentials is None:
+        raise exception_401
     payload = await decode_token(credentials.credentials)
     if payload is None:
         raise exception_401

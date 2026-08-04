@@ -6,10 +6,10 @@ from uuid import uuid4
 import pytest
 from aiohttp import ClientSession
 
-from user_actions.tests.functional.utils.check_methods import (
+from tests.functional.utils.check_methods import (
     assert_status_return_json,
 )
-from user_actions.tests.settings import test_settings
+from tests.settings import test_settings
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 

@@ -5,7 +5,7 @@ import logging
 
 from redis.asyncio import Redis
 
-from user_actions.tests.settings import test_settings
+from tests.settings import test_settings
 
 
 async def wait_for_redis() -> None:

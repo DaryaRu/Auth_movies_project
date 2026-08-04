@@ -16,3 +16,4 @@ RUN pip install --upgrade pip \
 
 COPY src/ /app/src/
 COPY migrations/ /app/migrations/
+COPY tests/ /app/tests/

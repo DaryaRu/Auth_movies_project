@@ -5,7 +5,7 @@ import logging
 
 import asyncpg
 
-from user_actions.tests.settings import test_settings
+from tests.settings import test_settings
 
 
 async def wait_for_postgres() -> None:

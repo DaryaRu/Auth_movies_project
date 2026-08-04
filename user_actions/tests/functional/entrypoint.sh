@@ -1,16 +1,16 @@
 #!/bin/sh
 
-export PYTHONPATH=$PYTHONPATH=/app:/app/user_actions
+export PYTHONPATH=/app:/app/tests
 
-pip install -r user_actions/tests/functional/requirements.txt --quiet
+pip install -r /app/tests/functional/requirements.txt --quiet
 
-python3 user_actions/tests/functional/utils/wait_for_pg.py
-python3 user_actions/tests/functional/utils/wait_for_redis.py
+python3 /app/tests/functional/utils/wait_for_pg.py
+python3 /app/tests/functional/utils/wait_for_redis.py
 
 if [ "$DEBUG" = "1" ]; then
     pip install debugpy --quiet
     python3 -m debugpy --listen 0.0.0.0:5678 --wait-for-client \
-        -m pytest user_actions/tests/functional/src -c user_actions/tests/functional/pytest.ini -v
+        -m pytest /app/tests/functional/src -c /app/tests/functional/pytest.ini -v
 else
-    pytest user_actions/tests/functional/src -c user_actions/tests/functional/pytest.ini -vv -s
+    pytest /app/tests/functional/src -c /app/tests/functional/pytest.ini -vv -s
 fi

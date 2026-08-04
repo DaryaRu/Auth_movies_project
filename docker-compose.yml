@@ -396,6 +396,7 @@ services:
     env_file: .env
     environment:
       OTEL_SERVICE_NAME: ${USER_ACTIONS_OTEL_SERVICE_NAME:-user-actions-service}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
       POSTGRES_HOST: user-actions-db
       POSTGRES_PORT: 5432
       POSTGRES_DB: user_actions
@@ -422,7 +423,8 @@ services:
         condition: service_healthy
       user-actions-db:
         condition: service_healthy
-
+      otel-collector:
+        condition: service_started
 
   nginx:
     image: nginx:1.31.2
@@ -436,7 +438,6 @@ services:
       - auth-service
       - movies-service
       - movies-admin
-      - analytics-service
       - user-actions-service
     ports:
       - "80:80"

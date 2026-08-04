@@ -8,7 +8,7 @@ class TestSettings(BaseSettings):
     """Settings for tests."""
 
     model_config = SettingsConfigDict(
-        env_file=[".env"],
+        env_file=["/app/tests/functional/.env"],
         env_file_encoding="utf-8",
         extra="ignore"
     )
