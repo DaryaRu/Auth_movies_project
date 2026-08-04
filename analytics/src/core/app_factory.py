@@ -12,12 +12,14 @@ from src.core.lifespan import lifespan
 from src.core.limiter import limiter, rate_limit_exceeded_handler
 from src.core.middlewares import register_middlewares
 from src.core.routers import register_routers
+from src.core.sentry import sentry_init
 from src.core.tracers import configure_tracer
 
 
 def create_app() -> FastAPI:
     logging_config.dictConfig(logger.LOGGING)
     configure_tracer()
+    sentry_init()
 
     app = FastAPI(
         title=settings.PROJECT_NAME,

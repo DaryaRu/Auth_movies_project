@@ -48,6 +48,7 @@ class Settings(BaseSettings):
     OTEL_SERVICE_NAME: str
     ENVIRONMENT: str
     OTEL_PYTHON_FASTAPI_EXCLUDED_URLS: str
+    SENTRY_DSN: str = ""
     YANDEX_CLIENT_ID: str = ""
     YANDEX_CLIENT_SECRET: str = ""
     DEFAULT_LIMIT_VALUE: int = 100

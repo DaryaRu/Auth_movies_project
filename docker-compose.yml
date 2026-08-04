@@ -264,6 +264,7 @@ services:
       AUTH_API_SUBSCRIPTION_LEVELS_URL: ${AUTH_API_SUBSCRIPTION_LEVELS_URL}
       JWT_ALGORITHM: ${JWT_ALGORITHM}
       EXCLUDED_PATHS: ${ADMIN_EXCLUDED_PATHS}
+      SENTRY_DSN: ${SENTRY_DSN}
     command: >
       sh -c "
       python manage.py collectstatic --no-input &&
@@ -301,6 +302,7 @@ services:
       OTEL_PYTHON_FASTAPI_EXCLUDED_URLS: ${OTEL_PYTHON_FASTAPI_EXCLUDED_URLS}
       EXCLUDED_PATHS: ${MOVIES_EXCLUDED_PATHS}
       ENVIRONMENT: ${ENVIRONMENT}
+      SENTRY_DSN: ${SENTRY_DSN}
     command: >
       gunicorn main:app
       --workers 4
