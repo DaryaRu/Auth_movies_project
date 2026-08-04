@@ -1,9 +1,9 @@
-from enum import StrEnum
+from enum import Enum
 
 from pydantic import BaseModel, EmailStr
 
 
-class AuthProvider(StrEnum):
+class AuthProvider(str, Enum):
     GOOGLE = "google"
     YANDEX = "yandex"
     VK = "vk"
