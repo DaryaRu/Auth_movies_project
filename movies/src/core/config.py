@@ -17,7 +17,10 @@ ELASTIC_PERSON_INDEX = os.getenv("ELASTIC_PERSON_INDEX", "persons")
 OTEL_SERVICE_NAME = os.getenv("OTEL_SERVICE_NAME", "movies")
 ENVIRONMENT = os.getenv("ENVIRONMENT", "test")
 OTEL_EXPORTER_OTLP_ENDPOINT = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "")
-OTEL_PYTHON_FASTAPI_EXCLUDED_URLS = os.getenv("OTEL_PYTHON_FASTAPI_EXCLUDED_URLS", "")
+OTEL_PYTHON_FASTAPI_EXCLUDED_URLS = os.getenv(
+    "OTEL_PYTHON_FASTAPI_EXCLUDED_URLS", ""
+)
+SENTRY_DSN = os.getenv("SENTRY_DSN", "")
 AUTH_API_PUBLIC_KEY_URL = os.getenv("AUTH_API_PUBLIC_KEY_URL", "")
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "RS256")
 DEBUG = bool(os.getenv("DEBUG", ""))
@@ -33,5 +36,8 @@ PAGINATION_DEFAULT_PAGE_SIZE = int(
 )
 PAGINATION_MAX_PAGE_SIZE = int(os.getenv("PAGINATION_MAX_PAGE_SIZE", 100))
 EXCLUDED_PATHS = set(
-    os.getenv("EXCLUDED_PATHS", "/health,/api/movies/openapi,/api/movies/openapi.json").split(",")
+    os.getenv(
+        "EXCLUDED_PATHS",
+        "/health,/api/movies/openapi,/api/movies/openapi.json",
+    ).split(",")
 )

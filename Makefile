@@ -114,6 +114,15 @@ test-all: test-auth test-movies test-analytics test-user-actions
 mypy:
 	python3 .github/scripts/run_mypy_matrix.py
 
+# Отправляет тестовое исключение в Sentry.
+# Требует SENTRY_DSN в .env и запущенный стек (make up).
+# Результат смотреть в Sentry -> Issues.
+test-sentry-error:
+	docker compose exec auth-service python3 -c "import sentry_sdk; from src.core.config import settings; sentry_sdk.init(dsn=settings.SENTRY_DSN, environment=settings.ENVIRONMENT, traces_sample_rate=0); exec('try:\n 1/0\nexcept ZeroDivisionError as exc:\n print(\"auth-service:\", sentry_sdk.capture_exception(exc))'); sentry_sdk.get_client().flush(timeout=5)"
+	docker compose exec movies-service python3 -c "import sentry_sdk; from core import config; sentry_sdk.init(dsn=config.SENTRY_DSN, environment=config.ENVIRONMENT, traces_sample_rate=0); exec('try:\n 1/0\nexcept ZeroDivisionError as exc:\n print(\"movies-service:\", sentry_sdk.capture_exception(exc))'); sentry_sdk.get_client().flush(timeout=5)"
+	docker compose exec movies-admin python3 -c "import django, os; os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings'); django.setup(); import sentry_sdk; exec('try:\n 1/0\nexcept ZeroDivisionError as exc:\n print(\"movies-admin:\", sentry_sdk.capture_exception(exc))'); sentry_sdk.get_client().flush(timeout=5)"
+	docker compose exec user-actions-service python3 -c "import sentry_sdk; from src.core.config import settings; sentry_sdk.init(dsn=settings.SENTRY_DSN, environment=settings.ENVIRONMENT, traces_sample_rate=0); exec('try:\n 1/0\nexcept ZeroDivisionError as exc:\n print(\"user-actions-service:\", sentry_sdk.capture_exception(exc))'); sentry_sdk.get_client().flush(timeout=5)"
+
 # analytics-service
 logs-analytics:
 	docker compose logs -f analytics-service

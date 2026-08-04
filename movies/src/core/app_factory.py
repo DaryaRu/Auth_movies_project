@@ -4,6 +4,7 @@ from core import config, logger
 from core.lifespan import lifespan
 from core.middlewares import register_middlewares
 from core.routers import register_routers
+from core.sentry import sentry_init
 from core.tracers import configure_tracer
 from elastic_transport import ConnectionError as ESConnectionError
 from fastapi import FastAPI, Request, status
@@ -24,6 +25,7 @@ from opentelemetry.instrumentation.redis import RedisInstrumentor
 def create_app() -> FastAPI:
     logging_config.dictConfig(logger.LOGGING)
     configure_tracer()
+    sentry_init()
 
     app = FastAPI(
         title=config.PROJECT_NAME,

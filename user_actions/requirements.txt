@@ -15,3 +15,4 @@ opentelemetry-exporter-otlp==1.42.1
 opentelemetry-instrumentation-fastapi==0.63b1
 opentelemetry-instrumentation-redis==0.63b1
 opentelemetry-instrumentation-httpx==0.63b1
+sentry-sdk==2.66.1

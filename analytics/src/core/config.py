@@ -39,6 +39,8 @@ class Settings(BaseSettings):
     OTEL_PYTHON_FASTAPI_EXCLUDED_URLS: str = ""
     DEBUG: bool = False
 
+    SENTRY_DSN: str = ""
+
     @property
     def REDIS_URL(self) -> str:
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/2"

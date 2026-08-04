@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 import os
 from pathlib import Path
 
+import sentry_sdk
 from dotenv import load_dotenv
 from split_settings.tools import include
 
@@ -104,19 +105,32 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 AUTH_USER_MODEL = "users.User"
 AUTHENTICATION_BACKENDS = [
-    'core.backends.CustomBackend',
+    "core.backends.CustomBackend",
 ]
 
-AUTH_API_LOGIN_URL = os.getenv('AUTH_API_LOGIN_URL', '')
-AUTH_API_PUBLIC_KEY_URL = os.getenv('AUTH_API_PUBLIC_KEY_URL', '')
-AUTH_API_SUBSCRIPTION_LEVELS_URL = os.getenv('AUTH_API_SUBSCRIPTION_LEVELS_URL', '')
-JWT_ALGORITHM = os.getenv('JWT_ALGORITHM', '')
+AUTH_API_LOGIN_URL = os.getenv("AUTH_API_LOGIN_URL", "")
+AUTH_API_PUBLIC_KEY_URL = os.getenv("AUTH_API_PUBLIC_KEY_URL", "")
+AUTH_API_SUBSCRIPTION_LEVELS_URL = os.getenv(
+    "AUTH_API_SUBSCRIPTION_LEVELS_URL", ""
+)
+JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "")
 
-OTEL_SERVICE_NAME = os.getenv('OTEL_SERVICE_NAME', '')
-OTEL_EXPORTER_OTLP_ENDPOINT = os.getenv('OTEL_EXPORTER_OTLP_ENDPOINT', '')
-OTEL_PYTHON_DJANGO_EXCLUDED_URLS = os.getenv('OTEL_PYTHON_DJANGO_EXCLUDED_URLS', '')
-ENVIRONMENT = os.getenv('ENVIRONMENT', '')
-EXCLUDED_PATHS = os.getenv('EXCLUDED_PATHS', '').split(",")
+OTEL_SERVICE_NAME = os.getenv("OTEL_SERVICE_NAME", "")
+OTEL_EXPORTER_OTLP_ENDPOINT = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "")
+OTEL_PYTHON_DJANGO_EXCLUDED_URLS = os.getenv(
+    "OTEL_PYTHON_DJANGO_EXCLUDED_URLS", ""
+)
+ENVIRONMENT = os.getenv("ENVIRONMENT", "")
+EXCLUDED_PATHS = os.getenv("EXCLUDED_PATHS", "").split(",")
+
+SENTRY_DSN = os.getenv("SENTRY_DSN", "")
+if SENTRY_DSN:
+    # Только ошибки, трейсы собирает Jaeger.
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        environment=ENVIRONMENT,
+        traces_sample_rate=0,
+    )
 
 if DEBUG:
     INTERNAL_IPS = [

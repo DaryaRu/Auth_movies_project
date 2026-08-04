@@ -105,7 +105,7 @@ services:
     entrypoint: >
       sh -c "curl -sS -X POST http://kibana:5601/api/data_views/data_view
       -H 'kbn-xsrf: true' -H 'Content-Type: application/json'
-      -d '{\"data_view\": {\"id\": \"logs-data-view\", \"title\": \"auth-service-*,movies-service-*,movies-admin-*,analytics-service-*\", \"name\": \"logs\", \"timeFieldName\": \"@timestamp\"}}'"
+      -d '{\"data_view\": {\"id\": \"logs-data-view\", \"title\": \"auth-service-*,movies-service-*,movies-admin-*,analytics-service-*,user-actions-service-*\", \"name\": \"logs\", \"timeFieldName\": \"@timestamp\"}}'"
 
   redis:
     image: redis:7-alpine
@@ -264,6 +264,7 @@ services:
       AUTH_API_SUBSCRIPTION_LEVELS_URL: ${AUTH_API_SUBSCRIPTION_LEVELS_URL}
       JWT_ALGORITHM: ${JWT_ALGORITHM}
       EXCLUDED_PATHS: ${ADMIN_EXCLUDED_PATHS}
+      SENTRY_DSN: ${SENTRY_DSN}
     command: >
       sh -c "
       python manage.py collectstatic --no-input &&
@@ -301,6 +302,7 @@ services:
       OTEL_PYTHON_FASTAPI_EXCLUDED_URLS: ${OTEL_PYTHON_FASTAPI_EXCLUDED_URLS}
       EXCLUDED_PATHS: ${MOVIES_EXCLUDED_PATHS}
       ENVIRONMENT: ${ENVIRONMENT}
+      SENTRY_DSN: ${SENTRY_DSN}
     command: >
       gunicorn main:app
       --workers 4
@@ -392,6 +394,7 @@ services:
   user-actions-service:
     build: ./user_actions
     image: user-actions-service-image
+    container_name: user-actions-service
     restart: unless-stopped
     env_file: .env
     environment:
@@ -425,6 +428,11 @@ services:
         condition: service_healthy
       otel-collector:
         condition: service_started
+    logging:
+      driver: gelf
+      options:
+        gelf-address: "udp://127.0.0.1:12201"
+        tag: "{{.Name}}"
 
   nginx:
     image: nginx:1.31.2

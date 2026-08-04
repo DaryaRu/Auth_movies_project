@@ -58,6 +58,9 @@ class Settings(BaseSettings):
     PAGINATION_DEFAULT_PAGE_SIZE: int = 20
     PAGINATION_MAX_PAGE_SIZE: int = 100
 
+    # Sentry
+    SENTRY_DSN: str = ""
+
     @property
     def POSTGRES_URL(self) -> str:
         """Возвращает URL подключения к PostgreSQL."""

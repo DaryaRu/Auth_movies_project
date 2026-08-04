@@ -17,6 +17,7 @@ from src.core.config import settings
 from src.core.limiter import limiter, rate_limit_exceeded_handler
 from src.core.middlewares import register_middlewares
 from src.core.routers import register_routers
+from src.core.sentry import sentry_init
 from src.core.tracers import configure_tracer
 from src.databases.pg import engine
 
@@ -33,6 +34,7 @@ def create_app() -> FastAPI:
     """Создать и настроить экземпляр приложения FastAPI."""
     logging_config.dictConfig(logger.LOGGING)
     configure_tracer()
+    sentry_init()
     app = FastAPI(
         title=settings.PROJECT_NAME,
         description=("Сервис авторизации и аутентификации"),
