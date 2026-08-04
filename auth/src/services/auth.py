@@ -1,5 +1,5 @@
 import logging
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -108,8 +108,8 @@ class AuthService(BaseService):
         await self._db.user_subscriptions.create(
             user_id=user_id,
             subscription_id=free_sub.id,
-            started_at=datetime.now(UTC),
-            expires_at=datetime(2999, 12, 31, tzinfo=UTC),
+            started_at=datetime.now(timezone.utc),
+            expires_at=datetime(2999, 12, 31, tzinfo=timezone.utc),
         )
 
     async def _get_permission_codes(self, user_id: UUID) -> list[str]:
@@ -128,7 +128,7 @@ class AuthService(BaseService):
         active = await self._db.user_subscriptions.get_active(user_id)
         if active is None:
             return {"subscription_code": "free", "subscription_level": 0}
-        if active.expires_at.replace(tzinfo=UTC) < datetime.now(UTC):
+        if active.expires_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
             await self._db.user_subscriptions.deactivate(active.id)
             return {"subscription_code": "free", "subscription_level": 0}
         return {

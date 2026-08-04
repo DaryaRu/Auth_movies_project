@@ -1,5 +1,5 @@
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import UUID as SQLAlchemyUUID
 from sqlalchemy import DateTime
@@ -23,7 +23,7 @@ class Base(DeclarativeBase):
 
 
 def utc_now() -> datetime:
-    return datetime.now(UTC)
+    return datetime.now(timezone.utc)
 
 
 @declarative_mixin

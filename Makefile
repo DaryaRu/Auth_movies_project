@@ -79,31 +79,36 @@ keys:
 	test -f public.pem || openssl rsa -in private.pem -pubout -out public.pem
 
 # Запускает функциональные тесты auth-сервиса
+# code=$$? сохраняет реальный exit-код тестов.
 test-auth:
-	docker compose -f auth/tests/functional/docker-compose.yml up --build --abort-on-container-exit --exit-code-from tests; \
-	docker compose -f auth/tests/functional/docker-compose.yml down -v
+	docker compose -f auth/tests/functional/docker-compose.yml up --build --abort-on-container-exit --exit-code-from tests; code=$$?; \
+	docker compose -f auth/tests/functional/docker-compose.yml down -v; \
+	exit $$code
 
 # Запускает функциональные тесты movies-сервиса
 test-movies:
 	docker compose -f movies/tests/functional/docker-compose.yml --env-file movies/tests/functional/.env \
-		up --build --abort-on-container-exit --exit-code-from tests; \
+		up --build --abort-on-container-exit --exit-code-from tests; code=$$?; \
 	docker compose -f movies/tests/functional/docker-compose.yml --env-file movies/tests/functional/.env \
-		down -v
+		down -v; \
+	exit $$code
 
 # Запускает функциональные тесты analytics-сервиса
 test-analytics:
 	docker compose -f analytics/tests/functional/docker-compose.yml --env-file analytics/tests/functional/.env \
-		up --build --abort-on-container-exit --exit-code-from tests; \
+		up --build --abort-on-container-exit --exit-code-from tests; code=$$?; \
 	docker compose -f analytics/tests/functional/docker-compose.yml --env-file analytics/tests/functional/.env \
-		down -v
+		down -v; \
+	exit $$code
 
 # Запускает функциональные тесты user-actions-сервиса
 test-user-actions:
 	docker compose -f user_actions/tests/functional/docker-compose.yml --env-file user_actions/tests/functional/.env \
-		up --build --abort-on-container-exit --exit-code-from tests; \
+		up --build --abort-on-container-exit --exit-code-from tests; code=$$?; \
 	sleep 2; \
 	docker compose -f user_actions/tests/functional/docker-compose.yml --env-file user_actions/tests/functional/.env \
-		down -v
+		down -v; \
+	exit $$code
 
 # Запускает тесты всех сервисов
 test-all: test-auth test-movies test-analytics test-user-actions

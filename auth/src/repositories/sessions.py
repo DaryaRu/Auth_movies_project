@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from redis.asyncio import Redis
@@ -78,7 +78,7 @@ class SessionRedisRepository(SessionAbstractRepository):
                     "user_agent": user_agent,
                     "refresh_token_hash": refresh_token_hash,
                     "auth_method": auth_method,
-                    "created_at": datetime.now(UTC).isoformat()
+                    "created_at": datetime.now(timezone.utc).isoformat()
                 }
             )
             pipe.expire(key, ttl)

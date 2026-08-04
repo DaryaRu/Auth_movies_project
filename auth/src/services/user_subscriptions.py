@@ -1,6 +1,6 @@
 """Сервис управления подписками пользователей."""
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from uuid import UUID
 
 from src.exceptions import (
@@ -45,12 +45,12 @@ class UserSubscriptionService(BaseService):
         if current is not None:
             await self._db.user_subscriptions.deactivate(current.id)
 
-        started_at = datetime.now(UTC)
+        started_at = datetime.now(timezone.utc)
         expires_at = datetime(
             data.expires_at.year,
             data.expires_at.month,
             data.expires_at.day,
-            tzinfo=UTC,
+            tzinfo=timezone.utc,
         )
 
         return await self._db.user_subscriptions.create(

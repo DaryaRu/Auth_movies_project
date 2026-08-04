@@ -6,6 +6,7 @@ from uuid import UUID
 
 from api.v1.dependencies import OptionalTokenPayloadDep, PaginationDepend
 from core import config
+from core.cache import auth_key_builder
 from dependencies import get_film_service
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from fastapi_cache.decorator import cache
@@ -51,6 +52,7 @@ async def films_search(
         HTTPStatus.NOT_FOUND: {"description": "Фильм с таким UUID не найден"}
     },
 )
+@cache(expire=config.CACHE_EXPIRE, key_builder=auth_key_builder)
 async def film_details(
     token_payload: OptionalTokenPayloadDep,
     film_id: UUID = Path(

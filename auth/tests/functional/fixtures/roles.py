@@ -1,7 +1,7 @@
 """Фикстуры для создания и удаления ролей через API и в БД."""
 
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, AsyncGenerator
 
 import pytest_asyncio
@@ -37,7 +37,7 @@ async def system_role(
 ) -> AsyncGenerator[dict[str, Any], None]:
     """Создаёт системную роль (is_system=True) напрямую в БД."""
     role_id = uuid.uuid4()
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
     data = {
         "id": role_id,
         "name": f"system_role_{uuid.uuid4().hex[:8]}",
