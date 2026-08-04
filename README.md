@@ -298,6 +298,35 @@ ETL → ClickHouse:
 5. Убедиться что analytics-etl перенес событие из Kafka: `make check-clickhouse`
 
 
+## user-actions-service
+
+Сервис управления пользовательскими действиями: закладки, лайки, рецензии.
+
+**Функционал:**
+- **Закладки** — сохранение фильмов в избранное
+- **Лайки** — оценка фильмов и рецензий
+- **Рецензии** — создание, редактирование и удаление пользовательских рецензий на фильмы
+- **Лайки рецензий** — оценка рецензий других пользователей
+
+### Проверка
+
+1. Получить токен: `POST /api/v1/login/` в Swagger → `http://localhost/api/auth/openapi`
+2. Открыть документацию API: `http://localhost/api/user-actions/openapi`
+3. Выполнить **Authorize** (вставить токен)
+4. Доступные эндпоинты:
+   - `POST /api/v1/bookmarks/` — добавить фильм в закладки
+   - `GET /api/v1/bookmarks/` — получить список закладок
+   - `DELETE /api/v1/bookmarks/{film_id}/` — удалить фильм из закладок
+   - `POST /api/v1/likes/films/{film_id}/` — поставить лайк фильму
+   - `DELETE /api/v1/likes/films/{film_id}/` — убрать лайк с фильма
+   - `POST /api/v1/reviews/` — создать рецензию
+   - `GET /api/v1/reviews/film/{film_id}/` — получить рецензии на фильм
+   - `PUT /api/v1/reviews/{review_id}/` — редактировать рецензию
+   - `DELETE /api/v1/reviews/{review_id}/` — удалить рецензию
+   - `POST /api/v1/review-likes/{review_id}/` — поставить лайк рецензии
+   - `DELETE /api/v1/review-likes/{review_id}/` — убрать лайк с рецензии
+
+
 ## Трассировка
 
 UI Jaeger доступен на `http://localhost/tracers/` — показывает трейсы всех запросов к auth-service, movies-service и movies-admin.
