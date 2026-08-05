@@ -1,6 +1,5 @@
 """Сервис для лайков."""
 
-from datetime import datetime
 from typing import Any
 from uuid import UUID
 
@@ -19,11 +18,10 @@ class LikeService:
     ) -> dict[str, Any]:
         """Создать или обновить оценку."""
         existing = await self.repo.get_by_user_and_movie(user_id, movie_id)
-        now = datetime.utcnow()
 
         if existing:
             updated = await self.repo.update(
-                existing["id"], {"rating": rating, "updated_at": now}
+                existing["id"], {"rating": rating}
             )
             if updated:
                 return dict(updated)
@@ -33,18 +31,10 @@ class LikeService:
             "user_id": user_id,
             "movie_id": movie_id,
             "rating": rating,
-            "created_at": now,
-            "updated_at": now,
         }
-        doc_id = await self.repo.create(data)
-        return {
-            "id": doc_id,  
-            "user_id": user_id,
-            "movie_id": movie_id,
-            "rating": rating,
-            "created_at": now,
-            "updated_at": now,
-        }
+
+        new_like = await self.repo.create(data, returning="*")
+        return new_like
 
     async def get_like(self, user_id: UUID, movie_id: UUID) -> dict[str, Any] | None:
         """Получить оценку пользователя для фильма."""

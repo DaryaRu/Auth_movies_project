@@ -1,6 +1,5 @@
 """Сервис для закладок."""
 
-from datetime import datetime
 from typing import Any
 from uuid import UUID
 
@@ -24,14 +23,9 @@ class BookmarkService:
             "user_id": user_id,
             "movie_id": movie_id,
         }
-        doc_id = await self.repo.create(data)
-        now = datetime.utcnow()
-        return {
-            "id": str(doc_id),
-            "user_id": user_id,
-            "movie_id": movie_id,
-            "created_at": now,
-        }
+        bookmark = await self.repo.create(data, returning="*")
+
+        return bookmark
 
     async def get_bookmark(self, user_id: UUID, movie_id: UUID) -> dict[str, Any] | None:
         """Получить закладку."""
