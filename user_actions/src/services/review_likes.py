@@ -11,19 +11,21 @@ from src.repositories.reviews import ReviewRepository
 class ReviewLikeService:
     """Сервис для работы с лайками рецензий."""
 
-    def __init__(self, repository: ReviewLikeRepository):
-        """Инициализация сервиса лайков рецензий."""
+    def __init__(
+        self,
+        repository: ReviewLikeRepository, 
+        review_repository: ReviewRepository | None = None
+    ):
         self.repo = repository
+        self.review_repo = review_repository or ReviewRepository()
 
     async def create_or_update_review_like(
         self, user_id: UUID, review_id: UUID, is_like: bool
     ) -> dict[str, Any]:
         """Создать или обновить лайк рецензии."""
-        # Проверяем существование рецензии
-        review_repo = ReviewRepository()
-        review_exists = await review_repo.exists_by_id(review_id)
-        if not review_exists:
-            raise ValueError(f"Review with id {review_id} not found")
+
+        if not await self.review_repo.exists_by_id(review_id):
+            raise ValueError(f"Review {review_id} not found")
 
         existing = await self.repo.get_by_user_and_review(user_id, review_id)
         now = datetime.utcnow()
