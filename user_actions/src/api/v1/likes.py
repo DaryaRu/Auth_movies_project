@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
-from src.api.v1.dependencies import CurrentUserDep
+from src.api.v1.dependencies import CurrentUserDep, PaginationDepend
 from src.core.config import settings
 from src.repositories.likes import LikeRepository
 from src.schemas.likes import (
@@ -60,10 +60,15 @@ async def create_or_update_like(
 async def get_my_likes(
     request: Request,
     user_id: CurrentUserDep,
+    pagination: PaginationDepend,
     like_service: LikeService = LikeServiceDep,
 ) -> LikesListResponse:
     """Получить мои оценки."""
-    items, total = await like_service.get_user_likes(user_id)
+    items, total = await like_service.get_user_likes(
+        user_id, 
+        page=pagination.page, 
+        page_size=pagination.page_size
+    )
     return LikesListResponse(items=items, total=total)
 
 
