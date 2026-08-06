@@ -26,20 +26,21 @@ class BaseRepository(Generic[T]):
             VALUES ({placeholders})
             RETURNING {returning}
         """
-        conn = await PostgreSQL.get_connection()
-        try:
+        async with PostgreSQL.pool.acquire() as conn:
             row = await conn.fetchrow(query, *values)
             if not row:
                 return None
             if returning == "*":
                 return dict(row)
             return row[returning]
-        finally:
-            await PostgreSQL.release_connection(conn)
 
-    async def update(self, doc_id: UUID, update_data: dict[str, Any]) -> dict[str, Any] | None:
+    async def update(
+        self, doc_id: UUID, update_data: dict[str, Any]
+    ) -> dict[str, Any] | None:
         """Обновить запись."""
-        set_clause = ", ".join(f"{key} = ${i + 1}" for i, key in enumerate(update_data.keys()))
+        set_clause = ", ".join(
+            f"{key} = ${i + 1}" for i, key in enumerate(update_data.keys())
+        )
         values = list(update_data.values()) + [doc_id]
 
         query = f"""
@@ -48,14 +49,11 @@ class BaseRepository(Generic[T]):
             WHERE id = ${len(values)}
             RETURNING *
         """
-        conn = await PostgreSQL.get_connection()
-        try:
+        async with PostgreSQL.pool.acquire() as conn:
             row = await conn.fetchrow(query, *values)
             if row:
                 return dict(row)
             return None
-        finally:
-            await PostgreSQL.release_connection(conn)
 
     async def find_by_user(
         self,
@@ -64,7 +62,9 @@ class BaseRepository(Generic[T]):
         limit: int = 10,
     ) -> tuple[list[dict[str, Any]], int]:
         """Найти записи по user_id."""
-        return await self._get_all(skip=skip, limit=limit, filters={"user_id": user_id})
+        return await self._get_all(
+            skip=skip, limit=limit, filters={"user_id": user_id}
+        )
 
     async def find_by_movie(
         self,
@@ -73,7 +73,9 @@ class BaseRepository(Generic[T]):
         limit: int = 10,
     ) -> tuple[list[dict[str, Any]], int]:
         """Найти записи по movie_id."""
-        return await self._get_all(skip=skip, limit=limit, filters={"movie_id": movie_id})
+        return await self._get_all(
+            skip=skip, limit=limit, filters={"movie_id": movie_id}
+        )
 
     async def _get_all(
         self,
@@ -96,8 +98,7 @@ class BaseRepository(Generic[T]):
             where_clause = "WHERE " + " AND ".join(where_parts)
 
         count_query = f"SELECT COUNT(*) FROM {self.table_name} {where_clause}"
-        conn = await PostgreSQL.get_connection()
-        try:
+        async with PostgreSQL.pool.acquire() as conn:
             count_row = await conn.fetchrow(count_query, *values)
             total = count_row[0] if count_row else 0
 
@@ -111,8 +112,6 @@ class BaseRepository(Generic[T]):
             rows = await conn.fetch(data_query, *values)
 
             return [dict(row) for row in rows], total
-        finally:
-            await PostgreSQL.release_connection(conn)
 
     async def find_one(
         self,
@@ -128,14 +127,11 @@ class BaseRepository(Generic[T]):
         where_clause = "WHERE " + " AND ".join(where_parts)
         query = f"SELECT * FROM {self.table_name} {where_clause} LIMIT 1"
 
-        conn = await PostgreSQL.get_connection()
-        try:
+        async with PostgreSQL.pool.acquire() as conn:
             row = await conn.fetchrow(query, *values)
             if row:
                 return dict(row)
             return None
-        finally:
-            await PostgreSQL.release_connection(conn)
 
     async def delete_by_filters(self, filters: dict[str, Any]) -> bool:
         """Удалить запись по фильтрам."""
@@ -148,9 +144,6 @@ class BaseRepository(Generic[T]):
         where_clause = "WHERE " + " AND ".join(where_parts)
         query = f"DELETE FROM {self.table_name} {where_clause} RETURNING id"
 
-        conn = await PostgreSQL.get_connection()
-        try:
+        async with PostgreSQL.pool.acquire() as conn:
             row = await conn.fetchrow(query, *values)
             return row is not None
-        finally:
-            await PostgreSQL.release_connection(conn)

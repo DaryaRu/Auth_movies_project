@@ -48,8 +48,7 @@ class LikeRepository(BaseRepository):
             - total: общее количество оценок
             - average_rating: средняя оценка
         """
-        conn = await PostgreSQL.get_connection()
-        try:
+        async with PostgreSQL.pool.acquire() as conn:
             # Count likes (rating = 10)
             likes_row = await conn.fetchrow(
                 "SELECT COUNT(*) FROM likes WHERE movie_id = $1 AND rating = 10",
@@ -75,5 +74,3 @@ class LikeRepository(BaseRepository):
                 "total": total,
                 "average_rating": average_rating,
             }
-        finally:
-            await PostgreSQL.release_connection(conn)

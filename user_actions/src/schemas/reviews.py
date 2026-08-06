@@ -58,3 +58,10 @@ class ReviewsListResponse(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+class ReviewStatsResponse(BaseModel):
+    """Схема ответа статистики рецензий фильма."""
+
+    avg_rating: float = Field(..., description="Средняя оценка фильма по рецензиям")
+    count: int = Field(..., description="Количество рецензий")
