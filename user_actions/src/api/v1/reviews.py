@@ -28,6 +28,7 @@ from src.schemas.reviews import (
     ReviewCreate,
     ReviewResponse,
     ReviewsListResponse,
+    ReviewStatsResponse,
     ReviewUpdate,
 )
 from src.services.review_likes import ReviewLikeService
@@ -192,6 +193,7 @@ async def get_movie_reviews(
 
 @router.get(
     "/movie/{movie_id}/stats",
+    response_model=ReviewStatsResponse,
     summary="Статистика рецензий фильма",
     description="Получить статистику рецензий для фильма (средний рейтинг и количество)",
 )
@@ -200,9 +202,10 @@ async def get_movie_stats(
     request: Request,
     movie_id: UUID = Path(..., description="UUID фильма"),
     review_service: ReviewService = ReviewServiceDep,
-) -> dict:
+) -> ReviewStatsResponse:
     """Получить статистику рецензий фильма."""
-    return await review_service.get_movie_stats(movie_id)
+    stats = await review_service.get_movie_stats(movie_id)
+    return ReviewStatsResponse(**stats)
 
 
 @router.patch(
