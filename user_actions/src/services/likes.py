@@ -1,5 +1,6 @@
 """Сервис для лайков."""
 
+from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
@@ -21,7 +22,8 @@ class LikeService:
 
         if existing:
             updated = await self.repo.update(
-                existing["id"], {"rating": rating}
+                existing["id"],
+                {"rating": rating, "updated_at": datetime.now(timezone.utc)},
             )
             if updated:
                 return dict(updated)

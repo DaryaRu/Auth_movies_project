@@ -1,6 +1,6 @@
 """Сервис для рецензий."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
@@ -49,7 +49,7 @@ class ReviewService:
             update_data["text"] = text
         if rating is not None:
             update_data["rating"] = rating
-        update_data["updated_at"] = datetime.utcnow()
+        update_data["updated_at"] = datetime.now(timezone.utc)
 
         updated = await self.repo.update(existing["id"], update_data)
         return dict(updated) if updated else None

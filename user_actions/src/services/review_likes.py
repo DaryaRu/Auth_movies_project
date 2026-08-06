@@ -1,6 +1,6 @@
 """Сервис для лайков рецензий."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
@@ -28,11 +28,11 @@ class ReviewLikeService:
             raise ValueError(f"Review {review_id} not found")
 
         existing = await self.repo.get_by_user_and_review(user_id, review_id)
-        now = datetime.utcnow()
 
         if existing:
             updated = await self.repo.update(
-                existing["id"], {"is_like": is_like, "updated_at": now}
+                existing["id"],
+                {"is_like": is_like, "updated_at": datetime.now(timezone.utc)},
             )
             if updated:
                 return dict(updated)
@@ -42,18 +42,9 @@ class ReviewLikeService:
             "user_id": user_id,
             "review_id": review_id,
             "is_like": is_like,
-            "created_at": now,
-            "updated_at": now,
         }
-        doc_id = await self.repo.create(data)
-        return {
-            "id": str(doc_id),
-            "user_id": user_id,
-            "review_id": review_id,
-            "is_like": is_like,
-            "created_at": now,
-            "updated_at": now,
-        }
+        new_review_like = await self.repo.create(data, returning="*")
+        return new_review_like
 
     async def get_review_like(self, user_id: UUID, review_id: UUID) -> dict[str, Any] | None:
         """Получить лайк пользователя для рецензии."""
