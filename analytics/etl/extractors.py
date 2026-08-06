@@ -9,9 +9,7 @@ broker = KafkaBroker(
     settings.kafka_brokers_list,
     retry_backoff_ms=settings.KAFKA_RETRY_BACKOFF_MS,
 )
-dlq_publisher = broker.publisher(
-    settings.KAFKA_DLQ_TOPIC
-)
+dlq_publisher = broker.publisher(settings.KAFKA_DLQ_TOPIC)
 
 _event_adapter = TypeAdapter(EventResponseIn)
 
@@ -19,6 +17,8 @@ _event_adapter = TypeAdapter(EventResponseIn)
 @broker.subscriber(
     settings.KAFKA_TOPIC,
     group_id=settings.KAFKA_GROUP_ID,
+    # ACK_FIRST коммитит offset до обработки сообщения (at most once),
+    # что прописано в требованиях к системе.
     ack_policy=AckPolicy.ACK_FIRST,
 )
 async def consume(
@@ -38,9 +38,7 @@ async def consume(
         return
 
     try:
-        await deps.movie_views_repository.save(
-            event.model_dump(mode="json")
-        )
+        await deps.movie_views_repository.save(event.model_dump(mode="json"))
     except Exception as exc:
         logger.error(f"Ошибка: {exc}")
         await dlq_publisher.publish(
