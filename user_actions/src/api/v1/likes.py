@@ -74,19 +74,24 @@ async def get_my_likes(
 
 @router.get(
     "/movie/{movie_id}",
-    response_model=list[LikeResponse],
+    response_model=LikesListResponse,
     summary="Оценки фильма",
     description="Получить список оценок для конкретного фильма",
 )
 @limiter.limit(settings.LIKES_RATE_LIMIT)
 async def get_movie_likes(
     request: Request,
+    pagination: PaginationDepend,
     movie_id: UUID = Path(..., description="UUID фильма"),
     like_service: LikeService = LikeServiceDep,
-) -> list[LikeResponse]:
+) -> LikesListResponse:
     """Получить оценки фильма."""
-    likes_list, total = await like_service.get_movie_likes(movie_id)
-    return [LikeResponse(**item) for item in likes_list]  # type: ignore[arg-type]
+    items, total = await like_service.get_movie_likes(
+        movie_id,
+        page=pagination.page,
+        page_size=pagination.page_size,
+    )
+    return LikesListResponse(items=items, total=total)
 
 
 @router.get(

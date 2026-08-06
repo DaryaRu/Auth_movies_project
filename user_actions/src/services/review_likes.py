@@ -61,9 +61,16 @@ class ReviewLikeService:
         """Удалить лайк пользователя для рецензии."""
         return await self.repo.delete_by_user_and_review(user_id, review_id)
 
-    async def get_review_likes(self, review_id: UUID) -> list[dict[str, Any]]:
-        """Получить все лайки для рецензии."""
-        return await self.repo.get_review_likes(review_id)
+    async def get_review_likes(
+            self,
+            review_id: UUID,
+            page: int,
+            page_size: int
+        ) -> tuple[list[dict[str, Any]], int]:
+        """Получить все лайки для рецензии с пагинацией."""
+        skip = (page - 1) * page_size
+        limit = page_size
+        return await self.repo.get_review_likes(review_id, limit=limit, skip=skip)
 
     async def get_review_stats(self, review_id: UUID) -> dict[str, Any]:
         """Получить статистику лайков для рецензии."""

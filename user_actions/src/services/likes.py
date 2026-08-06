@@ -66,9 +66,16 @@ class LikeService:
         return await self.repo.get_user_likes(user_id, limit=limit, skip=skip)
 
 
-    async def get_movie_likes(self, movie_id: UUID) -> tuple[list[dict[str, Any]], int]:
-        """Получить все оценки для фильма."""
-        return await self.repo.get_movie_likes(movie_id)
+    async def get_movie_likes(
+            self,
+            movie_id: UUID,
+            page: int,
+            page_size: int
+        ) -> tuple[list[dict[str, Any]], int]:
+        """Получить все оценки для фильма с пагинацией."""
+        skip = (page - 1) * page_size
+        limit = page_size
+        return await self.repo.get_movie_likes(movie_id, limit=limit, skip=skip)
 
     async def get_movie_stats(self, movie_id: UUID) -> dict[str, Any]:
         """Получить статистику оценок для фильма."""

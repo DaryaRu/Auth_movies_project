@@ -20,17 +20,23 @@ class ReviewLikeRepository(BaseRepository):
         """Удалить лайк пользователя для рецензии."""
         return await self.delete_by_filters({"user_id": user_id, "review_id": review_id})
 
-    async def get_review_likes(self, review_id: UUID) -> list[dict[str, Any]]:
+    async def get_review_likes(
+            self,
+            review_id: UUID,
+            limit: int = 10,
+            skip: int = 0
+        ) -> tuple[list[dict[str, Any]], int]:
         """Получить все лайки для рецензии."""
-        return await self.find_by_review(review_id)
+        return await self.find_by_review(review_id, limit=limit, skip=skip)
 
     async def find_by_review(
         self,
         review_id: UUID,
-    ) -> list[dict[str, Any]]:
+        skip: int = 0,
+        limit: int = 10,
+    ) -> tuple[list[dict[str, Any]], int]:
         """Найти записи по review_id."""
-        items, _ = await self._get_all(filters={"review_id": review_id})
-        return items
+        return await self._get_all(skip=skip, limit=limit, filters={"review_id": review_id})
 
     async def get_review_stats(self, review_id: UUID) -> dict[str, Any]:
         """Получить статистику лайков для рецензии.
