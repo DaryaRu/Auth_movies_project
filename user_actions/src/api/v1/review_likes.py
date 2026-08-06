@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
-from src.api.v1.dependencies import CurrentUserDep
+from src.api.v1.dependencies import CurrentUserDep, PaginationDepend
 from src.core.config import settings
 from src.repositories.review_likes import ReviewLikeRepository
 from src.schemas.review_likes import (
@@ -67,12 +67,17 @@ async def create_or_update_review_like(
 @limiter.limit(settings.REVIEWS_RATE_LIMIT)
 async def get_review_likes(
     request: Request,
+    pagination: PaginationDepend,
     review_id: UUID = Path(..., description="UUID рецензии"),
     review_like_service: ReviewLikeService = ReviewLikeServiceDep,
 ) -> ReviewLikesListResponse:
     """Получить лайки рецензии."""
-    items = await review_like_service.get_review_likes(review_id)
-    return ReviewLikesListResponse(items=items, total=len(items))
+    items, total = await review_like_service.get_review_likes(
+        review_id,
+        page=pagination.page,
+        page_size=pagination.page_size,
+    )
+    return ReviewLikesListResponse(items=items, total=total)
 
 
 @router.get(

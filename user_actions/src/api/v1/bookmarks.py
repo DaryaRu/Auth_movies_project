@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
-from src.api.v1.dependencies import CurrentUserDep
+from src.api.v1.dependencies import CurrentUserDep, PaginationDepend
 from src.core.config import settings
 from src.repositories.bookmarks import BookmarkRepository
 from src.schemas.bookmarks import (
@@ -59,11 +59,15 @@ async def create_bookmark(
 async def get_my_bookmarks(
     request: Request,
     user_id: CurrentUserDep,
+    pagination: PaginationDepend,
     bookmark_service: BookmarkService = BookmarkServiceDep,
 ) -> BookmarksListResponse:
     """Получить мои закладки."""
-    items, total = await bookmark_service.get_user_bookmarks(user_id)
-
+    items, total = await bookmark_service.get_user_bookmarks(
+        user_id, 
+        page=pagination.page, 
+        page_size=pagination.page_size
+    )
     return BookmarksListResponse(items=items, total=total)
 
 

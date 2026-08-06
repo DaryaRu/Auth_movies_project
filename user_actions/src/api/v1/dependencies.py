@@ -60,7 +60,11 @@ async def get_current_user(
     user_id = payload.get("sub")
     if not user_id:
         raise exception_401
-    user_uuid = UUID(user_id)
+    try:
+        user_uuid = UUID(user_id)
+    except ValueError:
+        raise exception_401 from None
+
     request.state.user_id = user_uuid
     return user_uuid
 

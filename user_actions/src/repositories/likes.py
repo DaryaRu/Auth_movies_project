@@ -20,13 +20,24 @@ class LikeRepository(BaseRepository):
         """Удалить оценку пользователя для фильма."""
         return await self.delete_by_filters({"user_id": user_id, "movie_id": movie_id})
 
-    async def get_user_likes(self, user_id: UUID) -> tuple[list[dict[str, Any]], int]:
+    async def get_user_likes(
+            self,
+            user_id: UUID,
+            limit: int = 10,
+            skip: int = 0
+        ) -> tuple[list[dict[str, Any]], int]:
         """Получить все оценки пользователя."""
-        return await self.find_by_user(user_id)
+        return await self.find_by_user(user_id, limit=limit, skip=skip)
 
-    async def get_movie_likes(self, movie_id: UUID) -> tuple[list[dict[str, Any]], int]:
+
+    async def get_movie_likes(
+            self,
+            movie_id: UUID,
+            limit: int = 10,
+            skip: int = 0
+        ) -> tuple[list[dict[str, Any]], int]:
         """Получить все оценки для фильма."""
-        return await self.find_by_movie(movie_id)
+        return await self.find_by_movie(movie_id, limit=limit, skip=skip)
 
     async def get_movie_stats(self, movie_id: UUID) -> dict[str, Any]:
         """Получить статистику оценок для фильма.
