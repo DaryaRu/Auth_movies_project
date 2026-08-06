@@ -1,6 +1,6 @@
 """Сервис для рецензий."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
@@ -26,25 +26,15 @@ class ReviewService:
         if existing:
             raise ValueError("User already has a review for this movie")
 
-        now = datetime.utcnow()
         data = {
             "user_id": user_id,
             "movie_id": movie_id,
             "text": text,
             "rating": rating,
-            "created_at": now,
-            "updated_at": now,
         }
-        doc_id = await self.repo.create(data)
-        return {
-            "id": str(doc_id),
-            "user_id": user_id,
-            "movie_id": movie_id,
-            "text": text,
-            "rating": rating,
-            "created_at": now,
-            "updated_at": now,
-        }
+
+        new_review = await self.repo.create(data, returning="*")
+        return new_review
 
     async def update_review(
         self, user_id: UUID, movie_id: UUID, text: str | None = None, rating: int | None = None
@@ -59,7 +49,7 @@ class ReviewService:
             update_data["text"] = text
         if rating is not None:
             update_data["rating"] = rating
-        update_data["updated_at"] = datetime.utcnow()
+        update_data["updated_at"] = datetime.now(timezone.utc)
 
         updated = await self.repo.update(existing["id"], update_data)
         return dict(updated) if updated else None

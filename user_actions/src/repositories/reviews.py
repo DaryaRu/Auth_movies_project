@@ -82,6 +82,19 @@ class ReviewRepository(BaseRepository):
             sort_order=sort_order,
         )
 
+    def _build_order_clause(
+        self,
+        sort_by: ReviewSortField,
+        sort_order: ReviewSortOrder
+    ) -> str:
+        """Построить ORDER BY clause."""
+        if sort_by in ("likes", "score"):
+            return f"""
+                (SELECT COUNT(*) FROM review_likes rl 
+                WHERE rl.review_id = {self.table_name}.id AND rl.is_like = true) {sort_order}
+            """
+        return f"{sort_by} {sort_order}"
+
     async def _get_reviews(
         self,
         filters: dict[str, Any] | None = None,
@@ -90,60 +103,16 @@ class ReviewRepository(BaseRepository):
         sort_by: ReviewSortField = "created_at",
         sort_order: ReviewSortOrder = "DESC",
     ) -> tuple[list[dict[str, Any]], int]:
-        """Получить рецензии с фильтрацией и сортировкой.
-        
-        Args:
-            filters: Фильтры для WHERE clause
-            skip: Количество пропускаемых записей
-            limit: Количество записей
-            sort_by: Поле для сортировки (created_at, rating, likes, score)
-            sort_order: Порядок сортировки (ASC, DESC)
-        """
-        where_clause = ""
-        values: list[Any] = []
-        param_index = 1
+        """Получить рецензии с фильтрацией и сортировкой."""
 
-        if filters:
-            where_parts = []
-            for key, value in filters.items():
-                where_parts.append(f"{key} = ${param_index}")
-                values.append(value)
-                param_index += 1
-            where_clause = "WHERE " + " AND ".join(where_parts)
+        order_clause = self._build_order_clause(sort_by, sort_order)
 
-        # Считаем total
-        count_query = f"SELECT COUNT(*) FROM {self.table_name} {where_clause}"
-        conn = await PostgreSQL.get_connection()
-        try:
-            count_row = await conn.fetchrow(count_query, *values)
-            total = count_row[0] if count_row else 0
-
-            # Формируем ORDER BY в зависимости от sort_by
-            if sort_by == "created_at":
-                order_clause = f"r.created_at {sort_order}"
-            elif sort_by == "rating":
-                order_clause = f"r.rating {sort_order}"
-            elif sort_by in ("likes", "score"):
-                # Для сортировки по лайкам используем подзапрос
-                order_clause = f"""
-                    (SELECT COUNT(*) FROM review_likes rl 
-                     WHERE rl.review_id = r.id AND rl.is_like = true) {sort_order}
-                """
-            else:
-                order_clause = f"r.created_at {sort_order}"
-
-            data_query = f"""
-                SELECT r.* FROM {self.table_name} r
-                {where_clause}
-                ORDER BY {order_clause}
-                LIMIT ${param_index} OFFSET ${param_index + 1}
-            """
-            values.extend([limit, skip])
-            rows = await conn.fetch(data_query, *values)
-
-            return [dict(row) for row in rows], total
-        finally:
-            await PostgreSQL.release_connection(conn)
+        return await self._get_all(
+            skip=skip,
+            limit=limit,
+            filters=filters,
+            order_by=order_clause
+        )
 
     async def get_movie_stats(self, movie_id: UUID) -> dict[str, Any]:
         """Получить статистику рецензий для фильма."""

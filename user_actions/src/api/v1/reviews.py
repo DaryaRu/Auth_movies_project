@@ -1,7 +1,7 @@
 """API endpoints для рецензий."""
 
 from http import HTTPStatus
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
 from fastapi import (
@@ -47,6 +47,30 @@ def get_review_like_service() -> ReviewLikeService:
     """Получить сервис лайков рецензий."""
     repository = ReviewLikeRepository()
     return ReviewLikeService(repository)
+
+def _build_reviews_list_response(
+    result: dict[str, Any],
+    likes_stats: dict[UUID, dict[str, Any]],
+    page_size: int,
+) -> ReviewsListResponse:
+    """Вспомогательная функция для обогащения рецензий статистикой лайков."""
+    items_with_stats = []
+    for item in result["items"]:
+        review_id = item["id"]
+        stats = likes_stats.get(review_id, {"likes": 0, "dislikes": 0, "total": 0, "score": 0})
+        items_with_stats.append({
+            **item,
+            "likes_count": stats["likes"],
+            "dislikes_count": stats["dislikes"],
+            "score": stats["score"],
+        })
+
+    return ReviewsListResponse(
+        items=[ReviewResponse(**item) for item in items_with_stats],
+        total=result["total"],
+        page=result["page"],
+        page_size=page_size,
+    )
 
 
 ReviewServiceDep = Depends(get_review_service)
@@ -125,24 +149,7 @@ async def get_my_reviews(
     )
     review_ids = [item["id"] for item in result["items"]]
     likes_stats = await review_like_service.get_reviews_stats(review_ids)
-    
-    items_with_stats = []
-    for item in result["items"]:
-        review_id = item["id"]
-        stats = likes_stats.get(review_id, {"likes": 0, "dislikes": 0, "total": 0, "score": 0})
-        items_with_stats.append({
-            **item,
-            "likes_count": stats["likes"],
-            "dislikes_count": stats["dislikes"],
-            "score": stats["score"],
-        })
-    
-    return ReviewsListResponse(
-        items=[ReviewResponse(**item) for item in items_with_stats],
-        total=result["total"],
-        page=result["page"],
-        page_size=pagination.page_size,
-    )
+    return _build_reviews_list_response(result, likes_stats, pagination.page_size)
 
 
 @router.get(
@@ -180,24 +187,7 @@ async def get_movie_reviews(
     )
     review_ids = [item["id"] for item in result["items"]]
     likes_stats = await review_like_service.get_reviews_stats(review_ids)
-
-    items_with_stats = []
-    for item in result["items"]:
-        review_id = item["id"]
-        stats = likes_stats.get(review_id, {"likes": 0, "dislikes": 0, "total": 0, "score": 0})
-        items_with_stats.append({
-            **item,
-            "likes_count": stats["likes"],
-            "dislikes_count": stats["dislikes"],
-            "score": stats["score"],
-        })
-
-    return ReviewsListResponse(
-        items=[ReviewResponse(**item) for item in items_with_stats],
-        total=result["total"],
-        page=result["page"],
-        page_size=pagination.page_size,
-    )
+    return _build_reviews_list_response(result, likes_stats, pagination.page_size)
 
 
 @router.get(

@@ -1,6 +1,6 @@
 """Сервис для лайков рецензий."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
@@ -11,26 +11,28 @@ from src.repositories.reviews import ReviewRepository
 class ReviewLikeService:
     """Сервис для работы с лайками рецензий."""
 
-    def __init__(self, repository: ReviewLikeRepository):
-        """Инициализация сервиса лайков рецензий."""
+    def __init__(
+        self,
+        repository: ReviewLikeRepository, 
+        review_repository: ReviewRepository | None = None
+    ):
         self.repo = repository
+        self.review_repo = review_repository or ReviewRepository()
 
     async def create_or_update_review_like(
         self, user_id: UUID, review_id: UUID, is_like: bool
     ) -> dict[str, Any]:
         """Создать или обновить лайк рецензии."""
-        # Проверяем существование рецензии
-        review_repo = ReviewRepository()
-        review_exists = await review_repo.exists_by_id(review_id)
-        if not review_exists:
-            raise ValueError(f"Review with id {review_id} not found")
+
+        if not await self.review_repo.exists_by_id(review_id):
+            raise ValueError(f"Review {review_id} not found")
 
         existing = await self.repo.get_by_user_and_review(user_id, review_id)
-        now = datetime.utcnow()
 
         if existing:
             updated = await self.repo.update(
-                existing["id"], {"is_like": is_like, "updated_at": now}
+                existing["id"],
+                {"is_like": is_like, "updated_at": datetime.now(timezone.utc)},
             )
             if updated:
                 return dict(updated)
@@ -40,18 +42,9 @@ class ReviewLikeService:
             "user_id": user_id,
             "review_id": review_id,
             "is_like": is_like,
-            "created_at": now,
-            "updated_at": now,
         }
-        doc_id = await self.repo.create(data)
-        return {
-            "id": str(doc_id),
-            "user_id": user_id,
-            "review_id": review_id,
-            "is_like": is_like,
-            "created_at": now,
-            "updated_at": now,
-        }
+        new_review_like = await self.repo.create(data, returning="*")
+        return new_review_like
 
     async def get_review_like(self, user_id: UUID, review_id: UUID) -> dict[str, Any] | None:
         """Получить лайк пользователя для рецензии."""

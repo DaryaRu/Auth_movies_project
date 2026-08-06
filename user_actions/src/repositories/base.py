@@ -15,7 +15,7 @@ class BaseRepository(Generic[T]):
 
     table_name: str = ""
 
-    async def create(self, data: dict[str, Any], returning: str = "id") -> UUID:
+    async def create(self, data: dict[str, Any], returning: str = "id") -> Any:
         """Создать запись и вернуть её ID."""
         columns = ", ".join(data.keys())
         placeholders = ", ".join(f"${i + 1}" for i in range(len(data)))
@@ -29,7 +29,11 @@ class BaseRepository(Generic[T]):
         conn = await PostgreSQL.get_connection()
         try:
             row = await conn.fetchrow(query, *values)
-            return row[returning] if row else UUID(int=0)
+            if not row:
+                return None
+            if returning == "*":
+                return dict(row)
+            return row[returning]
         finally:
             await PostgreSQL.release_connection(conn)
 
