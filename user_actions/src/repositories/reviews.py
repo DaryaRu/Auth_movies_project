@@ -15,22 +15,27 @@ class ReviewRepository(BaseRepository):
 
     table_name = "reviews"
 
-    async def get_by_user_and_movie(self, user_id: UUID, movie_id: UUID) -> dict[str, Any] | None:
+    async def get_by_user_and_movie(
+        self, user_id: UUID, movie_id: UUID
+    ) -> dict[str, Any] | None:
         """Получить рецензию по user_id и movie_id."""
         return await self.find_one({"user_id": user_id, "movie_id": movie_id})
 
     async def exists_by_id(self, review_id: UUID) -> bool:
         """Проверить существование рецензии по ID."""
-        conn = await PostgreSQL.get_connection()
-        try:
-            row = await conn.fetchrow("SELECT 1 FROM reviews WHERE id = $1 LIMIT 1", review_id)
+        async with PostgreSQL.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT 1 FROM reviews WHERE id = $1 LIMIT 1", review_id
+            )
             return row is not None
-        finally:
-            await PostgreSQL.release_connection(conn)
 
-    async def delete_by_user_and_movie(self, user_id: UUID, movie_id: UUID) -> bool:
+    async def delete_by_user_and_movie(
+        self, user_id: UUID, movie_id: UUID
+    ) -> bool:
         """Удалить рецензию по user_id и movie_id."""
-        return await self.delete_by_filters({"user_id": user_id, "movie_id": movie_id})
+        return await self.delete_by_filters(
+            {"user_id": user_id, "movie_id": movie_id}
+        )
 
     async def get_user_reviews(
         self,
@@ -116,11 +121,10 @@ class ReviewRepository(BaseRepository):
 
     async def get_movie_stats(self, movie_id: UUID) -> dict[str, Any]:
         """Получить статистику рецензий для фильма."""
-        conn = await PostgreSQL.get_connection()
-        try:
+        async with PostgreSQL.pool.acquire() as conn:
             row = await conn.fetchrow(
                 """
-                SELECT 
+                SELECT
                     COALESCE(AVG(rating), 0) as avg_rating,
                     COUNT(*) as count
                 FROM reviews
@@ -134,5 +138,3 @@ class ReviewRepository(BaseRepository):
                     "count": row["count"],
                 }
             return {"avg_rating": 0, "count": 0}
-        finally:
-            await PostgreSQL.release_connection(conn)

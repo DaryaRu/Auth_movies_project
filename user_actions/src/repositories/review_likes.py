@@ -47,8 +47,7 @@ class ReviewLikeRepository(BaseRepository):
             - total: общее количество голосов
             - score: разница между лайками и дизлайками
         """
-        conn = await PostgreSQL.get_connection()
-        try:
+        async with PostgreSQL.pool.acquire() as conn:
             # Count likes (is_like = true)
             likes_row = await conn.fetchrow(
                 "SELECT COUNT(*) FROM review_likes WHERE review_id = $1 AND is_like = true",
@@ -73,8 +72,6 @@ class ReviewLikeRepository(BaseRepository):
                 "total": total,
                 "score": likes - dislikes,
             }
-        finally:
-            await PostgreSQL.release_connection(conn)
 
     async def get_reviews_stats(self, review_ids: list[UUID]) -> dict[UUID, dict[str, Any]]:
         """Получить статистику лайков для списка рецензий.
@@ -84,10 +81,9 @@ class ReviewLikeRepository(BaseRepository):
         if not review_ids:
             return {}
 
-        conn = await PostgreSQL.get_connection()
-        try:
+        async with PostgreSQL.pool.acquire() as conn:
             rows = await conn.fetch("""
-                SELECT 
+                SELECT
                     review_id,
                     COUNT(*) FILTER (WHERE is_like = true) as likes,
                     COUNT(*) FILTER (WHERE is_like = false) as dislikes,
@@ -115,5 +111,3 @@ class ReviewLikeRepository(BaseRepository):
                     result[review_id] = {"likes": 0, "dislikes": 0, "total": 0, "score": 0}
 
             return result
-        finally:
-            await PostgreSQL.release_connection(conn)

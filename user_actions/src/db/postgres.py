@@ -30,20 +30,6 @@ class PostgreSQL:
             cls.pool = None
 
     @classmethod
-    async def get_connection(cls) -> asyncpg.Connection:
-        """Получение соединения из пула."""
-        if cls.pool is None:
-            await cls.connect()
-        assert cls.pool is not None
-        return await cls.pool.acquire()
-
-    @classmethod
-    async def release_connection(cls, connection: asyncpg.Connection) -> None:
-        """Возврат соединения в пул."""
-        if cls.pool:
-            await cls.pool.release(connection)
-
-    @classmethod
     async def execute_query(
         cls,
         query: str,
@@ -52,8 +38,8 @@ class PostgreSQL:
         fetchone: bool = False,
     ) -> list[asyncpg.Record] | asyncpg.Record | None | int:
         """Выполнить SQL запрос."""
-        conn = await cls.get_connection()
-        try:
+        assert cls.pool is not None
+        async with cls.pool.acquire() as conn:
             if fetch:
                 return await conn.fetch(query, *args)
             elif fetchone:
@@ -62,8 +48,6 @@ class PostgreSQL:
                 result = await conn.execute(query, *args)
                 # parse result string like "1" for affected rows
                 return int(result.split()[-1]) if result else 0
-        finally:
-            await cls.release_connection(conn)
 
     @classmethod
     async def execute_many(
@@ -72,8 +56,6 @@ class PostgreSQL:
         args: list[tuple],
     ) -> None:
         """Выполнить SQL запрос с несколькими наборами аргументов."""
-        conn = await cls.get_connection()
-        try:
+        assert cls.pool is not None
+        async with cls.pool.acquire() as conn:
             await conn.executemany(query, args)
-        finally:
-            await cls.release_connection(conn)
