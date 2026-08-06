@@ -173,8 +173,10 @@ class TestLikes:
         )
         data = await assert_status_return_json(response, HTTPStatus.OK)
         assert data is not None
-        assert isinstance(data, list)
-        assert len(data) >= 1
+        assert isinstance(data, dict)
+        assert "items" in data
+        assert "total" in data
+        assert data["total"] >= 1
 
     async def test_create_like_unauthorized(
         self,
