@@ -1,0 +1,227 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"Language: ru\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+
+#: notifications/models.py
+msgid "created"
+msgstr "Дата создания"
+
+msgid "modified"
+msgstr "Дата изменения"
+
+msgid "name"
+msgstr "Название"
+
+msgid "subject"
+msgstr "Тема"
+
+msgid "content"
+msgstr "Содержимое"
+
+msgid "is active"
+msgstr "Активен"
+
+msgid "notification template"
+msgstr "Шаблон уведомления"
+
+msgid "notification templates"
+msgstr "Шаблоны уведомлений"
+
+msgid "notification"
+msgstr "Уведомление"
+
+msgid "notifications"
+msgstr "Уведомления"
+
+msgid "template"
+msgstr "Шаблон"
+
+msgid "delivery channels"
+msgstr "Каналы доставки"
+
+msgid "recipient type"
+msgstr "Тип получателей"
+
+msgid "subscription level"
+msgstr "Уровень подписки"
+
+msgid "send type"
+msgstr "Тип отправки"
+
+msgid "scheduled at"
+msgstr "Запланировано на"
+
+msgid "status"
+msgstr "Статус"
+
+msgid "created by"
+msgstr "Создано"
+
+msgid "sent at"
+msgstr "Отправлено"
+
+msgid "recurring schedule"
+msgstr "Расписание повторений"
+
+msgid "recurring schedules"
+msgstr "Расписания повторений"
+
+msgid "notification log"
+msgstr "Лог уведомлений"
+
+msgid "notification logs"
+msgstr "Логи уведомлений"
+
+msgid "user ID"
+msgstr "ID пользователя"
+
+msgid "email"
+msgstr "Email"
+
+msgid "channel"
+msgstr "Канал"
+
+msgid "error message"
+msgstr "Сообщение об ошибке"
+
+msgid "Immediate"
+msgstr "Немедленно"
+
+msgid "Scheduled"
+msgstr "Отложенно"
+
+msgid "Recurring"
+msgstr "Повторяется"
+
+msgid "Draft"
+msgstr "Черновик"
+
+msgid "Pending"
+msgstr "В ожидании"
+
+msgid "Sent"
+msgstr "Отправлено"
+
+msgid "Failed"
+msgstr "Ошибка"
+
+msgid "Cancelled"
+msgstr "Отменено"
+
+msgid "All users"
+msgstr "Все пользователи"
+
+msgid "By subscription level"
+msgstr "По уровню подписки"
+
+msgid "Manual selection"
+msgstr "Ручной выбор"
+
+msgid "interval type"
+msgstr "Тип интервала"
+
+msgid "day of week"
+msgstr "День недели"
+
+msgid "day of month"
+msgstr "День месяца"
+
+msgid "month"
+msgstr "Месяц"
+
+msgid "end date"
+msgstr "Дата окончания"
+
+msgid "Daily"
+msgstr "Ежедневно"
+
+msgid "Weekly"
+msgstr "Еженедельно"
+
+msgid "Monthly"
+msgstr "Ежемесячно"
+
+msgid "Yearly"
+msgstr "Ежегодно"
+
+#: notifications/admin.py
+msgid "Dates"
+msgstr "Даты"
+
+msgid "Preview Template"
+msgstr "Предпросмотр шаблона"
+
+msgid "Preview"
+msgstr "Предпросмотр"
+
+msgid "Delivery"
+msgstr "Доставка"
+
+msgid "Schedule"
+msgstr "Расписание"
+
+msgid "Recurring Schedule"
+msgstr "Расписание повторений"
+
+#: notifications/templates/admin/notifications/preview_template.html
+msgid "Home"
+msgstr "Главная"
+
+msgid "Notifications"
+msgstr "Уведомления"
+
+msgid "Notification templates"
+msgstr "Шаблоны уведомлений"
+
+msgid "Preview"
+msgstr "Предпросмотр"
+
+msgid "Template Preview"
+msgstr "Предпросмотр шаблона"
+
+msgid "Subject"
+msgstr "Тема"
+
+msgid "Content"
+msgstr "Содержимое"
+
+msgid "Available Variables"
+msgstr "Доступные переменные"
+
+msgid "You can use the following variables in your template:"
+msgstr "Вы можете использовать следующие переменные в вашем шаблоне:"
+
+msgid "Note:"
+msgstr "Примечание:"
+
+msgid "Variables will be replaced with actual values when sending."
+msgstr "Переменные будут заменены на фактические значения при отправке."
+
+msgid "Back to templates"
+msgstr "Назад к шаблонам"
+
+#: notifications/forms.py
+msgid "Для отложенной отправки необходимо указать дату и время"
+msgstr "Для отложенной отправки необходимо указать дату и время"
+
+msgid "Дата отправки должна быть в будущем"
+msgstr "Дата отправки должна быть в будущем"
+
+msgid "Для повторяющейся отправки необходимо указать дату и время"
+msgstr "Для повторяющейся отправки необходимо указать дату и время"
+
+msgid "Для еженедельной рассылки необходимо указать день недели"
+msgstr "Для еженедельной рассылки необходимо указать день недели"
+
+msgid "Для ежемесячной рассылки необходимо указать день месяца"
+msgstr "Для ежемесячной рассылки необходимо указать день месяца"
+
+msgid "Для ежегодной рассылки необходимо указать день месяца"
+msgstr "Для ежегодной рассылки необходимо указать день месяца"
+
+msgid "Для ежегодной рассылки необходимо указать месяц"
+msgstr "Для ежегодной рассылки необходимо указать месяц"

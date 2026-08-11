@@ -1,0 +1,50 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label='notifications' %}">{% trans 'Notifications' %}</a>
+    &rsaquo; <a href="{% url 'admin:notifications_notificationtemplate_changelist' %}">{% trans 'Notification templates' %}</a>
+    &rsaquo; {% trans 'Preview' %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <fieldset class="module">
+        <h2>{% trans 'Template Preview' %}: {{ template.name }}</h2>
+        
+        <div style="margin: 20px 0;">
+            <h3>{% trans 'Subject' %}:</h3>
+            <div style="background: #f8f9fa; padding: 15px; border-left: 4px solid #007bff; font-family: monospace;">
+                {{ subject_preview }}
+            </div>
+        </div>
+        
+        <div style="margin: 20px 0;">
+            <h3>{% trans 'Content' %}:</h3>
+            <div style="background: #f8f9fa; padding: 15px; border-left: 4px solid #28a745; font-family: monospace; white-space: pre-wrap;">
+                {{ content_preview }}
+            </div>
+        </div>
+        
+        <div style="margin: 20px 0;">
+            <h3>{% trans 'Available Variables' %}:</h3>
+            <p>{% trans 'You can use the following variables in your template:' %}</p>
+            <ul>
+                {% for var in variables %}
+                <li><code>{{ var }}</code></li>
+                {% endfor %}
+            </ul>
+            <p><strong>{% trans 'Note:' %}</strong> {% trans 'Variables will be replaced with actual values when sending.' %}</p>
+        </div>
+        
+        <div style="margin: 20px 0;">
+            <a href="{% url 'admin:notifications_notificationtemplate_changelist' %}" class="button">
+                {% trans 'Back to templates' %}
+            </a>
+        </div>
+    </fieldset>
+</div>
+{% endblock %}

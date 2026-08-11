@@ -41,6 +41,8 @@ INSTALLED_APPS = [
     "core.apps.CoreConfig",
     "movies.apps.MoviesConfig",
     "users.apps.UsersConfig",
+    "notifications.apps.NotificationsConfig",
+    "django_celery_beat",
 ]
 
 MIDDLEWARE = [
@@ -93,7 +95,7 @@ LANGUAGE_CODE = "ru-RU"
 TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
-LOCALE_PATHS = ["movies/locale"]
+LOCALE_PATHS = ["movies/locale", "notifications/locale"]
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "collected_static"

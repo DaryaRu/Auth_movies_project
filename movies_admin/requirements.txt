@@ -14,3 +14,5 @@ opentelemetry-instrumentation-django==0.63b1
 opentelemetry-instrumentation-requests==0.63b1
 opentelemetry-instrumentation-psycopg2==0.63b1
 sentry-sdk==2.66.1
+django-celery-beat==2.6.0
+celery==5.4.0
