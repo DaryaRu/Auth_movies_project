@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     KAFKA_BROKERS: str = ""
     KAFKA_READY_TOPIC: str = "notification-ready"
     KAFKA_RETRY_INTERVAL_SEC: int = 5
+    KAFKA_ACKS: str = "all"
 
     ENVIRONMENT: str = "local"
     DEBUG: bool = False

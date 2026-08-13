@@ -1,4 +1,16 @@
-"""Инициализация Kafka producer."""
+"""Инициализация Kafka producer.
+
+Буфера нет: отправка синхронная относительно запроса — NotificationService.create_notification
+дожидается подтверждения от Kafka (send_and_wait) прежде чем API ответит вызывающему.
+
+Потеря события недопустима, поэтому продюсер использует acks=settings.KAFKA_ACKS
+(по умолчанию "all"), т.е. подтверждение приходит только после записи на все реплики,
+а не только от лидера партиции (! не гарантирует без min.insync.replicas > 1 на топике
+(kafka-topic-init-notifications в docker-compose.yml) —
+если min.insync.replicas=1, ISR может состоять из одного лидера. В dev (KAFKA_MIN_INSYNC_REPLICAS=1, KAFKA_REPLICATION_FACTOR=1)
+реальной защиты от потери при падении лидера нет — появляется только в проде
+(KAFKA_MIN_INSYNC_REPLICAS=2, KAFKA_REPLICATION_FACTOR=3).
+"""
 
 import asyncio
 import logging
