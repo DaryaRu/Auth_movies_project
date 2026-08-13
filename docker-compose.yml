@@ -461,6 +461,9 @@ services:
     restart: unless-stopped
     profiles: ["analytics"]
     env_file: .env
+    # TODO: временно для просмотра OpenAPI в браузере
+    ports:
+      - "8010:8000"
     environment:
       POSTGRES_HOST: notifications-db
       POSTGRES_PORT: 5432
