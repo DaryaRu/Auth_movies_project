@@ -1,0 +1,7 @@
+fastapi[standard]==0.115.12
+gunicorn>=22,<24
+uvicorn[standard]==0.27.0
+pydantic==2.12.0
+pydantic-settings==2.14.1
+asyncpg==0.29.0
+aiokafka==0.11.0
