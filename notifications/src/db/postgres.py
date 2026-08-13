@@ -1,9 +1,22 @@
 """Подключение к PostgreSQL."""
 
+import json
+
 import asyncpg
-from asyncpg import Pool
+from asyncpg import Connection, Pool
 
 from src.core.config import settings
+
+
+async def _init_connection(conn: Connection) -> None:
+    """Зарегистрировать кодек jsonb - Python list/dict для каждого соединения пула."""
+    await conn.set_type_codec(
+        "jsonb",
+        encoder=json.dumps,
+        decoder=json.loads,
+        schema="pg_catalog",
+        format="text",
+    )
 
 
 class PostgreSQL:
@@ -20,6 +33,7 @@ class PostgreSQL:
                 min_size=5,
                 max_size=20,
                 command_timeout=60,
+                init=_init_connection,
             )
 
     @classmethod
