@@ -55,6 +55,8 @@ class Settings(BaseSettings):
     VK_CLIENT_ID: str = ""
     VK_CLIENT_SECRET: str = ""
     LIMIT_VALUE: str = "5/minute"
+    NOTIFICATIONS_API_URL: str = ""
+    NOTIFICATIONS_TEMPLATE_ID_CACHE_TTL: int = 3600
 
     @property
     def DB_URL(self):

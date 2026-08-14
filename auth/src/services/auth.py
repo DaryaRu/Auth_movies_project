@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from datetime import datetime, timezone
 from typing import Any
@@ -29,6 +30,7 @@ from src.services.base import BaseService
 from src.services.sessions import SessionService
 from src.utils.db_manager import DBManager
 from src.utils.hashes import BaseHashService
+from src.utils.notifications import notify_user
 from src.utils.tokens import JWTTokenService
 
 
@@ -62,6 +64,7 @@ class AuthService(BaseService):
         if is_exsist_user:
             raise UserAlreadyexistsException()
         new_user = await self.add_one(user)
+        asyncio.create_task(notify_user(new_user.id, "user_registered"))
         return new_user
 
     async def create_admin(self, user: UserRequestScheme) -> None:
@@ -295,6 +298,7 @@ class AuthService(BaseService):
         )
 
         await self._session_service.delete_all_sessions(str(user_id))
+        asyncio.create_task(notify_user(user_id, "password_changed"))
 
     async def authenticate_user(
         self, auth_user: UserRequestScheme, ip_address: str, user_agent: str
