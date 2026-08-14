@@ -17,3 +17,14 @@ CREATE TABLE IF NOT EXISTS templates (
 CREATE INDEX IF NOT EXISTS idx_templates_code ON templates(code);
 CREATE INDEX IF NOT EXISTS idx_templates_channel ON templates(channel);
 CREATE INDEX IF NOT EXISTS idx_templates_is_active ON templates(is_active);
+
+-- Базовые шаблоны для персональных уведомлений.
+INSERT INTO templates (code, name, channel, subject, body)
+VALUES
+    ('review_liked', 'Лайк на рецензию (email)', 'email',
+     'Вашу рецензию оценили', 'Пользователь поставил лайк на вашу рецензию.'),
+    ('review_disliked', 'Дизлайк на рецензию (email)', 'email',
+     'Вашу рецензию оценили', 'Пользователь поставил дизлайк на вашу рецензию.'),
+    ('user_registered', 'Регистрация пользователя (email)', 'email',
+     'Добро пожаловать!', 'Спасибо за регистрацию.')
+ON CONFLICT (code) DO NOTHING;
