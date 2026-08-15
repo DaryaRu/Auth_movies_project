@@ -42,7 +42,6 @@ INSTALLED_APPS = [
     "movies.apps.MoviesConfig",
     "users.apps.UsersConfig",
     "notifications.apps.NotificationsConfig",
-    "django_celery_beat",
 ]
 
 MIDDLEWARE = [
@@ -116,6 +115,10 @@ AUTH_API_SUBSCRIPTION_LEVELS_URL = os.getenv(
     "AUTH_API_SUBSCRIPTION_LEVELS_URL", ""
 )
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "")
+
+NOTIFICATIONS_API_BASE_URL = os.getenv(
+    "NOTIFICATIONS_API_BASE_URL", "http://notifications-service:8000/api/v1"
+)
 
 OTEL_SERVICE_NAME = os.getenv("OTEL_SERVICE_NAME", "")
 OTEL_EXPORTER_OTLP_ENDPOINT = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "")

@@ -1,6 +1,106 @@
 {% extends "admin/base_site.html" %}
 {% load i18n %}
 
+{% block extrahead %}
+{{ block.super }}
+<style>
+    .preview-container {
+        max-width: 800px;
+        margin: 20px auto;
+    }
+    .preview-section {
+        background: #f8f9fa;
+        padding: 20px;
+        margin: 20px 0;
+        border-radius: 4px;
+        border-left: 4px solid #007bff;
+    }
+    .preview-section h3 {
+        margin-top: 0;
+        color: #333;
+    }
+    .preview-content {
+        font-family: monospace;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        background: #fff;
+        padding: 15px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+    .preview-content.html-content {
+        font-family: inherit;
+        white-space: normal;
+    }
+    .preview-content.html-content pre {
+        background: #f4f4f4;
+        padding: 10px;
+        border-radius: 3px;
+        overflow-x: auto;
+    }
+    .preview-content.html-content code {
+        background: #f4f4f4;
+        padding: 2px 5px;
+        border-radius: 3px;
+        font-family: monospace;
+    }
+    .variables-list {
+        list-style: none;
+        padding: 0;
+    }
+    .variables-list li {
+        display: inline-block;
+        background: #e9ecef;
+        padding: 5px 10px;
+        margin: 3px;
+        border-radius: 3px;
+        font-family: monospace;
+    }
+    .error-message {
+        background: #f8d7da;
+        border: 1px solid #f5c6cb;
+        color: #721c24;
+        padding: 15px;
+        border-radius: 4px;
+        margin: 20px 0;
+    }
+    .success-message {
+        background: #d4edda;
+        border: 1px solid #c3e6cb;
+        color: #155724;
+        padding: 15px;
+        border-radius: 4px;
+        margin: 20px 0;
+    }
+    .form-row {
+        margin: 15px 0;
+    }
+    .form-row label {
+        display: block;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+    .form-row textarea {
+        width: 100%;
+        max-width: 600px;
+    }
+    .button-row {
+        margin-top: 20px;
+    }
+    .button-row input[type="submit"] {
+        background: #007bff;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    .button-row input[type="submit"]:hover {
+        background: #0056b3;
+    }
+</style>
+{% endblock %}
+
 {% block breadcrumbs %}
 <div class="breadcrumbs">
     <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
@@ -11,40 +111,96 @@
 {% endblock %}
 
 {% block content %}
-<div id="content-main">
-    <fieldset class="module">
-        <h2>{% trans 'Template Preview' %}: {{ template.name }}</h2>
+<div id="content-main" class="preview-container">
+    <h1>{% trans 'Template Preview' %}: {{ template.name|default:"No name" }}</h1>
+    
+    {% if error_message %}
+    <div class="error-message">
+        <strong>{% trans 'Error' %}:</strong> {{ error_message }}
+    </div>
+    {% endif %}
+    
+    <!-- Блок предпросмотра - показываем всегда, если есть template или preview_data -->
+    {% if template or preview_data %}
+    <div class="preview-section">
+        <h3>{% trans 'Subject' %}:</h3>
+        <div class="preview-content">
+            {% if preview_data and preview_data.subject %}
+                {{ preview_data.subject|safe }}
+            {% elif template and template.subject %}
+                {{ template.subject|safe }}
+            {% else %}
+                <em>{% trans 'No subject' %}</em>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="preview-section" style="border-left-color: #28a745;">
+        <h3>{% trans 'Content' %}:</h3>
+        <div class="preview-content html-content">
+            {% if preview_data and preview_data.body %}
+                {{ preview_data.body|safe }}
+            {% elif template and template.body %}
+                {{ template.body|safe }}
+            {% else %}
+                <em>{% trans 'No content' %}</em>
+            {% endif %}
+        </div>
+    </div>
+    
+    {% if template %}
+    <div class="preview-section" style="border-left-color: #6c757d;">
+        <h3>{% trans 'Channel' %}:</h3>
+        <p><strong>{{ template.channel|upper }}</strong></p>
+    </div>
+    
+    <div class="preview-section" style="border-left-color: #ffc107;">
+        <h3>{% trans 'Available Variables' %}:</h3>
+        <p>{% trans 'You can use the following variables in your template:' %}</p>
+        <ul class="variables-list">
+            {% for var in variables %}
+            <li>{{ var }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+    {% endif %}
+    
+    <!-- Сообщение о статусе рендера -->
+    {% if preview_data %}
+    <div class="success-message">
+        {% if preview_data.is_original %}
+            <strong>{% trans 'Original Template' %}:</strong> {% trans 'This is the original template without variable substitution.' %}
+        {% else %}
+            <strong>{% trans 'Rendered Successfully' %}!</strong> {% trans 'The template has been rendered with your test data.' %}
+        {% endif %}
+    </div>
+    {% endif %}
+    
+    <div class="preview-section" style="border-left-color: #17a2b8;">
+        <h3>{% trans 'Test Render' %}:</h3>
+        <p>{% trans 'Enter test data to see how the template will be rendered:' %}</p>
         
-        <div style="margin: 20px 0;">
-            <h3>{% trans 'Subject' %}:</h3>
-            <div style="background: #f8f9fa; padding: 15px; border-left: 4px solid #007bff; font-family: monospace;">
-                {{ subject_preview }}
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-row">
+                {{ form.payload_json.label_tag }}
+                {{ form.payload_json }}
+                {% if form.payload_json.errors %}
+                    <div class="errorlist">{{ form.payload_json.errors }}</div>
+                {% endif %}
+                <small>{{ form.payload_json.help_text }}</small>
             </div>
-        </div>
-        
-        <div style="margin: 20px 0;">
-            <h3>{% trans 'Content' %}:</h3>
-            <div style="background: #f8f9fa; padding: 15px; border-left: 4px solid #28a745; font-family: monospace; white-space: pre-wrap;">
-                {{ content_preview }}
+            <div class="button-row">
+                <input type="submit" value="{% trans 'Render Preview' %}">
             </div>
-        </div>
-        
-        <div style="margin: 20px 0;">
-            <h3>{% trans 'Available Variables' %}:</h3>
-            <p>{% trans 'You can use the following variables in your template:' %}</p>
-            <ul>
-                {% for var in variables %}
-                <li><code>{{ var }}</code></li>
-                {% endfor %}
-            </ul>
-            <p><strong>{% trans 'Note:' %}</strong> {% trans 'Variables will be replaced with actual values when sending.' %}</p>
-        </div>
-        
-        <div style="margin: 20px 0;">
-            <a href="{% url 'admin:notifications_notificationtemplate_changelist' %}" class="button">
-                {% trans 'Back to templates' %}
-            </a>
-        </div>
-    </fieldset>
+        </form>
+    </div>
+    
+    <div class="button-row">
+        <a href="{% url 'admin:notifications_notificationtemplate_changelist' %}" class="button">
+            {% trans 'Back to templates' %}
+        </a>
+    </div>
 </div>
 {% endblock %}

@@ -7,6 +7,9 @@ msgstr ""
 "Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
 
 #: notifications/models.py
+msgid "id"
+msgstr "ID"
+
 msgid "created"
 msgstr "Дата создания"
 
@@ -31,122 +34,17 @@ msgstr "Шаблон уведомления"
 msgid "notification templates"
 msgstr "Шаблоны уведомлений"
 
-msgid "notification"
-msgstr "Уведомление"
-
-msgid "notifications"
-msgstr "Уведомления"
-
-msgid "template"
-msgstr "Шаблон"
-
-msgid "delivery channels"
-msgstr "Каналы доставки"
-
-msgid "recipient type"
-msgstr "Тип получателей"
-
-msgid "subscription level"
-msgstr "Уровень подписки"
-
-msgid "send type"
-msgstr "Тип отправки"
-
-msgid "scheduled at"
-msgstr "Запланировано на"
-
-msgid "status"
-msgstr "Статус"
-
-msgid "created by"
-msgstr "Создано"
-
-msgid "sent at"
-msgstr "Отправлено"
-
-msgid "recurring schedule"
-msgstr "Расписание повторений"
-
-msgid "recurring schedules"
-msgstr "Расписания повторений"
-
-msgid "notification log"
-msgstr "Лог уведомлений"
-
-msgid "notification logs"
-msgstr "Логи уведомлений"
-
-msgid "user ID"
-msgstr "ID пользователя"
-
-msgid "email"
-msgstr "Email"
+msgid "code"
+msgstr "Код"
 
 msgid "channel"
 msgstr "Канал"
 
-msgid "error message"
-msgstr "Сообщение об ошибке"
+msgid "body"
+msgstr "Тело сообщения"
 
-msgid "Immediate"
-msgstr "Немедленно"
-
-msgid "Scheduled"
-msgstr "Отложенно"
-
-msgid "Recurring"
-msgstr "Повторяется"
-
-msgid "Draft"
-msgstr "Черновик"
-
-msgid "Pending"
-msgstr "В ожидании"
-
-msgid "Sent"
-msgstr "Отправлено"
-
-msgid "Failed"
-msgstr "Ошибка"
-
-msgid "Cancelled"
-msgstr "Отменено"
-
-msgid "All users"
-msgstr "Все пользователи"
-
-msgid "By subscription level"
-msgstr "По уровню подписки"
-
-msgid "Manual selection"
-msgstr "Ручной выбор"
-
-msgid "interval type"
-msgstr "Тип интервала"
-
-msgid "day of week"
-msgstr "День недели"
-
-msgid "day of month"
-msgstr "День месяца"
-
-msgid "month"
-msgstr "Месяц"
-
-msgid "end date"
-msgstr "Дата окончания"
-
-msgid "Daily"
-msgstr "Ежедневно"
-
-msgid "Weekly"
-msgstr "Еженедельно"
-
-msgid "Monthly"
-msgstr "Ежемесячно"
-
-msgid "Yearly"
-msgstr "Ежегодно"
+msgid "allowed variables"
+msgstr "Разрешённые переменные"
 
 #: notifications/admin.py
 msgid "Dates"
@@ -158,14 +56,35 @@ msgstr "Предпросмотр шаблона"
 msgid "Preview"
 msgstr "Предпросмотр"
 
-msgid "Delivery"
-msgstr "Доставка"
+msgid "Validate Template"
+msgstr "Валидировать шаблон"
 
-msgid "Schedule"
-msgstr "Расписание"
+msgid "Add Notification Template"
+msgstr "Добавить шаблон уведомления"
 
-msgid "Recurring Schedule"
-msgstr "Расписание повторений"
+msgid "Template created successfully"
+msgstr "Шаблон успешно создан"
+
+msgid "Template updated successfully"
+msgstr "Шаблон успешно обновлён"
+
+msgid "Template not found in service"
+msgstr "Шаблон не найден в сервисе"
+
+msgid "Template with this code already exists"
+msgstr "Шаблон с таким кодом уже существует"
+
+msgid "Please correct the errors below"
+msgstr "Исправьте ошибки ниже"
+
+msgid "Change %s"
+msgstr "Изменить %s"
+
+msgid "Code"
+msgstr "Код"
+
+msgid "Allowed Variables"
+msgstr "Разрешённые переменные"
 
 #: notifications/templates/admin/notifications/preview_template.html
 msgid "Home"
@@ -176,9 +95,6 @@ msgstr "Уведомления"
 
 msgid "Notification templates"
 msgstr "Шаблоны уведомлений"
-
-msgid "Preview"
-msgstr "Предпросмотр"
 
 msgid "Template Preview"
 msgstr "Предпросмотр шаблона"
@@ -205,23 +121,130 @@ msgid "Back to templates"
 msgstr "Назад к шаблонам"
 
 #: notifications/forms.py
-msgid "Для отложенной отправки необходимо указать дату и время"
-msgstr "Для отложенной отправки необходимо указать дату и время"
+msgid "Test Payload (JSON)"
+msgstr "Тестовые данные (JSON)"
 
-msgid "Дата отправки должна быть в будущем"
-msgstr "Дата отправки должна быть в будущем"
+msgid "JSON с тестовыми данными для подстановки в шаблон"
+msgstr "JSON с тестовыми данными для подстановки в шаблон"
 
-msgid "Для повторяющейся отправки необходимо указать дату и время"
-msgstr "Для повторяющейся отправки необходимо указать дату и время"
+msgid "Invalid JSON: "
+msgstr "Неверный JSON: "
 
-msgid "Для еженедельной рассылки необходимо указать день недели"
-msgstr "Для еженедельной рассылки необходимо указать день недели"
+msgid "Name"
+msgstr "Название"
 
-msgid "Для ежемесячной рассылки необходимо указать день месяца"
-msgstr "Для ежемесячной рассылки необходимо указать день месяца"
+msgid "Channel"
+msgstr "Канал"
 
-msgid "Для ежегодной рассылки необходимо указать день месяца"
-msgstr "Для ежегодной рассылки необходимо указать день месяца"
+msgid "Body"
+msgstr "Тело сообщения"
 
-msgid "Для ежегодной рассылки необходимо указать месяц"
-msgstr "Для ежегодной рассылки необходимо указать месяц"
+msgid "Is Active"
+msgstr "Активен"
+
+msgid "Rendered Successfully"
+msgstr "Успешно отрендерено"
+
+msgid "Error"
+msgstr "Ошибка"
+
+msgid "Render Preview"
+msgstr "Предпросмотр"
+
+msgid "Test Render"
+msgstr "Тестовый рендер"
+
+msgid "Enter test data to see how the template will be rendered:"
+msgstr "Введите тестовые данные для предпросмотра шаблона:"
+
+#: notifications/templates/admin/notifications/template_form.html
+msgid "Add Template"
+msgstr "Добавить шаблон"
+
+msgid "Template Information"
+msgstr "Информация о шаблоне"
+
+msgid "Save Template"
+msgstr "Сохранить шаблон"
+
+msgid "Save and Continue Editing"
+msgstr "Сохранить и продолжить редактирование"
+
+msgid "Cancel"
+msgstr "Отмена"
+
+#: notifications/templates/admin/notifications/change_form.html
+msgid "Notification Templates"
+msgstr "Шаблоны уведомлений"
+
+msgid "Additional Info"
+msgstr "Дополнительная информация"
+
+msgid "Actions"
+msgstr "Действия"
+
+#: notifications/templates/admin/notifications/preview_template.html
+msgid "No subject"
+msgstr "Нет темы"
+
+msgid "No content"
+msgstr "Нет содержимого"
+
+msgid "Original Template"
+msgstr "Исходный шаблон"
+
+msgid "This is the original template without variable substitution."
+msgstr "Это исходный шаблон без подстановки переменных."
+
+msgid "The template has been rendered with your test data."
+msgstr "Шаблон отрендерен с вашими тестовыми данными."
+
+#: notifications/templates/admin/notifications/validate_template.html
+msgid "Validate"
+msgstr "Валидировать"
+
+msgid "Template Validation"
+msgstr "Валидация шаблона"
+
+msgid "Validation Error"
+msgstr "Ошибка валидации"
+
+msgid "Active"
+msgstr "Активен"
+
+msgid "Yes"
+msgstr "Да"
+
+msgid "No"
+msgstr "Нет"
+
+msgid "Validation Results"
+msgstr "Результаты валидации"
+
+msgid "Template is valid"
+msgstr "Шаблон валиден"
+
+msgid "Validation Errors"
+msgstr "Ошибки валидации"
+
+msgid "Warnings"
+msgstr "Предупреждения"
+
+msgid "No Validation Data"
+msgstr "Нет данных валидации"
+
+msgid "Validation could not be performed. Please check the error message above."
+msgstr "Валидация не может быть выполнена. Проверьте сообщение об ошибке выше."
+
+#: notifications/forms.py
+msgid "Уникальный код шаблона (например: review_liked)"
+msgstr "Уникальный код шаблона (например: review_liked)"
+
+msgid "Тема сообщения. Поддерживает переменные: {{user_name}}, {{movie_title}}, etс."
+msgstr "Тема сообщения. Поддерживает переменные: {{user_name}}, {{movie_title}}, и др."
+
+msgid "Содержимое сообщения. Поддерживает переменные: {{user_name}}, {{movie_title}}, etс."
+msgstr "Содержимое сообщения. Поддерживает переменные: {{user_name}}, {{movie_title}}, и др."
+
+msgid "Список разрешённых переменных через запятую (например: user_name, movie_title)"
+msgstr "Список разрешённых переменных через запятую (например: user_name, movie_title)"
