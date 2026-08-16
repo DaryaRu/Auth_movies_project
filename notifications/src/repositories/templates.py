@@ -25,6 +25,15 @@ class TemplateRepository:
             )
         return _row_to_template(row) if row else None
 
+    async def get_by_code(self, code: str) -> Template | None:
+        """Получить шаблон по code."""
+        assert PostgreSQL.pool is not None
+        async with PostgreSQL.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT * FROM templates WHERE code = $1", code
+            )
+        return _row_to_template(row) if row else None
+
     async def list_all(self) -> list[Template]:
         """Получить все шаблоны."""
         assert PostgreSQL.pool is not None

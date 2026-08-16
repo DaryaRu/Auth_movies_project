@@ -27,6 +27,20 @@ async def list_templates(
     return await repo.list_all()
 
 
+@router.get("/by-code/{code}/", summary="Получить шаблон по code")
+async def get_template_by_code(
+    code: str,
+    repo: TemplateRepository = TemplateRepositoryDep,
+) -> Template:
+    """Получить шаблон по code."""
+    template = await repo.get_by_code(code)
+    if template is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, detail="Template not found"
+        )
+    return template
+
+
 @router.get("/{template_id}/", summary="Получить шаблон")
 async def get_template(
     template_id: UUID,

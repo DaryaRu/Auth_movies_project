@@ -405,6 +405,7 @@ services:
       POSTGRES_DB: user_actions
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
+      NOTIFICATIONS_API_URL: http://notifications-service:8000/api/v1/notifications
     command: >
       sh -c "gunicorn src.main:app
       --workers 2

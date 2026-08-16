@@ -37,6 +37,10 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "RS256"
     PUBLIC_KEY_CACHE_TTL: int = 3600
 
+    # Персональные уведомления
+    NOTIFICATIONS_API_URL: str = ""
+    NOTIFICATIONS_TEMPLATE_ID_CACHE_TTL: int = 3600
+
     # Rate limiting
     EVENTS_RATE_LIMIT: str = "100/minute"
     BOOKMARKS_RATE_LIMIT: str = "100/minute"
