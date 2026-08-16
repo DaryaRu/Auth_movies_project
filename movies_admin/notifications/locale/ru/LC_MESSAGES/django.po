@@ -80,12 +80,6 @@ msgstr "Исправьте ошибки ниже"
 msgid "Change %s"
 msgstr "Изменить %s"
 
-msgid "Code"
-msgstr "Код"
-
-msgid "Allowed Variables"
-msgstr "Разрешённые переменные"
-
 #: notifications/templates/admin/notifications/preview_template.html
 msgid "Home"
 msgstr "Главная"
@@ -93,17 +87,8 @@ msgstr "Главная"
 msgid "Notifications"
 msgstr "Уведомления"
 
-msgid "Notification templates"
-msgstr "Шаблоны уведомлений"
-
 msgid "Template Preview"
 msgstr "Предпросмотр шаблона"
-
-msgid "Subject"
-msgstr "Тема"
-
-msgid "Content"
-msgstr "Содержимое"
 
 msgid "Available Variables"
 msgstr "Доступные переменные"
@@ -130,26 +115,11 @@ msgstr "JSON с тестовыми данными для подстановки 
 msgid "Invalid JSON: "
 msgstr "Неверный JSON: "
 
-msgid "Name"
-msgstr "Название"
-
-msgid "Channel"
-msgstr "Канал"
-
-msgid "Body"
-msgstr "Тело сообщения"
-
-msgid "Is Active"
-msgstr "Активен"
-
 msgid "Rendered Successfully"
 msgstr "Успешно отрендерено"
 
 msgid "Error"
 msgstr "Ошибка"
-
-msgid "Render Preview"
-msgstr "Предпросмотр"
 
 msgid "Test Render"
 msgstr "Тестовый рендер"
@@ -174,9 +144,6 @@ msgid "Cancel"
 msgstr "Отмена"
 
 #: notifications/templates/admin/notifications/change_form.html
-msgid "Notification Templates"
-msgstr "Шаблоны уведомлений"
-
 msgid "Additional Info"
 msgstr "Дополнительная информация"
 
@@ -208,9 +175,6 @@ msgstr "Валидация шаблона"
 
 msgid "Validation Error"
 msgstr "Ошибка валидации"
-
-msgid "Active"
-msgstr "Активен"
 
 msgid "Yes"
 msgstr "Да"

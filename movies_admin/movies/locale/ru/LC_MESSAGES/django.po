@@ -153,3 +153,151 @@ msgstr "Уровень подписки"
 #: .\movies\models.py:115
 msgid "Minimum subscription level required to watch. 0 — available to everyone."
 msgstr "Минимальный уровень подписки для просмотра. 0 — доступно всем."
+
+#: .\movies\models.py:225
+msgid "Planned"
+msgstr "Запланировано"
+
+#: .\movies\models.py:226
+msgid "In production"
+msgstr "В производстве"
+
+#: .\movies\models.py:227
+msgid "Released"
+msgstr "Выпущено"
+
+#: .\movies\models.py:228
+msgid "Archived"
+msgstr "Архивировано"
+
+#: .\movies\models.py:240
+msgid "season number"
+msgstr "Номер сезона"
+
+#: .\movies\models.py:244
+msgid "episode number"
+msgstr "Номер эпизода"
+
+#: .\movies\models.py:248
+msgid "episode title"
+msgstr "Название эпизода"
+
+#: .\movies\models.py:253
+msgid "episode description"
+msgstr "Описание эпизода"
+
+#: .\movies\models.py:258
+msgid "release date"
+msgstr "Дата выхода"
+
+#: .\movies\models.py:264
+msgid "duration in minutes"
+msgstr "Продолжительность в минутах"
+
+#: .\movies\models.py:270
+msgid "episode rating"
+msgstr "Рейтинг эпизода"
+
+#: .\movies\models.py:286
+msgid "episode file path"
+msgstr "Путь к файлу эпизода"
+
+#: .\movies\models.py:293
+msgid "release status"
+msgstr "Статус релиза"
+
+#: .\movies\models.py:300
+msgid "premium episode"
+msgstr "Премиум эпизод"
+
+#: .\movies\models.py:326
+msgid "episode"
+msgstr "Эпизод"
+
+#: .\movies\models.py:327
+msgid "episodes"
+msgstr "Эпизоды"
+
+#: .\movies\models.py:237
+msgid "The TV show this episode belongs to"
+msgstr "Телепередача, к которой относится этот эпизод"
+
+#: .\movies\models.py:241
+msgid "Season number (starting from 1)"
+msgstr "Номер сезона (начиная с 1)"
+
+#: .\movies\models.py:245
+msgid "Episode number within the season (starting from 1)"
+msgstr "Номер эпизода в сезоне (начиная с 1)"
+
+#: .\movies\models.py:250
+msgid "Title of this episode"
+msgstr "Название этого эпизода"
+
+#: .\movies\models.py:255
+msgid "Description/synopsis of this episode"
+msgstr "Описание/синопсис этого эпизода"
+
+#: .\movies\models.py:261
+msgid "Official release date of this episode"
+msgstr "Официальная дата выхода этого эпизода"
+
+#: .\movies\models.py:267
+msgid "Episode duration in minutes"
+msgstr "Продолжительность эпизода в минутах"
+
+#: .\movies\models.py:283
+msgid "Rating for this episode (0-10)"
+msgstr "Рейтинг этого эпизода (0-10)"
+
+#: .\movies\models.py:290
+msgid "Path to the video file for this episode"
+msgstr "Путь к видеофайлу этого эпизода"
+
+#: .\movies\models.py:297
+msgid "Current release status of this episode"
+msgstr "Текущий статус релиза этого эпизода"
+
+#: .\movies\models.py:302
+msgid "Is this episode available only for premium subscribers?"
+msgstr "Доступен ли этот эпизод только для премиум подписчиков?"
+
+#: .\movies\models.py:315
+msgid "Genres for this episode"
+msgstr "Жанры для этого эпизода"
+
+#: .\movies\models.py:321
+msgid "People involved in this episode"
+msgstr "Люди, участвующие в этом эпизода"
+
+#: .\movies\admin.py:148
+msgid "season"
+msgstr "Сезон"
+
+#: .\movies\admin.py:196
+msgid "Search by episode title, TV show title or description"
+msgstr "Поиск по названию эпизода, названию шоу или описанию"
+
+#: .\movies\admin.py:207
+msgid "Release info"
+msgstr "Информация о релизе"
+
+#: .\movies\admin.py:210
+msgid "Rating & Subscription"
+msgstr "Рейтинг и подписка"
+
+#: .\movies\admin.py:213
+msgid "Genres & Persons"
+msgstr "Жанры и персоны"
+
+#: .\movies\admin.py:215
+msgid "Genres and persons are inherited from the TV show. You can add additional genres and persons to this episode."
+msgstr "Жанры и персоны наследуются из телешоу. Вы можете добавить дополнительные жанры и персоны к этому эпизоду."
+
+#: .\movies\admin.py:218
+msgid "File"
+msgstr "Файл"
+
+#: .\movies\admin.py:225
+msgid "Episode Code"
+msgstr "Код эпизода"
