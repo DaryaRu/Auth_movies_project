@@ -30,6 +30,11 @@ class Settings(BaseSettings):
     # auth-service (для получения email перед отправкой)
     AUTH_API_URL: str = "http://auth-service:8000/api/v1"
 
+    # SMTP (Mailpit в dev)
+    SMTP_HOST: str = "mailpit"
+    SMTP_PORT: int = 1025
+    EMAIL_FROM: str = "notifications@example.com"
+
     @property
     def kafka_brokers_list(self) -> list[str]:
         """Список брокеров для faststream.KafkaBroker."""
