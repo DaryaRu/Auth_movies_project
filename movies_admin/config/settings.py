@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "core.apps.CoreConfig",
     "movies.apps.MoviesConfig",
     "users.apps.UsersConfig",
+    "notifications.apps.NotificationsConfig",
 ]
 
 MIDDLEWARE = [
@@ -93,7 +94,7 @@ LANGUAGE_CODE = "ru-RU"
 TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
-LOCALE_PATHS = ["movies/locale"]
+LOCALE_PATHS = ["movies/locale", "notifications/locale"]
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "collected_static"
@@ -114,6 +115,10 @@ AUTH_API_SUBSCRIPTION_LEVELS_URL = os.getenv(
     "AUTH_API_SUBSCRIPTION_LEVELS_URL", ""
 )
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "")
+
+NOTIFICATIONS_API_BASE_URL = os.getenv(
+    "NOTIFICATIONS_API_BASE_URL", "http://notifications-service:8000/api/v1"
+)
 
 OTEL_SERVICE_NAME = os.getenv("OTEL_SERVICE_NAME", "")
 OTEL_EXPORTER_OTLP_ENDPOINT = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "")

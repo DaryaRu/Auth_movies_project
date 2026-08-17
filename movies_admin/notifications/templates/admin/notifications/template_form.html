@@ -1,0 +1,118 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}{{ block.super }}
+<style>
+    .form-row {
+        margin-bottom: 15px;
+    }
+    .form-row label {
+        display: block;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+    .form-row input, .form-row textarea, .form-row select {
+        width: 100%;
+        max-width: 600px;
+    }
+    .form-row .helptext {
+        display: block;
+        margin-top: 5px;
+        color: #666;
+    }
+    .submit-row {
+        margin-top: 20px;
+    }
+    .channel-radio {
+        display: inline-block;
+        margin-right: 15px;
+    }
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+    &rsaquo; <a href="{% url 'admin:notifications_notificationtemplate_changelist' %}">{% trans 'Notification Templates' %}</a>
+    &rsaquo; {% trans 'Add Template' %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <form method="post" novalidate>
+        {% csrf_token %}
+        
+        <fieldset class="module aligned">
+            <h2>{% trans 'Template Information' %}</h2>
+            
+            <div class="form-row">
+                {{ form.code.errors }}
+                <label for="{{ form.code.id_for_label }}">{% trans 'Code' %} *</label>
+                {{ form.code }}
+                {% if form.code.help_text %}
+                    <span class="helptext">{{ form.code.help_text }}</span>
+                {% endif %}
+            </div>
+            
+            <div class="form-row">
+                {{ form.name.errors }}
+                <label for="{{ form.name.id_for_label }}">{% trans 'Name' %} *</label>
+                {{ form.name }}
+            </div>
+            
+            <div class="form-row">
+                {{ form.channel.errors }}
+                <label>{% trans 'Channel' %} *</label>
+                <div>
+                    {% for radio in form.channel %}
+                        <label class="channel-radio">
+                            {{ radio.tag }} {{ radio.choice_label }}
+                        </label>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <div class="form-row">
+                {{ form.subject.errors }}
+                <label for="{{ form.subject.id_for_label }}">{% trans 'Subject' %}</label>
+                {{ form.subject }}
+                {% if form.subject.help_text %}
+                    <span class="helptext">{{ form.subject.help_text }}</span>
+                {% endif %}
+            </div>
+            
+            <div class="form-row">
+                {{ form.body.errors }}
+                <label for="{{ form.body.id_for_label }}">{% trans 'Body' %} *</label>
+                {{ form.body }}
+                {% if form.body.help_text %}
+                    <span class="helptext">{{ form.body.help_text }}</span>
+                {% endif %}
+            </div>
+            
+            <div class="form-row">
+                {{ form.allowed_variables.errors }}
+                <label for="{{ form.allowed_variables.id_for_label }}">{% trans 'Allowed Variables' %}</label>
+                {{ form.allowed_variables }}
+                {% if form.allowed_variables.help_text %}
+                    <span class="helptext">{{ form.allowed_variables.help_text }}</span>
+                {% endif %}
+            </div>
+            
+            <div class="form-row">
+                {{ form.is_active.errors }}
+                <label for="{{ form.is_active.id_for_label }}">
+                    {{ form.is_active }} {% trans 'Is Active' %}
+                </label>
+            </div>
+        </fieldset>
+        
+        <div class="submit-row">
+            <input type="submit" value="{% trans 'Save Template' %}" class="default" name="_save">
+            <a href="{% url 'admin:notifications_notificationtemplate_changelist' %}" class="button cancel-link">{% trans 'Cancel' %}</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

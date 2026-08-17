@@ -145,3 +145,151 @@ msgstr ""
 #: .\movies\models.py:115
 msgid "Minimum subscription level required to watch. 0 — available to everyone."
 msgstr ""
+
+#: .\movies\models.py:225
+msgid "Planned"
+msgstr "Planned"
+
+#: .\movies\models.py:226
+msgid "In production"
+msgstr "In production"
+
+#: .\movies\models.py:227
+msgid "Released"
+msgstr "Released"
+
+#: .\movies\models.py:228
+msgid "Archived"
+msgstr "Archived"
+
+#: .\movies\models.py:240
+msgid "season number"
+msgstr "Season number"
+
+#: .\movies\models.py:244
+msgid "episode number"
+msgstr "Episode number"
+
+#: .\movies\models.py:248
+msgid "episode title"
+msgstr "Episode title"
+
+#: .\movies\models.py:253
+msgid "episode description"
+msgstr "Episode description"
+
+#: .\movies\models.py:258
+msgid "release date"
+msgstr "Release date"
+
+#: .\movies\models.py:264
+msgid "duration in minutes"
+msgstr "Duration in minutes"
+
+#: .\movies\models.py:270
+msgid "episode rating"
+msgstr "Episode rating"
+
+#: .\movies\models.py:286
+msgid "episode file path"
+msgstr "Episode file path"
+
+#: .\movies\models.py:293
+msgid "release status"
+msgstr "Release status"
+
+#: .\movies\models.py:300
+msgid "premium episode"
+msgstr "Premium episode"
+
+#: .\movies\models.py:326
+msgid "episode"
+msgstr "Episode"
+
+#: .\movies\models.py:327
+msgid "episodes"
+msgstr "Episodes"
+
+#: .\movies\models.py:237
+msgid "The TV show this episode belongs to"
+msgstr "The TV show this episode belongs to"
+
+#: .\movies\models.py:241
+msgid "Season number (starting from 1)"
+msgstr "Season number (starting from 1)"
+
+#: .\movies\models.py:245
+msgid "Episode number within the season (starting from 1)"
+msgstr "Episode number within the season (starting from 1)"
+
+#: .\movies\models.py:250
+msgid "Title of this episode"
+msgstr "Title of this episode"
+
+#: .\movies\models.py:255
+msgid "Description/synopsis of this episode"
+msgstr "Description/synopsis of this episode"
+
+#: .\movies\models.py:261
+msgid "Official release date of this episode"
+msgstr "Official release date of this episode"
+
+#: .\movies\models.py:267
+msgid "Episode duration in minutes"
+msgstr "Episode duration in minutes"
+
+#: .\movies\models.py:283
+msgid "Rating for this episode (0-10)"
+msgstr "Rating for this episode (0-10)"
+
+#: .\movies\models.py:290
+msgid "Path to the video file for this episode"
+msgstr "Path to the video file for this episode"
+
+#: .\movies\models.py:297
+msgid "Current release status of this episode"
+msgstr "Current release status of this episode"
+
+#: .\movies\models.py:302
+msgid "Is this episode available only for premium subscribers?"
+msgstr "Is this episode available only for premium subscribers?"
+
+#: .\movies\models.py:315
+msgid "Genres for this episode"
+msgstr "Genres for this episode"
+
+#: .\movies\models.py:321
+msgid "People involved in this episode"
+msgstr "People involved in this episode"
+
+#: .\movies\admin.py:148
+msgid "season"
+msgstr "Season"
+
+#: .\movies\admin.py:196
+msgid "Search by episode title, TV show title or description"
+msgstr "Search by episode title, TV show title or description"
+
+#: .\movies\admin.py:207
+msgid "Release info"
+msgstr "Release info"
+
+#: .\movies\admin.py:210
+msgid "Rating & Subscription"
+msgstr "Rating & Subscription"
+
+#: .\movies\admin.py:213
+msgid "Genres & Persons"
+msgstr "Genres & Persons"
+
+#: .\movies\admin.py:215
+msgid "Genres and persons are inherited from the TV show. You can add additional genres and persons to this episode."
+msgstr "Genres and persons are inherited from the TV show. You can add additional genres and persons to this episode."
+
+#: .\movies\admin.py:218
+msgid "File"
+msgstr "File"
+
+#: .\movies\admin.py:225
+msgid "Episode Code"
+msgstr "Episode Code"

@@ -1,0 +1,165 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+    .validate-container {
+        max-width: 800px;
+        margin: 20px auto;
+    }
+    .validate-section {
+        background: #f8f9fa;
+        padding: 20px;
+        margin: 20px 0;
+        border-radius: 4px;
+    }
+    .validate-section.success {
+        border-left: 4px solid #28a745;
+    }
+    .validate-section.error {
+        border-left: 4px solid #dc3545;
+    }
+    .validate-section.warning {
+        border-left: 4px solid #ffc107;
+    }
+    .validate-section h3 {
+        margin-top: 0;
+        color: #333;
+    }
+    .check-item {
+        display: flex;
+        align-items: center;
+        padding: 10px;
+        margin: 5px 0;
+        background: #fff;
+        border-radius: 4px;
+    }
+    .check-item.pass {
+        background: #d4edda;
+    }
+    .check-item.fail {
+        background: #f8d7da;
+    }
+    .check-icon {
+        font-size: 1.5em;
+        margin-right: 10px;
+    }
+    .check-icon.pass {
+        color: #28a745;
+    }
+    .check-icon.fail {
+        color: #dc3545;
+    }
+    .error-message {
+        background: #f8d7da;
+        border: 1px solid #f5c6cb;
+        color: #721c24;
+        padding: 15px;
+        border-radius: 4px;
+        margin: 20px 0;
+    }
+    .button-row {
+        margin-top: 20px;
+    }
+    .button-row a.button {
+        display: inline-block;
+        padding: 10px 20px;
+        background: #007bff;
+        color: white;
+        text-decoration: none;
+        border-radius: 4px;
+    }
+    .button-row a.button:hover {
+        background: #0056b3;
+    }
+    .template-info {
+        background: #e9ecef;
+        padding: 15px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+    }
+    .template-info p {
+        margin: 5px 0;
+    }
+    .template-info strong {
+        color: #333;
+    }
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label='notifications' %}">{% trans 'Notifications' %}</a>
+    &rsaquo; <a href="{% url 'admin:notifications_notificationtemplate_changelist' %}">{% trans 'Notification templates' %}</a>
+    &rsaquo; {% trans 'Validate' %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main" class="validate-container">
+    <h1>{% trans 'Template Validation' %}: {{ template.name|default:title }}</h1>
+    
+    {% if error_message %}
+    <div class="error-message">
+        <strong>{% trans 'Validation Error' %}:</strong> {{ error_message }}
+    </div>
+    {% endif %}
+    
+    {% if template %}
+    <div class="template-info">
+        <p><strong>{% trans 'Code' %}:</strong> {{ template.code }}</p>
+        <p><strong>{% trans 'Name' %}:</strong> {{ template.name }}</p>
+        <p><strong>{% trans 'Channel' %}:</strong> {{ template.channel|upper }}</p>
+        <p><strong>{% trans 'Active' %}:</strong> {% if template.is_active %}{% trans 'Yes' %}{% else %}{% trans 'No' %}{% endif %}</p>
+    </div>
+    {% endif %}
+    
+    {% if validation_result %}
+    {% if validation_result.is_valid %}
+    <div class="validate-section success">
+        <h3>{% trans 'Validation Results' %}</h3>
+        <div class="check-item pass">
+            <span class="check-icon pass">&#10003;</span>
+            <span>{% trans 'Template is valid' %}</span>
+        </div>
+    </div>
+    {% else %}
+    <div class="validate-section error">
+        <h3>{% trans 'Validation Errors' %}</h3>
+        {% if validation_result.errors %}
+        <ul>
+            {% for error in validation_result.errors %}
+            <li>{{ error }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+    {% endif %}
+    
+    {% if validation_result.warnings %}
+    <div class="validate-section warning">
+        <h3>{% trans 'Warnings' %}</h3>
+        <ul>
+            {% for warning in validation_result.warnings %}
+            <li>{{ warning }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+    
+    {% else %}
+    <div class="validate-section warning">
+        <h3>{% trans 'No Validation Data' %}</h3>
+        <p>{% trans 'Validation could not be performed. Please check the error message above.' %}</p>
+    </div>
+    {% endif %}
+    
+    <div class="button-row">
+        <a href="{% url 'admin:notifications_notificationtemplate_changelist' %}" class="button">
+            {% trans 'Back to templates' %}
+        </a>
+    </div>
+</div>
+{% endblock %}
