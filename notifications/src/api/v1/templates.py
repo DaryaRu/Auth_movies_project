@@ -4,9 +4,21 @@ from uuid import UUID
 
 from asyncpg.exceptions import UniqueViolationError
 from fastapi import APIRouter, Depends, HTTPException, status
+from jinja2.exceptions import UndefinedError
 
 from src.repositories.templates import TemplateRepository
-from src.schemas.templates import Template, TemplateCreate, TemplateUpdate
+from src.schemas.templates import (
+    Template,
+    TemplateCreate,
+    TemplatePreviewRequest,
+    TemplatePreviewResponse,
+    TemplateUpdate,
+)
+from src.services.notifications import (
+    InvalidPayloadError,
+    TemplateNotFoundError,
+)
+from src.services.templates import TemplateService
 
 router = APIRouter(prefix="/notifications/templates", tags=["templates"])
 
@@ -17,6 +29,16 @@ def get_template_repository() -> TemplateRepository:
 
 
 TemplateRepositoryDep = Depends(get_template_repository)
+
+
+def get_template_service(
+    repo: TemplateRepository = TemplateRepositoryDep,
+) -> TemplateService:
+    """Получить сервис шаблонов."""
+    return TemplateService(repo)
+
+
+TemplateServiceDep = Depends(get_template_service)
 
 
 @router.get("/", summary="Список шаблонов")
@@ -90,3 +112,31 @@ async def update_template(
             status.HTTP_404_NOT_FOUND, detail="Template not found"
         )
     return updated
+
+
+@router.post(
+    "/{template_id}/preview/",
+    summary="Превью рендера шаблона с тестовым payload",
+)
+async def preview_template(
+    template_id: UUID,
+    request: TemplatePreviewRequest,
+    template_service: TemplateService = TemplateServiceDep,
+) -> TemplatePreviewResponse:
+    """Отрендерить шаблон для превью в админке."""
+    try:
+        return await template_service.preview(template_id, request.payload)
+    except TemplateNotFoundError as e:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, detail=f"Template {e} not found"
+        ) from e
+    except InvalidPayloadError as e:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"payload contains keys not allowed by template: {sorted(e.unknown_keys)}",
+        ) from e
+    except UndefinedError as e:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"payload is missing a variable required by the template: {e}",
+        ) from e

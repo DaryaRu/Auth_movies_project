@@ -1,6 +1,6 @@
 """Схемы для шаблонов сообщений."""
 
-from typing import Literal
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -38,12 +38,12 @@ class TemplateCreate(BaseModel):
         "json_schema_extra": {
             "examples": [
                 {
-                    "code": "review_liked",
-                    "name": "Лайк на рецензию (email)",
+                    "code": "comment_liked",
+                    "name": "Лайк на комментарий (email)",
                     "channel": "email",
-                    "subject": "Вашу рецензию оценили",
-                    "body": "Пользователь {{ liker_name }} оценил вашу рецензию на {{ movie_title }}",
-                    "allowed_variables": ["liker_name", "movie_title"],
+                    "subject": "Ваш комментарий оценили",
+                    "body": "Пользователь поставил лайк на ваш комментарий.",
+                    "allowed_variables": [],
                     "is_active": True,
                 }
             ]
@@ -65,9 +65,30 @@ class TemplateUpdate(BaseModel):
         "json_schema_extra": {
             "examples": [
                 {
-                    "body": "Пользователь {{ liker_name }} поставил лайк вашей рецензии на {{ movie_title }}",
+                    "body": "Пользователь поставил лайк на ваш комментарий.",
                     "is_active": True,
                 }
             ]
         }
     }
+
+
+class TemplatePreviewRequest(BaseModel):
+    """Тестовый payload для превью рендера шаблона."""
+
+    payload: dict[str, Any] = Field(default_factory=dict)
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {"payload": {}},
+            ]
+        }
+    }
+
+
+class TemplatePreviewResponse(BaseModel):
+    """Результат рендера."""
+
+    subject: str | None
+    body: str
