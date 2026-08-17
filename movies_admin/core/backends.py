@@ -56,6 +56,7 @@ class CustomBackend(BaseBackend):
             id=user_id,
             defaults={
                 "email": username,
+                "phone": "",
                 "is_superuser": True,
                 "is_staff": True,
                 "is_active": True,
