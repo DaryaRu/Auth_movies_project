@@ -1,0 +1,6 @@
+pydantic-settings==2.14.1
+faststream[kafka,cli]==0.7.2
+asyncpg==0.29.0
+jinja2==3.1.4
+aiosmtplib==3.0.2
+httpx==0.28.1

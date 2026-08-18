@@ -1,7 +1,7 @@
 """Сервис для персональных уведомлений."""
 
 import json
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from aiokafka.errors import KafkaError
 
@@ -48,6 +48,7 @@ class NotificationService:
             "template_id": str(template_id),
             "payload": payload,
             "channel": template.channel,
+            "deduplication_key": str(uuid4()),
         }
         assert kafka.producer is not None
         try:
