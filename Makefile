@@ -143,3 +143,46 @@ check-clickhouse:
 # user-actions-service
 logs-user-actions:
 	docker compose logs -f user-actions-service
+
+# notifications-service
+# Шаг 1: поднимает все, что нужно для проверки полного пути от события до отправки
+# письма (Kafka, БД, API, воркер, auth-service, Mailpit).
+notifications-up:
+	docker compose --profile analytics up -d --build \
+		zookeeper kafka-0 kafka-1 kafka-2 kafka-topic-init-notifications \
+		notifications-db notifications-service notifications-worker mailpit auth-service nginx
+
+# Шаг 2: находит template_id реального шаблона review_liked и отправляет
+# тестовый POST /api/v1/notifications/ изнутри контейнера сервиса.
+notifications-test-request:
+	@TEMPLATE_ID=$$(docker compose exec -T notifications-db psql -U postgres -d notifications -tAc "SELECT template_id FROM templates WHERE code = 'review_liked';"); \
+	if [ -z "$$TEMPLATE_ID" ]; then echo "Шаблон review_liked не найден — проверьте, что миграции применились (notifications-service healthy)"; exit 1; fi; \
+	echo "template_id=$$TEMPLATE_ID"; \
+	docker compose exec -T notifications-service python3 -c "import json, urllib.request; req = urllib.request.Request('http://localhost:8000/api/v1/notifications/', data=json.dumps({'user_id': '11111111-1111-1111-1111-111111111111', 'template_id': '$$TEMPLATE_ID', 'payload': {}}).encode(), headers={'Content-Type': 'application/json'}, method='POST'); resp = urllib.request.urlopen(req); print(resp.status, resp.read().decode())"
+
+# Шаг 3: слушает notification-ready и печатает сообщения (Ctrl+C для остановки)
+notifications-verify-topic:
+	docker compose exec notifications-service python3 scripts/verify_ready_topic.py
+
+# Полный путь от реального события до письма
+# (auth-service -> notify_user -> notifications-service -> Kafka -> notifications-worker -> Mailpit),
+# проверяет и воркер, и auth-service, и реальную отправку.
+notifications-register-test-user:
+	@EMAIL="worker-test-$$(date +%s)@example.com"; \
+	echo "email=$$EMAIL"; \
+	curl -s -X POST http://localhost/api/v1/registration/ \
+		-H "Content-Type: application/json" \
+		-d "{\"email\": \"$$EMAIL\", \"password\": \"TestPass123!\"}"; \
+	echo; \
+	echo "Проверить письмо: http://localhost:8025 (Mailpit), статус: make notifications-check-status"
+
+# Последние 5 строк notifications — status/delivery_address/error_message
+notifications-check-status:
+	docker compose exec notifications-db psql -U postgres -d notifications -c "SELECT notification_id, notification_type, status, delivery_address, sent_at, error_message FROM notifications ORDER BY created_at DESC LIMIT 5;"
+
+notifications-worker-logs:
+	docker compose logs -f notifications-worker
+
+# Шаг 4: опускает стек, поднятый notifications-up, вместе с томами
+notifications-down:
+	docker compose --profile analytics down -v

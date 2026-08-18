@@ -25,7 +25,7 @@ class UserRequestScheme(BaseModel):
     email: EmailStr | None = None
     phone: str | None = None
     password: str
-    
+
     @field_validator("phone")
     @classmethod
     def validate_phone(cls, v: str | None):
@@ -36,7 +36,7 @@ class UserRequestScheme(BaseModel):
             raise ValueError("Некорректный формат телефона")
 
         return v
-    
+
     @model_validator(mode="after")
     def validate_login_method(self):
         if not self.email and not self.phone:
@@ -62,6 +62,13 @@ class UserResponseScheme(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class UserContactScheme(BaseModel):
+    """Данные пользователя для нотификации."""
+
+    user_id: UUID
+    email: EmailStr | None
+
+
 class RefreshTokenCreate(BaseModel):
     """Схема для валидации данных при создании записи о refresh-токене в БД.
 
@@ -80,16 +87,19 @@ class RefreshTokenCreate(BaseModel):
 
 class ChangeEmailRequestScheme(BaseModel):
     """Схема для смены email."""
+
     new_email: EmailStr
     password: str = Field(..., description="Текущий пароль для подтверждения")
 
 
 class ChangePasswordRequestScheme(BaseModel):
     """Схема для смены пароля."""
+
     current_password: str = Field(..., description="Текущий пароль")
     new_password: str = Field(..., description="Новый пароль")
 
 
 class SetPasswordRequestScheme(BaseModel):
     """Схема для установки пароля OAuth-пользователем без пароля."""
+
     password: str = Field(..., description="Новый пароль")

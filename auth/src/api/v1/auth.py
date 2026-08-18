@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from uuid import UUID
 
 from fastapi import APIRouter, Request, Response, status
 from fastapi_cache.decorator import cache
@@ -6,6 +7,7 @@ from fastapi_cache.decorator import cache
 from src.api.v1.dependencies import (
     AuthServiceDep,
     CurrentUserDep,
+    DBDep,
     RefreshTokenDep,
     RoleServiceDep,
     SessionServiceDep,
@@ -37,6 +39,7 @@ from src.schemas.users import (
     ChangeEmailRequestScheme,
     ChangePasswordRequestScheme,
     SetPasswordRequestScheme,
+    UserContactScheme,
     UserRequestScheme,
     UserResponseScheme,
 )
@@ -234,6 +237,19 @@ async def get_my_permissions(
         user_id=current_user.id,
         is_superuser=current_user.is_superuser,
     )
+
+
+@router.get(
+    "/internal/users/{user_id}/",
+    summary="Email пользователя по ID",
+    response_model=UserContactScheme,
+)
+async def get_user_contact(user_id: UUID, db: DBDep):
+    """Получение контактов пользователя между сервисами."""
+    user = await db.users.get_one_or_none_by_id(id=user_id)
+    if user is None:
+        raise UserNotFoundHTTPException()
+    return UserContactScheme(user_id=user.id, email=user.email)
 
 
 @router.patch(

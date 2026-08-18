@@ -502,6 +502,50 @@ services:
         gelf-address: "udp://127.0.0.1:12201"
         tag: "{{.Name}}"
 
+  mailpit:
+    image: axllent/mailpit:v1.20.0
+    container_name: mailpit
+    restart: unless-stopped
+    profiles: ["analytics"]
+    ports:
+      - "8025:8025"
+
+  notifications-worker:
+    build: ./notifications/worker
+    image: notifications-worker-image
+    container_name: notifications-worker
+    restart: unless-stopped
+    profiles: ["analytics"]
+    env_file: .env
+    environment:
+      POSTGRES_HOST: notifications-db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: notifications
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    depends_on:
+      notifications-db:
+        condition: service_healthy      
+      notifications-service:
+        condition: service_healthy
+      kafka-topic-init-notifications:
+        condition: service_completed_successfully
+      kafka-0:
+        condition: service_started
+      kafka-1:
+        condition: service_started
+      kafka-2:
+        condition: service_started
+      auth-service:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    logging:
+      driver: gelf
+      options:
+        gelf-address: "udp://127.0.0.1:12201"
+        tag: "{{.Name}}"
+
   nginx:
     image: nginx:1.31.2
     restart: unless-stopped
