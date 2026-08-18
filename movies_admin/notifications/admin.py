@@ -11,10 +11,14 @@ from django.template.response import TemplateResponse
 from django.urls import path, reverse
 from django.utils.translation import gettext_lazy as _
 
-from .api_client import APIError, TemplateNotFoundError, api_client
+from .api_client import (
+    APIError,
+    TemplateNotFoundError,
+    TemplatePreviewError,
+    api_client,
+)
 from .forms import NotificationTemplateForm, TemplatePreviewForm
 from .models import NotificationTemplate
-from .renderers import render_template
 from .validators import validate_template
 
 
@@ -141,7 +145,8 @@ class NotificationTemplateAdmin(admin.ModelAdmin):
         return TemplateResponse(request, 'admin/notifications/template_form.html', context)
 
     def preview_template(self, request, pk):
-        """Предпросмотр шаблона с локальным рендерингом."""
+        """Предпросмотр шаблона — рендер через notifications-service (тем же
+        движком, что и реальная отправка у воркера)."""
         logger = logging.getLogger(__name__)
         
         template = None
@@ -169,18 +174,16 @@ class NotificationTemplateAdmin(admin.ModelAdmin):
                         payload = {}
                     logger.info(f"Rendering template with payload: {payload}")
 
-                    render_result = render_template(
-                        subject=template.get('subject') if template else '',
-                        body=template.get('body', '') if template else '',
-                        payload=payload,
+                    render_result = api_client.preview_template(
+                        str(pk), payload, auth_token
                     )
                     preview_data = {
-                        'subject': render_result.rendered_subject,
-                        'body': render_result.rendered_body,
+                        'subject': render_result.get('subject'),
+                        'body': render_result.get('body'),
                         'is_original': False,
                     }
                     logger.info(f"Rendered preview_data: {preview_data}")
-                except Exception as e:
+                except (TemplateNotFoundError, TemplatePreviewError, APIError) as e:
                     error_message = str(e)
                     logger.error(f"Error rendering template: {e}")
                     preview_data = None

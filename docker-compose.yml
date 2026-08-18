@@ -265,6 +265,7 @@ services:
       JWT_ALGORITHM: ${JWT_ALGORITHM}
       EXCLUDED_PATHS: ${ADMIN_EXCLUDED_PATHS}
       SENTRY_DSN: ${SENTRY_DSN}
+      NOTIFICATIONS_API_BASE_URL: ${NOTIFICATIONS_API_BASE_URL}
     command: >
       sh -c "
       python manage.py collectstatic --no-input &&
