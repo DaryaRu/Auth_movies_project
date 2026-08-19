@@ -19,6 +19,7 @@ class AdminMailingRepository:
 
     async def create(
         self,
+        admin_mailing_id: UUID,
         template_id: UUID,
         audience_filter: dict[str, Any],
         payload: dict[str, Any],
@@ -26,16 +27,17 @@ class AdminMailingRepository:
         scheduled_at: datetime | None,
         created_by: UUID,
     ) -> AdminMailing:
-        """Создать рассылку."""
+        """Создать рассылку (id генерировать до вызова, чтобы использовать его в Kafka-сообщении раньше записи в БД)."""
         assert PostgreSQL.pool is not None
         async with PostgreSQL.pool.acquire() as conn:
             row = await conn.fetchrow(
                 """
                 INSERT INTO admin_mailings
-                    (template_id, audience_filter, payload, status, scheduled_at, created_by)
-                VALUES ($1, $2, $3, $4, $5, $6)
+                    (admin_mailing_id, template_id, audience_filter, payload, status, scheduled_at, created_by)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
                 RETURNING *
                 """,
+                admin_mailing_id,
                 template_id,
                 audience_filter,
                 payload,

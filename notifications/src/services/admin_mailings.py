@@ -3,7 +3,7 @@
 import json
 from datetime import datetime, timezone
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from aiokafka.errors import KafkaError
 
@@ -43,8 +43,12 @@ class AdminMailingService:
     ) -> AdminMailing:
         """Создать рассылку.
 
-        Если scheduled_at не задан, то отправка происходит сразу (Immediate group): запись
-        создается сразу со status=sending, публикуется в notification-pending.
+        Если scheduled_at не задан, то отправка происходит сразу (Immediate group).
+        Сначала публикуется в notification-pending, потом с известным admin_mailing_id
+        создается запись в БД со status=sending.
+        Если Kafka недоступна, публикация падает раньше записи в БД и не будет ошибочной строки
+        со статусом sending без реального отправленного сообщения.
+
         scheduled_at задавать в будущем, status=scheduled.
         """
         template = await self.template_repo.get_by_id(template_id)
@@ -64,8 +68,15 @@ class AdminMailingService:
             raise InvalidScheduledAtError(str(scheduled_at))
 
         status = "scheduled" if scheduled_at is not None else "sending"
+        admin_mailing_id = uuid4()
 
-        mailing = await self.mailing_repo.create(
+        if status == "sending":
+            await self._publish_pending(
+                admin_mailing_id, template_id, audience_filter, payload
+            )
+
+        return await self.mailing_repo.create(
+            admin_mailing_id,
             template_id,
             audience_filter,
             payload,
@@ -74,26 +85,27 @@ class AdminMailingService:
             created_by,
         )
 
-        if status == "sending":
-            await self._publish_pending(mailing)
-
-        return mailing
-
-    async def _publish_pending(self, mailing: AdminMailing) -> None:
+    async def _publish_pending(
+        self,
+        admin_mailing_id: UUID,
+        template_id: UUID,
+        audience_filter: dict[str, Any],
+        payload: dict[str, Any],
+    ) -> None:
         """Опубликовать неполное сообщение в notification-pending. А резолв
         аудитории по audience_filter и реальную отправку делает воркер."""
         message = {
-            "admin_mailing_id": str(mailing.admin_mailing_id),
-            "template_id": str(mailing.template_id),
-            "audience_filter": mailing.audience_filter,
-            "payload": mailing.payload,
+            "admin_mailing_id": str(admin_mailing_id),
+            "template_id": str(template_id),
+            "audience_filter": audience_filter,
+            "payload": payload,
         }
         assert kafka.producer is not None
         try:
             await kafka.producer.send_and_wait(
                 settings.KAFKA_PENDING_TOPIC,
                 value=json.dumps(message).encode(),
-                key=str(mailing.admin_mailing_id).encode(),
+                key=str(admin_mailing_id).encode(),
             )
         except KafkaError as e:
             raise RuntimeError(
