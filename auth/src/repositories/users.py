@@ -1,8 +1,11 @@
 from abc import ABC, abstractmethod
+from datetime import datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import or_, select, update
+from sqlalchemy import func, or_, select, update
 
+from src.models.subscriptions import SubscriptionORM
+from src.models.user_subscriptions import UserSubscriptionORM
 from src.models.users import UserORM
 from src.repositories.base import BasePostgreSQLRepository
 
@@ -17,7 +20,13 @@ class UsersAbstractRepository(ABC):
     """
 
     @abstractmethod
-    async def create_user(self, email: str | None, phone: str | None, hashed_password: str, is_superuser: bool = False) -> UserORM:
+    async def create_user(
+        self,
+        email: str | None,
+        phone: str | None,
+        hashed_password: str,
+        is_superuser: bool = False,
+    ) -> UserORM:
         """
         Добавляет нового пользователя.
         Args:
@@ -30,7 +39,9 @@ class UsersAbstractRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def get_one_or_none_by_email_or_phone(self, email: str | None, phone: str | None) -> UserORM | None:
+    async def get_one_or_none_by_email_or_phone(
+        self, email: str | None, phone: str | None
+    ) -> UserORM | None:
         """
         Получает пользователя по email.
         Args:
@@ -40,7 +51,7 @@ class UsersAbstractRepository(ABC):
             Optional[User]: Пользователь или None, если не найден.
         """
         raise NotImplementedError
-    
+
     @abstractmethod
     async def get_one_or_none_by_email(self, email: str) -> UserORM | None:
         """
@@ -65,9 +76,7 @@ class UsersAbstractRepository(ABC):
 
     @abstractmethod
     async def update_user_credentials(
-        self,
-        user_id: UUID,
-        **kwargs
+        self, user_id: UUID, **kwargs
     ) -> UserORM:
         """
         Получает пользователя по его идентификатору.
@@ -85,17 +94,42 @@ class UsersAbstractRepository(ABC):
         """Блокирует строку пользователя для UPDATE."""
         raise NotImplementedError
 
+    @abstractmethod
+    async def search_by_min_subscription_level(
+        self, min_level: int | None
+    ) -> list[UUID]:
+        """Возвращает id активных пользователей с уровнем подписки >= min_level.
+        Все активные пользователи (min_level=None, без фильтра по подписки).
+        """
+        raise NotImplementedError
 
-class UsersPostgreSQLRepository(UsersAbstractRepository, BasePostgreSQLRepository):
+
+class UsersPostgreSQLRepository(
+    UsersAbstractRepository, BasePostgreSQLRepository
+):
     """
     Репозиторий пользователей с использованием PostgreSQL и SQLAlchemy Async.
     """
-    model = UserORM
-    
-    async def create_user(self, email: str | None, phone: str | None, hashed_password: str | None, is_superuser: bool = False) -> UserORM:
-        return await self.add_one(email=email, hashed_password=hashed_password, is_superuser=is_superuser, phone=phone)
 
-    async def get_one_or_none_by_email_or_phone(self, email: str | None, phone: str | None) -> UserORM | None:
+    model = UserORM
+
+    async def create_user(
+        self,
+        email: str | None,
+        phone: str | None,
+        hashed_password: str | None,
+        is_superuser: bool = False,
+    ) -> UserORM:
+        return await self.add_one(
+            email=email,
+            hashed_password=hashed_password,
+            is_superuser=is_superuser,
+            phone=phone,
+        )
+
+    async def get_one_or_none_by_email_or_phone(
+        self, email: str | None, phone: str | None
+    ) -> UserORM | None:
         conditions = []
         if email:
             conditions.append(UserORM.email == email)
@@ -106,17 +140,15 @@ class UsersPostgreSQLRepository(UsersAbstractRepository, BasePostgreSQLRepositor
         query = select(UserORM).where(or_(*conditions))
         result = await self._session.execute(query)
         return result.scalars().one_or_none()
-    
+
     async def get_one_or_none_by_email(self, email: str) -> UserORM | None:
         return await self.get_one_or_none(email=email)
-    
+
     async def get_one_or_none_by_id(self, id: UUID) -> UserORM | None:
         return await self.get_one_or_none(id=id)
 
     async def update_user_credentials(
-            self,
-            user_id: UUID,
-            **kwargs
+        self, user_id: UUID, **kwargs
     ) -> UserORM:
         query = (
             update(self.model)
@@ -135,3 +167,26 @@ class UsersPostgreSQLRepository(UsersAbstractRepository, BasePostgreSQLRepositor
         )
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def search_by_min_subscription_level(
+        self, min_level: int | None
+    ) -> list[UUID]:
+        query = select(self.model.id).where(self.model.is_active.is_(True))
+        if min_level is not None:
+            now = datetime.now(timezone.utc)
+            query = (
+                query.outerjoin(
+                    UserSubscriptionORM,
+                    (UserSubscriptionORM.user_id == self.model.id)
+                    & UserSubscriptionORM.is_active.is_(True)
+                    & (UserSubscriptionORM.expires_at > now),
+                )
+                .outerjoin(
+                    SubscriptionORM,
+                    SubscriptionORM.id == UserSubscriptionORM.subscription_id,
+                )
+                .where(func.coalesce(SubscriptionORM.level, 0) >= min_level)
+                .distinct()
+            )
+        result = await self._session.execute(query)
+        return list(result.scalars().all())

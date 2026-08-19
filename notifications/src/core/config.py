@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     # Kafka
     KAFKA_BROKERS: str = ""
     KAFKA_READY_TOPIC: str = "notification-ready"
+    KAFKA_PENDING_TOPIC: str = "notification-pending"
     KAFKA_RETRY_INTERVAL_SEC: int = 5
     KAFKA_ACKS: str = "all"
 
