@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import AwareDatetime, BaseModel, Field
 
 
 class SubscriptionLevelFilter(BaseModel):
@@ -47,9 +47,12 @@ class AdminMailingCreate(BaseModel):
         default_factory=dict,
         description=("Данные для подстановки в шаблон"),
     )
-    scheduled_at: datetime | None = Field(
+    scheduled_at: AwareDatetime | None = Field(
         default=None,
-        description="Когда отправить. Если не указывать, то отправить сразу",
+        description=(
+            "Когда отправить (с таймзоной, например "
+            "2057-07-27T10:00:00+00:00). Если не указывать, то отправить сразу"
+        ),
     )
     created_by: UUID = Field(
         ..., description="Администратор, создающий рассылку"
