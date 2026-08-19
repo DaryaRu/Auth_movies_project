@@ -2,6 +2,7 @@
 
 from fastapi import FastAPI
 
+from src.api.v1.admin_mailings import router as admin_mailings_router
 from src.api.v1.notifications import router as notifications_router
 from src.api.v1.templates import router as templates_router
 from src.api.v1.triggers import router as triggers_router
@@ -13,6 +14,7 @@ def register_routers(app: FastAPI) -> None:
     app.include_router(notifications_router, prefix=settings.API_V1_PREFIX)
     app.include_router(templates_router, prefix=settings.API_V1_PREFIX)
     app.include_router(triggers_router, prefix=settings.API_V1_PREFIX)
+    app.include_router(admin_mailings_router, prefix=settings.API_V1_PREFIX)
 
     @app.get("/health", tags=["health"])
     async def health():
