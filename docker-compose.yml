@@ -587,6 +587,8 @@ services:
         condition: service_completed_successfully
       kafka-topic-init-notification-pending:
         condition: service_completed_successfully
+      kafka-topic-init-notification-dlq:
+        condition: service_completed_successfully
       kafka-0:
         condition: service_started
       kafka-1:
@@ -746,6 +748,24 @@ services:
       --partitions ${KAFKA_PARTITIONS:-3}
       --replication-factor ${KAFKA_REPLICATION_FACTOR:-1}
       --config min.insync.replicas=${KAFKA_MIN_INSYNC_REPLICAS:-1}
+
+  kafka-topic-init-notification-dlq:
+    image: apache/kafka:3.7.0
+    profiles: ["analytics"]
+    restart: on-failure
+    depends_on:
+      - kafka-0
+      - kafka-1
+      - kafka-2
+    command: >
+      /opt/kafka/bin/kafka-topics.sh
+      --bootstrap-server kafka-0:9092
+      --create --if-not-exists
+      --topic notification.dlq
+      --partitions ${KAFKA_PARTITIONS:-3}
+      --replication-factor ${KAFKA_REPLICATION_FACTOR:-1}
+      --config min.insync.replicas=${KAFKA_MIN_INSYNC_REPLICAS:-1}
+      --config retention.ms=${KAFKA_DLQ_RETENTION_MS:-604800000}
 
   ui:
     image: provectuslabs/kafka-ui:v0.7.0

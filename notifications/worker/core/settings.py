@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     KAFKA_BROKERS: str = ""
     KAFKA_READY_TOPIC: str = "notification-ready"
     KAFKA_PENDING_TOPIC: str = "notification-pending"
+    KAFKA_DLQ_TOPIC: str = "notification.dlq"
     KAFKA_WORKER_GROUP_ID: str = "notifications-worker"
 
     # auth-service (для получения email перед отправкой)
