@@ -1,21 +1,23 @@
-"""Консьюмер notification-ready (рендер шаблона и отправка).
+"""Консьюмер notification-ready и notification-pending (рендер шаблона и отправка).
 
 Использование deduplication_key защищает от повторной отправки одного и того же Kafka-сообщения (at least once).
 
 AckPolicy.NACK_ON_ERROR: при успехе оффсет коммитится. При необработанном
-исключении — nack (consumer.seek() назад на оффсет этого же сообщения), оффсет
-не коммитится, то же сообщение будет вычитано повторно.
+исключении — nack, оффсет не коммитится, сообщение будет вычитано повторно. Сбой отправки конкретному
+получателю (_render_and_send) уходит в DLQ (notification.dlq), чтобы не блокировать Kafka.
 """
 
 from typing import Any
 from uuid import UUID
 
+from audience import search_users
 from contacts import get_email
 from core.settings import settings
 from faststream import AckPolicy, Logger
 from faststream.kafka import KafkaBroker
 from pydantic import BaseModel, ValidationError
 from render import render
+from repositories.admin_mailings import AdminMailingsRepository
 from repositories.notifications import NotificationsRepository
 from repositories.templates import TemplateRepository
 from repositories.user_notification_settings import (
@@ -24,10 +26,12 @@ from repositories.user_notification_settings import (
 from senders import SENDERS
 
 broker = KafkaBroker(settings.kafka_brokers_list)
+dlq_publisher = broker.publisher(settings.KAFKA_DLQ_TOPIC)
 
 templates_repo = TemplateRepository()
 settings_repo = UserNotificationSettingsRepository()
 notifications_repo = NotificationsRepository()
+admin_mailings_repo = AdminMailingsRepository()
 
 
 class ReadyMessage(BaseModel):
@@ -121,10 +125,12 @@ async def _render_and_send(
     template: dict[str, Any],
     notification_id: UUID,
     logger: Logger,
+    source_topic: str,
 ) -> None:
     """Получает email, рендерит шаблон и отправляет.
-    В случае исключения mark_notification_failed и raise, чтобы NACK_ON_ERROR не закоммитил
-    оффсет и сообщение пришло снова."""
+    В случае исключения помечает notification failed и публикует в DLQ,
+    не пробрасывает исключение дальше.
+    """
     try:
         email = await get_email(message.user_id)
         if email is None:
@@ -138,14 +144,21 @@ async def _render_and_send(
         body = render(template["body"], message.payload)
         await SENDERS[message.channel].send(email, subject, body)
     except Exception as exc:
-        # TODO: DLQ.
         await notifications_repo.mark_notification_failed(
             notification_id, str(exc)
         )
         logger.warning(
-            f"{notification_id}: отправка не удалась, будет повторена: {exc}"
+            f"{notification_id}: отправка не удалась, публикуется в {settings.KAFKA_DLQ_TOPIC}: {exc}"
         )
-        raise
+        await dlq_publisher.publish(
+            {
+                "source_topic": source_topic,
+                "notification_id": str(notification_id),
+                "message": message.model_dump(mode="json"),
+                "error": str(exc),
+            }
+        )
+        return
 
     await notifications_repo.mark_notification_sent(notification_id, email)
     logger.info(f"{notification_id}: отправлено")
@@ -180,4 +193,98 @@ async def handle_ready(raw: dict, logger: Logger) -> None:
         return
 
     assert template is not None
-    await _render_and_send(message, template, notification_id, logger)
+    await _render_and_send(
+        message, template, notification_id, logger, settings.KAFKA_READY_TOPIC
+    )
+
+
+class AdminMailingMessage(BaseModel):
+    """Схема сообщения из notification-pending, опубликованного admin_mailings."""
+
+    admin_mailing_id: UUID
+    template_id: UUID
+    audience_filter: dict[str, Any] = {}
+    payload: dict[str, Any] = {}
+
+
+async def _handle_admin_mailing(raw: dict, logger: Logger) -> None:
+    try:
+        message = AdminMailingMessage.model_validate(raw)
+    except ValidationError as exc:
+        logger.error(
+            f"Некорректное сообщение admin_mailing в {settings.KAFKA_PENDING_TOPIC}: {exc}"
+        )
+        return
+
+    template = await templates_repo.get_by_id(message.template_id)
+    if template is None or not template["is_active"]:
+        await admin_mailings_repo.mark_mailing_failed(message.admin_mailing_id)
+        logger.error(
+            f"{message.admin_mailing_id}: шаблон {message.template_id} не найден/неактивен"
+        )
+        return
+
+    try:
+        user_ids = await search_users(message.audience_filter)
+    except Exception as exc:
+        # Резолв не удался до начала прохода по получателям — вся рассылка failed.
+        await admin_mailings_repo.mark_mailing_failed(message.admin_mailing_id)
+        logger.warning(
+            f"{message.admin_mailing_id}: не удалось резолвить аудиторию, будет повторено: {exc}"
+        )
+        raise
+
+    logger.info(
+        f"{message.admin_mailing_id}: аудитория — {len(user_ids)} получателей"
+    )
+
+    for user_id in user_ids:
+        ready_message = ReadyMessage(
+            user_id=user_id,
+            template_id=message.template_id,
+            payload=message.payload,
+            channel=template["channel"],
+            deduplication_key=f"{message.admin_mailing_id}:{user_id}",
+        )
+        notification, created = await _get_or_create_notification(
+            ready_message, template
+        )
+        notification_id = notification["notification_id"]
+
+        if not created and notification["status"] in ("sent", "skipped"):
+            continue
+
+        if not await _check_deliverable(
+            ready_message, template, notification_id, logger
+        ):
+            continue
+
+        await _render_and_send(
+            ready_message,
+            template,
+            notification_id,
+            logger,
+            settings.KAFKA_PENDING_TOPIC,
+        )
+
+    await admin_mailings_repo.mark_mailing_sent(message.admin_mailing_id)
+    logger.info(f"{message.admin_mailing_id}: рассылка обработана")
+
+
+@broker.subscriber(
+    settings.KAFKA_PENDING_TOPIC,
+    group_id=settings.KAFKA_WORKER_GROUP_ID,
+    ack_policy=AckPolicy.NACK_ON_ERROR,
+)
+async def handle_pending(raw: dict, logger: Logger) -> None:
+    """Обработать сообщение из notification-pending."""
+    if "admin_mailing_id" in raw:
+        await _handle_admin_mailing(raw, logger)
+    elif "content_id" in raw:
+        logger.warning(
+            f"notification_triggers -> notification-pending пока не реализовано, пропускаю: {raw}"
+        )
+    else:
+        logger.error(
+            f"Неизвестная форма сообщения в {settings.KAFKA_PENDING_TOPIC}: {raw}"
+        )
