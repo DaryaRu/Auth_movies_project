@@ -69,6 +69,26 @@ class UserContactScheme(BaseModel):
     email: EmailStr | None
 
 
+class SubscriptionLevelFilter(BaseModel):
+    """Условие фильтрации по уровню подписки."""
+
+    gte: int = Field(
+        ..., description="Минимальный уровень подписки (включительно)"
+    )
+
+
+class UserSearchScheme(BaseModel):
+    """Фильтр аудитории для поиска пользователей (audience_filter из notifications-service).
+
+    Пользователи без активной подписки считаются имеющими уровень 0 (free).
+    """
+
+    subscription_level: SubscriptionLevelFilter | None = Field(
+        default=None,
+        description="Без фильтра. Все активные пользователи",
+    )
+
+
 class RefreshTokenCreate(BaseModel):
     """Схема для валидации данных при создании записи о refresh-токене в БД.
 

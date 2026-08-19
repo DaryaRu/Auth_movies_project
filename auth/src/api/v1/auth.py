@@ -42,6 +42,7 @@ from src.schemas.users import (
     UserContactScheme,
     UserRequestScheme,
     UserResponseScheme,
+    UserSearchScheme,
 )
 
 router = APIRouter(tags=["Auth"])
@@ -250,6 +251,22 @@ async def get_user_contact(user_id: UUID, db: DBDep):
     if user is None:
         raise UserNotFoundHTTPException()
     return UserContactScheme(user_id=user.id, email=user.email)
+
+
+@router.post(
+    "/internal/users/search/",
+    summary="Поиск пользователей по audience_filter (для рассылок)",
+    response_model=list[UUID],
+)
+async def search_users(data: UserSearchScheme, db: DBDep):
+    """Используется notifications-service (воркер). Возвращает id активных пользователей,
+    подходящих под фильтр."""
+    min_level = (
+        data.subscription_level.gte
+        if data.subscription_level is not None
+        else None
+    )
+    return await db.users.search_by_min_subscription_level(min_level)
 
 
 @router.patch(
