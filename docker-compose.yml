@@ -605,6 +605,39 @@ services:
         gelf-address: "udp://127.0.0.1:12201"
         tag: "{{.Name}}"
 
+  # Периодически проверяет notification_triggers/admin_mailings и публикует в notification-pending.
+  notifications-scheduler:
+    build: ./notifications/scheduler
+    image: notifications-scheduler-image
+    container_name: notifications-scheduler
+    restart: unless-stopped
+    profiles: ["analytics"]
+    env_file: .env
+    environment:
+      POSTGRES_HOST: notifications-db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: notifications
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    depends_on:
+      notifications-db:
+        condition: service_healthy
+      notifications-service:
+        condition: service_healthy
+      kafka-topic-init-notification-pending:
+        condition: service_completed_successfully
+      kafka-0:
+        condition: service_started
+      kafka-1:
+        condition: service_started
+      kafka-2:
+        condition: service_started
+    logging:
+      driver: gelf
+      options:
+        gelf-address: "udp://127.0.0.1:12201"
+        tag: "{{.Name}}"
+
   nginx:
     image: nginx:1.31.2
     restart: unless-stopped
