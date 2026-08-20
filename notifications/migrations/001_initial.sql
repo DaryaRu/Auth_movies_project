@@ -26,7 +26,17 @@ VALUES
     ('review_disliked', 'Дизлайк на рецензию (email)', 'email',
      'Вашу рецензию оценили', 'Пользователь поставил дизлайк на вашу рецензию.'),
     ('user_registered', 'Регистрация пользователя (email)', 'email',
-     'Добро пожаловать!', 'Спасибо за регистрацию.'),
+     'Подтвердите ваш email', 
+     'Добро пожаловать в наш онлайн-кинотеатр! 
+
+Пожалуйста, подтвердите ваш email, перейдя по ссылке: {{confirmation_link}}
+
+Если вы не регистрировались у нас, проигнорируйте это письмо.'),
     ('password_changed', 'Смена пароля (email)', 'email',
      'Ваш пароль был изменён', 'Пароль Вашего аккаунта был изменён. Если это были не Вы, обратитесь в службу поддержки.')
 ON CONFLICT (code) DO NOTHING;
+
+-- Обновить allowed_variables для user_registered
+UPDATE templates
+SET allowed_variables = '["user_name", "confirmation_link"]'::jsonb
+WHERE code = 'user_registered';

@@ -18,7 +18,8 @@ from .api_client import (
     api_client,
 )
 from .forms import NotificationTemplateForm, TemplatePreviewForm
-from .models import NotificationTemplate
+from .models import NotificationTemplate, ShortLinkSettings
+from .short_link_admin import ShortLinkSettingsAdmin
 from .validators import validate_template
 
 
@@ -460,3 +461,10 @@ class NotificationTemplateAdmin(admin.ModelAdmin):
                 self.message_user(request, _('Please correct the errors below'), messages.ERROR)
         
         return self.change_view(request, str(pk), form_url, extra_context)
+
+
+@admin.register(ShortLinkSettings)
+class ShortLinkSettingsAdminView(ShortLinkSettingsAdmin):
+    """Регистрация настроек коротких ссылок в Django admin."""
+
+    pass

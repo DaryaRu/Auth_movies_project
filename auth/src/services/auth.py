@@ -31,6 +31,7 @@ from src.services.sessions import SessionService
 from src.utils.db_manager import DBManager
 from src.utils.hashes import BaseHashService
 from src.utils.notifications import notify_user
+from src.utils.short_links import create_short_link
 from src.utils.tokens import JWTTokenService
 
 
@@ -64,8 +65,46 @@ class AuthService(BaseService):
         if is_exsist_user:
             raise UserAlreadyexistsException()
         new_user = await self.add_one(user)
-        asyncio.create_task(notify_user(new_user.id, "user_registered"))
+
+        asyncio.create_task(
+            self._send_confirmation_email(new_user.id)
+        )
         return new_user
+
+    async def _send_confirmation_email(self, user_id: UUID) -> None:
+        """Асинхронная отправка письма с подтверждением email."""
+        try:
+            confirmation_link = await create_short_link(user_id=user_id)
+        except Exception as e:
+            logging.warning(
+                "Failed to create confirmation link for user %s: %s", user_id, e
+            )
+            return
+        await notify_user(
+            user_id, "user_registered", payload={"confirmation_link": confirmation_link}
+        )
+
+    async def confirm_email(self, user_id: UUID) -> UserORM:
+        """Подтверждает email пользователя по user_id из короткой ссылки.
+
+        Args:
+            user_id: Идентификатор пользователя.
+
+        Returns:
+            UserORM: Обновленный объект пользователя.
+
+        Raises:
+            UserNotFoundException: Если пользователь не найден.
+        """
+        user = await self._db.users.get_one_or_none_by_id(id=user_id)
+        if user is None:
+            raise UserNotFoundException()
+
+        updated_user = await self._db.users.update_user_credentials(
+            user_id=user_id,
+            email_verified=True,
+        )
+        return updated_user
 
     async def create_admin(self, user: UserRequestScheme) -> None:
         is_exsist_user = (

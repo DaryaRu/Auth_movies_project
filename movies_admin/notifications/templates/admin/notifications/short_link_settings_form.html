@@ -1,0 +1,40 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+
+{% if error_message %}
+<ul class="messagelist">
+    <li class="error">{{ error_message }}</li>
+</ul>
+{% endif %}
+
+<form method="post">
+    {% csrf_token %}
+    <div>
+        <fieldset class="module aligned">
+            <h2>{% translate "Настройки" %}</h2>
+            <p>
+                {% translate "URL, на который будет перенаправлен пользователь после успешного подтверждения email." %}
+            </p>
+            <div class="form-row field-redirect_url">
+                <label for="id_redirect_url">{% translate "Redirect URL" %}</label>
+                <input
+                    type="url"
+                    name="redirect_url"
+                    id="id_redirect_url"
+                    value="{{ redirect_url }}"
+                    placeholder="http://localhost/"
+                    class="vURLField"
+                    required
+                >
+            </div>
+        </fieldset>
+    </div>
+    <div class="submit-row">
+        <input type="submit" value="{% translate 'Сохранить' %}" class="default" />
+    </div>
+</form>
+{% endblock %}

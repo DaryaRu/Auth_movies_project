@@ -48,6 +48,23 @@ from src.schemas.users import (
 router = APIRouter(tags=["Auth"])
 
 
+@router.get(
+    "/confirm-email/",
+    summary="Подтверждение email через короткую ссылку",
+    response_model=UserResponseScheme,
+)
+async def confirm_email(
+    user_id: UUID,
+    auth_service: AuthServiceDep,
+):
+    """Подтверждает email пользователя после перехода по короткой ссылке."""
+    try:
+        confirmed_user = await auth_service.confirm_email(user_id)
+    except UserNotFoundException as exc:
+        raise UserNotFoundHTTPException(detail=exc.detail) from exc
+    return confirmed_user
+
+
 @router.post(
     "/registration/",
     status_code=status.HTTP_201_CREATED,

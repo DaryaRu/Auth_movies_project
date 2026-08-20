@@ -57,6 +57,12 @@ class Settings(BaseSettings):
     LIMIT_VALUE: str = "5/minute"
     NOTIFICATIONS_API_URL: str = ""
     NOTIFICATIONS_TEMPLATE_ID_CACHE_TTL: int = 3600
+    SHORT_LINKS_API_URL: str = "http://localhost:8000"
+
+    @property
+    def EMAIL_CONFIRMATION_URL(self) -> str:
+        """URL endpoint подтверждения email (собственный endpoint auth-сервиса)."""
+        return f"{self.OAUTH_REDIRECT_BASE_URL}{self.API_V1_PREFIX}/confirm-email/"
 
     @property
     def DB_URL(self):
