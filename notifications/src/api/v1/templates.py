@@ -19,6 +19,7 @@ from src.services.notifications import (
     TemplateNotFoundError,
 )
 from src.services.templates import TemplateService
+from src.validators import TemplateValidationError, validate_template_content
 
 router = APIRouter(prefix="/notifications/templates", tags=["templates"])
 
@@ -86,6 +87,15 @@ async def create_template(
 ) -> Template:
     """Создать новый шаблон."""
     try:
+        validate_template_content(
+            template.subject, template.body, template.allowed_variables
+        )
+    except TemplateValidationError as e:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e)
+        ) from e
+
+    try:
         return await repo.create(template.model_dump())
     except UniqueViolationError as e:
         raise HTTPException(
@@ -101,16 +111,29 @@ async def update_template(
     repo: TemplateRepository = TemplateRepositoryDep,
 ) -> Template:
     """Отредактировать шаблон."""
-    update_data = template.model_dump(exclude_unset=True)
-    updated = (
-        await repo.get_by_id(template_id)
-        if not update_data
-        else await repo.update(template_id, update_data)
-    )
-    if updated is None:
+    existing = await repo.get_by_id(template_id)
+    if existing is None:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND, detail="Template not found"
         )
+
+    update_data = template.model_dump(exclude_unset=True)
+    if not update_data:
+        return existing
+
+    try:
+        validate_template_content(
+            update_data.get("subject", existing.subject),
+            update_data.get("body", existing.body),
+            update_data.get("allowed_variables", existing.allowed_variables),
+        )
+    except TemplateValidationError as e:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e)
+        ) from e
+
+    updated = await repo.update(template_id, update_data)
+    assert updated is not None
     return updated
 
 
