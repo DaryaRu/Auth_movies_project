@@ -3,7 +3,7 @@ import uuid
 
 import requests
 from django.conf import settings
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.core.exceptions import ValidationError
 from django.forms import ModelForm
 from django.utils.translation import gettext_lazy as _
@@ -16,8 +16,12 @@ from movies.models import (
     Person,
     PersonFilmWork,
 )
+from notifications.api_client import APIError, api_client
 
 logger = logging.getLogger(__name__)
+
+NEW_EPISODE_TEMPLATE_CODE = 'new_episode'
+NEW_EPISODE_NOTIFICATION_TYPE = 'new_episode'
 
 
 def _get_max_subscription_level() -> int | None:
@@ -246,6 +250,42 @@ class EpisodeAdmin(admin.ModelAdmin):
         return obj.episode_code
     episode_code_display.short_description = _('Episode Code')  # type: ignore[attr-defined]
     episode_code_display.admin_order_field = 'season_number'  # type: ignore[attr-defined]
+
+    def save_model(self, request, obj, form, change):
+        old_status = form.initial.get('release_status') if change else None
+        super().save_model(request, obj, form, change)
+        if (
+            obj.release_status == Episode.ReleaseStatus.RELEASED
+            and old_status != Episode.ReleaseStatus.RELEASED
+        ):
+            self._notify_new_episode(request, obj)
+
+    def _notify_new_episode(self, request, episode):
+        """Публикует триггер уведомления о новой серии (Scheduled group)."""
+        try:
+            template = api_client.get_template_by_code(NEW_EPISODE_TEMPLATE_CODE)
+            api_client.upsert_notification_trigger(
+                content_id=str(episode.tv_show_id),
+                notification_type=NEW_EPISODE_NOTIFICATION_TYPE,
+                template_id=template['template_id'],
+                payload={
+                    'tv_show_title': episode.tv_show.title,
+                    'season_number': episode.season_number,
+                    'episode_number': episode.episode_number,
+                    'episode_title': episode.title,
+                },
+            )
+        except APIError as e:
+            logger.warning(
+                "Failed to publish new_episode trigger for episode %s: %s",
+                episode.pk,
+                e,
+            )
+            messages.warning(
+                request,
+                _("Серия сохранена, но не удалось опубликовать уведомление: %(error)s")
+                % {"error": e},
+            )
 
 
 @admin.register(Genre)

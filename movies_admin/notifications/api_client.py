@@ -9,6 +9,8 @@ TEMPLATES_CREATE_POST_URL = "/notifications/templates/"
 TEMPLATE_GET_URL = "/notifications/templates/{template_id}/"
 TEMPLATE_UPDATE_PATCH_URL = "/notifications/templates/{template_id}/"
 TEMPLATE_PREVIEW_POST_URL = "/notifications/templates/{template_id}/preview/"
+TEMPLATE_BY_CODE_GET_URL = "/notifications/templates/by-code/{code}/"
+NOTIFICATION_TRIGGERS_UPSERT_URL = "/notification-triggers/"
 
 
 def _error_detail(response: httpx.Response) -> str:
@@ -213,6 +215,70 @@ class NotificationsAPIClient:
             raise APIError(f"Failed to preview template: {e}") from e
         except httpx.HTTPError as e:
             raise APIError(f"Failed to preview template: {e}") from e
+
+    def get_template_by_code(
+        self, code: str, auth_token: str | None = None
+    ) -> dict:
+        """Получить шаблон по code (например 'new_episode').
+
+        Args:
+            code: Уникальный код шаблона.
+            auth_token: JWT токен пользователя из auth-сервиса.
+        """
+        try:
+            with httpx.Client(timeout=self.timeout) as client:
+                response = client.get(
+                    f"{self.base_url}{TEMPLATE_BY_CODE_GET_URL.format(code=code)}",
+                    headers=self._get_headers(auth_token),
+                )
+                result = self._handle_response(response)
+                if not isinstance(result, dict):
+                    raise APIError(f"Expected dict, got {type(result)}")
+                return result
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise TemplateNotFoundError(
+                    f"Template with code={code} not found"
+                ) from e
+            raise APIError(f"Failed to get template by code: {e}") from e
+        except httpx.HTTPError as e:
+            raise APIError(f"Failed to get template by code: {e}") from e
+
+    def upsert_notification_trigger(
+        self,
+        content_id: str,
+        notification_type: str,
+        template_id: str,
+        payload: dict,
+        auth_token: str | None = None,
+    ) -> dict:
+        """Создать/обновить триггер уведомления (Scheduled group) по (content_id, notification_type).
+
+        Args:
+            content_id: UUID сущности, на изменение которой реагирует уведомление.
+            notification_type: Тип уведомления, определяет резолв аудитории воркером.
+            template_id: UUID шаблона для рендера.
+            payload: Данные для рендера на момент этого изменения.
+            auth_token: JWT токен пользователя из auth-сервиса.
+        """
+        try:
+            with httpx.Client(timeout=self.timeout) as client:
+                response = client.post(
+                    f"{self.base_url}{NOTIFICATION_TRIGGERS_UPSERT_URL}",
+                    json={
+                        "content_id": content_id,
+                        "notification_type": notification_type,
+                        "template_id": template_id,
+                        "payload": payload,
+                    },
+                    headers=self._get_headers(auth_token),
+                )
+                result = self._handle_response(response)
+                if not isinstance(result, dict):
+                    raise APIError(f"Expected dict, got {type(result)}")
+                return result
+        except httpx.HTTPError as e:
+            raise APIError(f"Failed to upsert notification trigger: {e}") from e
 
 
 class APIError(Exception):
