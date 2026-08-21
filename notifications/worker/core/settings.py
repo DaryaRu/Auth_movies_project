@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     KAFKA_PENDING_TOPIC: str = "notification-pending"
     KAFKA_DLQ_TOPIC: str = "notification.dlq"
     KAFKA_WORKER_GROUP_ID: str = "notifications-worker"
+    KAFKA_RETRY_BACKOFF_TIME: int = 5
 
     # auth-service (для получения email перед отправкой)
     AUTH_API_URL: str = "http://auth-service:8000/api/v1"

@@ -7,6 +7,7 @@ AckPolicy.NACK_ON_ERROR: при успехе оффсет коммитится. 
 получателю (_render_and_send) уходит в DLQ (notification.dlq), чтобы не блокировать Kafka.
 """
 
+import asyncio
 from typing import Any
 from uuid import UUID
 
@@ -32,6 +33,11 @@ templates_repo = TemplateRepository()
 settings_repo = UserNotificationSettingsRepository()
 notifications_repo = NotificationsRepository()
 admin_mailings_repo = AdminMailingsRepository()
+
+
+async def _backoff_before_retry() -> None:
+    """Фиксированная задержка перед повторной доставкой сообщения через NACK."""
+    await asyncio.sleep(settings.KAFKA_RETRY_BACKOFF_TIME)
 
 
 class ReadyMessage(BaseModel):
@@ -175,27 +181,35 @@ async def handle_ready(raw: dict, logger: Logger) -> None:
     if message is None:
         return
 
-    template = await templates_repo.get_by_id(message.template_id)
-    notification, created = await _get_or_create_notification(
-        message, template
-    )
-    notification_id = notification["notification_id"]
-
-    if not created and notification["status"] in ("sent", "skipped"):
-        logger.info(
-            f"{notification_id} уже обработано (status={notification['status']}), пропускаю"
+    try:
+        template = await templates_repo.get_by_id(message.template_id)
+        notification, created = await _get_or_create_notification(
+            message, template
         )
-        return
+        notification_id = notification["notification_id"]
 
-    if not await _check_deliverable(
-        message, template, notification_id, logger
-    ):
-        return
+        if not created and notification["status"] in ("sent", "skipped"):
+            logger.info(
+                f"{notification_id} уже обработано (status={notification['status']}), пропускаю"
+            )
+            return
 
-    assert template is not None
-    await _render_and_send(
-        message, template, notification_id, logger, settings.KAFKA_READY_TOPIC
-    )
+        if not await _check_deliverable(
+            message, template, notification_id, logger
+        ):
+            return
+
+        assert template is not None
+        await _render_and_send(
+            message,
+            template,
+            notification_id,
+            logger,
+            settings.KAFKA_READY_TOPIC,
+        )
+    except Exception:
+        await _backoff_before_retry()
+        raise
 
 
 class AdminMailingMessage(BaseModel):
@@ -278,13 +292,17 @@ async def _handle_admin_mailing(raw: dict, logger: Logger) -> None:
 )
 async def handle_pending(raw: dict, logger: Logger) -> None:
     """Обработать сообщение из notification-pending."""
-    if "admin_mailing_id" in raw:
-        await _handle_admin_mailing(raw, logger)
-    elif "content_id" in raw:
-        logger.warning(
-            f"notification_triggers -> notification-pending пока не реализовано, пропускаю: {raw}"
-        )
-    else:
-        logger.error(
-            f"Неизвестная форма сообщения в {settings.KAFKA_PENDING_TOPIC}: {raw}"
-        )
+    try:
+        if "admin_mailing_id" in raw:
+            await _handle_admin_mailing(raw, logger)
+        elif "content_id" in raw:
+            logger.warning(
+                f"notification_triggers -> notification-pending пока не реализовано, пропускаю: {raw}"
+            )
+        else:
+            logger.error(
+                f"Неизвестная форма сообщения в {settings.KAFKA_PENDING_TOPIC}: {raw}"
+            )
+    except Exception:
+        await _backoff_before_retry()
+        raise
