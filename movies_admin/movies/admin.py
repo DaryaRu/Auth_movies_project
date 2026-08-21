@@ -17,7 +17,6 @@ from movies.models import (
     Person,
     PersonFilmWork,
 )
-from notifications.api_client import APIError, api_client
 
 logger = logging.getLogger(__name__)
 
