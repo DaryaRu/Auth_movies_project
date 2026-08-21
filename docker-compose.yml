@@ -212,6 +212,8 @@ services:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
+      short-links-service:
+        condition: service_healthy
     logging:
       driver: gelf
       options:
@@ -436,7 +438,60 @@ services:
         gelf-address: "udp://127.0.0.1:12201"
         tag: "{{.Name}}"
 
-  # Требует Kafka, поэтому под тем же профилем, что и Kafka/ClickHouse.
+  short-links-db:
+      image: postgres:17
+      container_name: short-links-db
+      restart: unless-stopped
+      environment:
+        POSTGRES_DB: short_links
+        POSTGRES_USER: postgres
+        POSTGRES_PASSWORD: postgres
+      volumes:
+        - short_links_pg_data:/var/lib/postgresql/data
+        - ./short_links/migrations/001_initial.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      healthcheck:
+        test: ["CMD-SHELL", "pg_isready -U postgres -d short_links"]
+        interval: 15s
+        timeout: 5s
+        retries: 5
+        start_period: 10s
+      
+  short-links-service:
+    build: ./short_links
+    image: short-links-service-image
+    container_name: short-links-service
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_HOST: short-links-db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: short_links
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      SHORT_LINK_BASE_URL: ${SHORT_LINK_BASE_URL}
+    command: >
+      sh -c "python3 src/apply_migrations.py && gunicorn src.main:app
+      --workers 2
+      --worker-class uvicorn.workers.UvicornWorker
+      --bind 0.0.0.0:8000
+      --forwarded-allow-ips=*
+      --timeout 120"
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      short-links-db:
+        condition: service_healthy
+    logging:
+      driver: gelf
+      options:
+        gelf-address: "udp://127.0.0.1:12201"
+        tag: "{{.Name}}"
+
+ # Требует Kafka, поэтому под тем же профилем, что и Kafka/ClickHouse.
   # По умолчанию не поднимается.
   notifications-db:
     image: postgres:17
@@ -561,6 +616,7 @@ services:
       - movies-service
       - movies-admin
       - user-actions-service
+      - short-links-service
     ports:
       - "80:80"
 
@@ -817,6 +873,7 @@ volumes:
   movies_pg_data:
   user_actions_pg_data:
   notifications_pg_data:
+  short_links_pg_data:
   etl_state:
   kafka_0_data:
   kafka_1_data:

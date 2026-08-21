@@ -41,3 +41,21 @@ class NotificationTemplate(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class ShortLinkSettings(models.Model):
+    """Прокси-модель для регистрации в Django admin.
+
+    Реальные данные хранятся в БД short_links сервиса.
+    """
+
+    class Meta:
+        managed = False
+        db_table = "content\".\"short_link_settings_proxy"
+        verbose_name = _('short link settings')
+        verbose_name_plural = _('short link settings')
+
+    def __str__(self):
+        return "Short Link Settings"
+
+

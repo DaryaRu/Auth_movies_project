@@ -17,6 +17,7 @@ def register_middlewares(app: FastAPI) -> None:
     excluded_paths = {
         "/health",
         f"{settings.API_V1_PREFIX}/jwt.key/",
+        f"{settings.API_V1_PREFIX}/confirm-email/",
         settings.OPENAPI_URL,
         settings.OPENAPI_SCHEMA_URL,
     }

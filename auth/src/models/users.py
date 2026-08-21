@@ -34,6 +34,7 @@ class UserORM(Base, BaseORM):
     hashed_password: Mapped[str | None] = mapped_column(String(255))
     is_superuser: Mapped[bool] = mapped_column(default=False)
     is_active: Mapped[bool] = mapped_column(default=True)
+    email_verified: Mapped[bool] = mapped_column(default=False)
     roles: Mapped[list["RoleORM"]] = relationship(
         secondary=user_roles_table,
         back_populates="users",

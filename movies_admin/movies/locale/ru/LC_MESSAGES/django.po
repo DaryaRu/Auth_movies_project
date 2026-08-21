@@ -29,8 +29,6 @@ msgid "Search by name"
 msgstr "Поиск по названию"
 
 #: .\movies\admin.py:58
-#, fuzzy
-#| msgid "full name"
 msgid "Search by full name"
 msgstr "Поиск по полному имени"
 
@@ -39,8 +37,6 @@ msgid "Search by title"
 msgstr "Поиск по названию"
 
 #: .\movies\admin.py:79
-#, fuzzy
-#| msgid "genres"
 msgid "Genres"
 msgstr "Жанры"
 
@@ -113,8 +109,6 @@ msgid "The value cannot be less than 0"
 msgstr "Значение не может быть меньше 0"
 
 #: .\movies\models.py:101
-#, fuzzy
-#| msgid "The value cannot be greater than 100"
 msgid "The value cannot be greater than 10"
 msgstr "Значение не может быть больше 10"
 

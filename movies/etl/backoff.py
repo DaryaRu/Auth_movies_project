@@ -6,6 +6,15 @@ from functools import wraps
 
 logger = logging.getLogger(__name__)
 
+_RETRYABLE: tuple[type[Exception], ...]
+
+try:
+    from elastic_transport import ConnectionError as ElasticConnectionError
+
+    _RETRYABLE = (ConnectionError, TimeoutError, OSError, ElasticConnectionError)
+except ImportError:
+    _RETRYABLE = (ConnectionError, TimeoutError, OSError)
+
 
 def backoff(
     start_sleep_time: float = 0.1,
@@ -20,7 +29,7 @@ def backoff(
             for retry_number in range(max_retries):
                 try:
                     return func(*args, **kwargs)
-                except (ConnectionError, TimeoutError) as e:
+                except _RETRYABLE as e:
                     last_exception = e
                     delay = min(
                         start_sleep_time * (factor**retry_number),

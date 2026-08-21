@@ -58,6 +58,7 @@ class UserResponseScheme(BaseModel):
     phone: str | None
     is_superuser: bool
     is_active: bool
+    email_verified: bool = False
 
     model_config = ConfigDict(from_attributes=True)
 
