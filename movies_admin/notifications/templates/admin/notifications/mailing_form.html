@@ -1,0 +1,154 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}{{ block.super }}
+<style>
+    .form-row { margin-bottom: 15px; max-width: 480px; }
+    .form-row label { display: block; font-weight: bold; margin-bottom: 5px; }
+    .form-row input, .form-row textarea, .form-row select { width: 100%; }
+    .form-row .helptext { display: block; margin-top: 5px; color: #666; }
+    .submit-row { margin-top: 20px; }
+    .audience-radio { display: inline-block; margin-right: 15px; }
+    #content-main { max-width: 640px; }
+    .template-info { margin-top: 10px; padding: 12px; background: #f0f7ff; border: 1px solid #b8daff; border-radius: 4px; max-width: 480px; }
+    .template-info h4 { margin: 0 0 8px 0; font-size: 13px; color: #004085; }
+    .template-info .var-list { margin: 5px 0; }
+    .template-info .var-list code { display: inline-block; background: #e9ecef; padding: 2px 6px; border-radius: 3px; margin: 2px; font-size: 12px; }
+    .template-info .preview-subject { font-weight: bold; margin: 8px 0 4px; }
+    .template-info .preview-body { font-size: 13px; color: #333; white-space: pre-wrap; word-break: break-word; max-height: 150px; overflow-y: auto; background: #fff; padding: 8px; border: 1px solid #ddd; border-radius: 3px; }
+    #template-preview-link { display: inline-block !important; margin-top: 10px !important; padding: 6px 14px !important; background: #79aec8 !important; color: #fff !important; text-decoration: none !important; border-radius: 4px !important; font-size: 13px !important; border: none !important; cursor: pointer !important; }
+    #template-preview-link:hover { background: #417690 !important; color: #fff !important; }
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+    &rsaquo; <a href="{% url 'admin:notifications_adminmailing_changelist' %}">{% trans 'Mailings' %}</a>
+    &rsaquo; {% trans 'Add Mailing' %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <form method="post" novalidate>
+        {% csrf_token %}
+
+        <fieldset class="module aligned">
+            <h2>{% trans 'Mailing Details' %}</h2>
+
+            <div class="form-row">
+                {{ form.template.errors }}
+                <label for="{{ form.template.id_for_label }}">{% trans 'Template' %} *</label>
+                {{ form.template }}
+                {% if form.template.help_text %}
+                    <span class="helptext">{{ form.template.help_text }}</span>
+                {% endif %}
+            </div>
+
+            <div class="template-info" id="template-info" style="display: none;">
+                <h4>{% trans 'Template Variables' %}</h4>
+                <div class="var-list" id="template-variables"></div>
+                <div class="preview-subject" id="template-subject"></div>
+                <div class="preview-body" id="template-body"></div>
+                <a class="preview-btn" id="template-preview-link" href="#" target="_blank">{% trans 'Preview Template' %}</a>
+            </div>
+
+            <div class="form-row">
+                {{ form.audience_type.errors }}
+                <label>{% trans 'Audience' %} *</label>
+                <div>
+                    {% for radio in form.audience_type %}
+                        <label class="audience-radio">
+                            {{ radio.tag }} {{ radio.choice_label }}
+                        </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="form-row" id="subscription-level-row" style="display: none;">
+                {{ form.subscription_level.errors }}
+                <label for="{{ form.subscription_level.id_for_label }}">{% trans 'Min subscription level' %}</label>
+                {{ form.subscription_level }}
+                {% if form.subscription_level.help_text %}
+                    <span class="helptext">{{ form.subscription_level.help_text }}</span>
+                {% endif %}
+            </div>
+
+            <div class="form-row">
+                {{ form.payload_json.errors }}
+                <label for="{{ form.payload_json.id_for_label }}">{% trans 'Payload (JSON)' %}</label>
+                {{ form.payload_json }}
+                {% if form.payload_json.help_text %}
+                    <span class="helptext">{{ form.payload_json.help_text }}</span>
+                {% endif %}
+            </div>
+
+            <div class="form-row">
+                {{ form.scheduled_at.errors }}
+                <label for="{{ form.scheduled_at.id_for_label }}">{% trans 'Scheduled at' %}</label>
+                {{ form.scheduled_at }}
+                {% if form.scheduled_at.help_text %}
+                    <span class="helptext">{{ form.scheduled_at.help_text }}</span>
+                {% endif %}
+            </div>
+        </fieldset>
+
+        <div class="submit-row">
+            <input type="submit" value="{% trans 'Create Mailing' %}" class="default">
+            <a href="{% url 'admin:notifications_adminmailing_changelist' %}" class="button cancel-link">{% trans 'Cancel' %}</a>
+        </div>
+    </form>
+</div>
+
+<script type="application/json" id="template-data">{{ template_data_json|safe }}</script>
+<script>
+{% verbatim %}
+var templateData = JSON.parse(document.getElementById('template-data').textContent);
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Toggle subscription level
+    var radios = document.querySelectorAll('input[name="audience_type"]');
+    var subRow = document.getElementById('subscription-level-row');
+
+    function toggleSubscriptionRow() {
+        var checked = document.querySelector('input[name="audience_type"]:checked');
+        subRow.style.display = (checked && checked.value === 'subscription') ? '' : 'none';
+    }
+
+    radios.forEach(function(radio) {
+        radio.addEventListener('change', toggleSubscriptionRow);
+    });
+    toggleSubscriptionRow();
+
+    // Template info
+    var templateSelect = document.getElementById('id_template');
+    var infoBox = document.getElementById('template-info');
+    var varList = document.getElementById('template-variables');
+    var subjEl = document.getElementById('template-subject');
+    var bodyEl = document.getElementById('template-body');
+    var previewLink = document.getElementById('template-preview-link');
+
+    function updateTemplateInfo() {
+        var selectedId = templateSelect.value;
+        if (selectedId && templateData[selectedId]) {
+            var t = templateData[selectedId];
+            varList.innerHTML = (t.allowed_variables || []).map(function(v) {
+                return '<code>{{' + v + '}}</code>';
+            }).join('');
+            subjEl.textContent = t.subject ? 'Subject: ' + t.subject : '';
+            bodyEl.textContent = t.body || '';
+            previewLink.href = '/admin/notifications/notificationtemplate/' + selectedId + '/preview/';
+            infoBox.style.display = '';
+        } else {
+            infoBox.style.display = 'none';
+        }
+    }
+
+    templateSelect.addEventListener('change', updateTemplateInfo);
+    updateTemplateInfo();
+});
+{% endverbatim %}
+</script>
+{% endblock %}

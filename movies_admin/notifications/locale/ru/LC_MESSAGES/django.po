@@ -6,30 +6,16 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
 
+#: notifications/apps.py
+msgid "notifications"
+msgstr "Уведомления"
+
 #: notifications/models.py
 msgid "id"
 msgstr "ID"
 
-msgid "created"
-msgstr "Дата создания"
-
-msgid "modified"
-msgstr "Дата изменения"
-
 msgid "name"
 msgstr "Название"
-
-msgid "subject"
-msgstr "Тема"
-
-msgid "is active"
-msgstr "Активен"
-
-msgid "notification template"
-msgstr "Шаблон уведомления"
-
-msgid "notification templates"
-msgstr "Шаблоны уведомлений"
 
 msgid "code"
 msgstr "Код"
@@ -37,63 +23,131 @@ msgstr "Код"
 msgid "channel"
 msgstr "Канал"
 
+msgid "Email"
+msgstr "Email"
+
+msgid "SMS"
+msgstr "SMS"
+
+msgid "Push"
+msgstr "Push"
+
+msgid "subject"
+msgstr "Тема"
+
 msgid "body"
 msgstr "Тело сообщения"
 
 msgid "allowed variables"
 msgstr "Разрешённые переменные"
 
+msgid "is active"
+msgstr "Активен"
+
+msgid "created"
+msgstr "Дата создания"
+
+msgid "modified"
+msgstr "Дата изменения"
+
+msgid "notification template"
+msgstr "Шаблон уведомления"
+
+msgid "notification templates"
+msgstr "Шаблоны уведомлений"
+
+msgid "template id"
+msgstr "ID шаблона"
+
+msgid "audience filter"
+msgstr "Фильтр аудитории"
+
+msgid "payload"
+msgstr "Данные"
+
+msgid "status"
+msgstr "Статус"
+
+msgid "Scheduled"
+msgstr "Запланирована"
+
+msgid "Sending"
+msgstr "Отправляется"
+
+msgid "Sent"
+msgstr "Отправлена"
+
+msgid "Failed"
+msgstr "Ошибка"
+
+msgid "scheduled at"
+msgstr "Время отправки"
+
+msgid "sent at"
+msgstr "Отправлено"
+
+msgid "created by"
+msgstr "Создано"
+
+msgid "created at"
+msgstr "Дата создания"
+
+msgid "admin mailing"
+msgstr "Рассылка"
+
+msgid "admin mailings"
+msgstr "Рассылки"
+
+msgid "Mailing"
+msgstr "Рассылка"
+
 msgid "short link settings"
 msgstr "Настройки коротких ссылок"
 
+msgid "Short Link Settings"
+msgstr "Настройки коротких ссылок"
+
 #: notifications/admin.py
-msgid "Dates"
-msgstr "Даты"
-
-msgid "Preview Template"
-msgstr "Предпросмотр шаблона"
-
-msgid "Preview"
-msgstr "Предпросмотр"
-
-msgid "Validate Template"
-msgstr "Валидировать шаблон"
-
-msgid "Add Notification Template"
-msgstr "Добавить шаблон уведомления"
+msgid "Code"
+msgstr "Код"
 
 msgid "Template created successfully"
 msgstr "Шаблон успешно создан"
 
-msgid "Template updated successfully"
-msgstr "Шаблон успешно обновлён"
+msgid "Add Notification Template"
+msgstr "Добавить шаблон уведомления"
 
-msgid "Template not found in service"
-msgstr "Шаблон не найден в сервисе"
-
-msgid "Template with this code already exists"
-msgstr "Шаблон с таким кодом уже существует"
-
-msgid "Please correct the errors below"
-msgstr "Исправьте ошибки ниже"
-
-msgid "Change %s"
-msgstr "Изменить %s"
-
-msgid "Code"
-msgstr "Код"
+msgid "Preview Template"
+msgstr "Предпросмотр шаблона"
 
 msgid "Code cannot be changed. Unique code of the template."
 msgstr "Код не может быть изменён. Уникальный код шаблона."
 
-#: notifications/short_link_admin.py
-msgid "Redirect URL обновлён"
-msgstr "Redirect URL обновлён"
+msgid "Change %s"
+msgstr "Изменить %s"
 
-msgid "Настройки коротких ссылок"
-msgstr "Настройки коротких ссылок"
+msgid "Template updated successfully"
+msgstr "Шаблон успешно обновлён"
+
+msgid "Please correct the errors below"
+msgstr "Исправьте ошибки ниже"
+
+msgid "Template"
+msgstr "Шаблон"
+
+msgid "Mailing created successfully"
+msgstr "Рассылка успешно создана"
+
+msgid "Add Mailing"
+msgstr "Добавить рассылку"
+
+msgid "Mailing details"
+msgstr "Детали рассылки"
 
 #: notifications/forms.py
+msgid "Уникальный код шаблона (например: review_liked). Изменение кода невозможно."
+msgstr "Уникальный код шаблона (например: review_liked). Изменение кода невозможно."
+
 msgid "Name"
 msgstr "Название"
 
@@ -103,26 +157,32 @@ msgstr "Канал"
 msgid "Subject"
 msgstr "Тема"
 
+msgid "Тема сообщения. Поддерживает переменные в виде {{movie_title}}."
+msgstr "Тема сообщения. Поддерживает переменные в виде {{movie_title}}."
+
 msgid "Body"
 msgstr "Тело сообщения"
+
+msgid "Содержимое сообщения. Поддерживает переменные в виде {{movie_title}}."
+msgstr "Содержимое сообщения. Поддерживает переменные в виде {{movie_title}}."
 
 msgid "Allowed Variables"
 msgstr "Разрешённые переменные"
 
+msgid "Список разрешённых переменных через запятую (например: user_name, movie_title)"
+msgstr "Список разрешённых переменных через запятую (например: user_name, movie_title)"
+
 msgid "Is Active"
 msgstr "Активен"
 
-msgid "Уникальный код шаблона (например: review_liked). Изменение кода невозможно."
-msgstr "Уникальный код шаблона (например: review_liked). Изменение кода невозможно."
+msgid "Template not found in service"
+msgstr "Шаблон не найден в сервисе"
 
-msgid "Тема сообщения. Поддерживает переменные: {{user_name}}, {{movie_title}}, etс."
-msgstr "Тема сообщения. Поддерживает переменные: {{user_name}}, {{movie_title}}, и др."
+msgid "Template with this code already exists"
+msgstr "Шаблон с таким кодом уже существует"
 
-msgid "Содержимое сообщения. Поддерживает переменные: {{user_name}}, {{movie_title}}, etс."
-msgstr "Содержимое сообщения. Поддерживает переменные: {{user_name}}, {{movie_title}}, и др."
-
-msgid "Список разрешённых переменных через запятую (например: user_name, movie_title)"
-msgstr "Список разрешённых переменных через запятую (например: user_name, movie_title)"
+msgid "Invalid JSON: "
+msgstr "Неверный JSON: "
 
 msgid "Test Payload (JSON)"
 msgstr "Тестовые данные (JSON)"
@@ -130,20 +190,45 @@ msgstr "Тестовые данные (JSON)"
 msgid "JSON с тестовыми данными для подстановки в шаблон"
 msgstr "JSON с тестовыми данными для подстановки в шаблон"
 
-msgid "Invalid JSON: "
-msgstr "Неверный JSON: "
+msgid "Выберите шаблон для рассылки"
+msgstr "Выберите шаблон для рассылки"
 
-msgid "Rendered Successfully"
-msgstr "Успешно отрендерено"
+msgid "Audience"
+msgstr "Аудитория"
 
-msgid "Error"
-msgstr "Ошибка"
+msgid "All users"
+msgstr "Все пользователи"
 
-msgid "Test Render"
-msgstr "Тестовый рендер"
+msgid "By subscription level"
+msgstr "По уровню подписки"
 
-msgid "Enter test data to see how the template will be rendered:"
-msgstr "Введите тестовые данные для предпросмотра шаблона:"
+msgid "Min subscription level"
+msgstr "Минимальный уровень подписки"
+
+msgid "Минимальный уровень подписки (для фильтра \"По уровню подписки\")"
+msgstr "Минимальный уровень подписки (для фильтра «По уровню подписки»)"
+
+msgid "Payload (JSON)"
+msgstr "Данные (JSON)"
+
+msgid "Дополнительные данные для подстановки в шаблон (JSON). Допустимые ключи — allowed_variables выбранного шаблона."
+msgstr "Дополнительные данные для подстановки в шаблон (JSON). Допустимые ключи — allowed_variables выбранного шаблона."
+
+msgid "Scheduled at"
+msgstr "Время отправки"
+
+msgid "Когда отправить. Пусто = отправить сразу."
+msgstr "Когда отправить. Пусто = отправить сразу."
+
+msgid "Required when audience type is \"subscription\""
+msgstr "Обязательно при типе аудитории «По уровню подписки»"
+
+#: notifications/short_link_admin.py
+msgid "Redirect URL обновлён"
+msgstr "Redirect URL обновлён"
+
+msgid "Настройки коротких ссылок"
+msgstr "Настройки коротких ссылок"
 
 #: notifications/templates/admin/notifications/preview_template.html
 msgid "Home"
@@ -155,11 +240,26 @@ msgstr "Уведомления"
 msgid "Notification templates"
 msgstr "Шаблоны уведомлений"
 
+msgid "Preview"
+msgstr "Предпросмотр"
+
 msgid "Template Preview"
 msgstr "Предпросмотр шаблона"
 
 msgid "No name"
 msgstr "Без названия"
+
+msgid "Error"
+msgstr "Ошибка"
+
+msgid "No subject"
+msgstr "Нет темы"
+
+msgid "Content"
+msgstr "Содержимое"
+
+msgid "No content"
+msgstr "Нет содержимого"
 
 msgid "Available Variables"
 msgstr "Доступные переменные"
@@ -167,31 +267,34 @@ msgstr "Доступные переменные"
 msgid "You can use the following variables in your template:"
 msgstr "Вы можете использовать следующие переменные в вашем шаблоне:"
 
-msgid "Back to templates"
-msgstr "Назад к шаблонам"
-
-msgid "No subject"
-msgstr "Нет темы"
-
-msgid "No content"
-msgstr "Нет содержимого"
-
 msgid "Original Template"
 msgstr "Исходный шаблон"
 
 msgid "This is the original template without variable substitution."
 msgstr "Это исходный шаблон без подстановки переменных."
 
+msgid "Rendered Successfully"
+msgstr "Успешно отрендерено"
+
 msgid "The template has been rendered with your test data."
 msgstr "Шаблон отрендерен с вашими тестовыми данными."
 
-msgid "Content"
-msgstr "Содержимое"
+msgid "Test Render"
+msgstr "Тестовый рендер"
+
+msgid "Enter test data to see how the template will be rendered:"
+msgstr "Введите тестовые данные для предпросмотра шаблона:"
 
 msgid "Render Preview"
 msgstr "Отрендерить предпросмотр"
 
+msgid "Back to templates"
+msgstr "Назад к шаблонам"
+
 #: notifications/templates/admin/notifications/template_form.html
+msgid "Notification Templates"
+msgstr "Шаблоны уведомлений"
+
 msgid "Add Template"
 msgstr "Добавить шаблон"
 
@@ -211,48 +314,58 @@ msgstr "Дополнительная информация"
 msgid "Actions"
 msgstr "Действия"
 
+msgid "Dates"
+msgstr "Даты"
+
 msgid "Created"
 msgstr "Создано"
 
 msgid "Modified"
 msgstr "Изменено"
 
-#: notifications/templates/admin/notifications/validate_template.html
-msgid "Validate"
-msgstr "Валидировать"
+#: notifications/templates/admin/notifications/mailing_form.html
+msgid "Mailings"
+msgstr "Рассылки"
 
-msgid "Template Validation"
-msgstr "Валидация шаблона"
+msgid "Mailing Details"
+msgstr "Детали рассылки"
 
-msgid "Validation Error"
-msgstr "Ошибка валидации"
+msgid "Template Variables"
+msgstr "Переменные шаблона"
 
-msgid "Yes"
-msgstr "Да"
+msgid "Create Mailing"
+msgstr "Создать рассылку"
 
-msgid "No"
-msgstr "Нет"
+#: notifications/templates/admin/notifications/mailing_change_form.html
+msgid "ID"
+msgstr "ID"
 
-msgid "Validation Results"
-msgstr "Результаты валидации"
+msgid "Audience Filter"
+msgstr "Фильтр аудитории"
 
-msgid "Template is valid"
-msgstr "Шаблон валиден"
+msgid "Payload"
+msgstr "Данные"
 
-msgid "Validation Errors"
-msgstr "Ошибки валидации"
+msgid "Status"
+msgstr "Статус"
 
-msgid "Warnings"
-msgstr "Предупреждения"
+msgid "Scheduled At"
+msgstr "Время отправки"
 
-msgid "No Validation Data"
-msgstr "Нет данных валидации"
+msgid "Sent At"
+msgstr "Отправлено"
 
-msgid "Validation could not be performed. Please check the error message above."
-msgstr "Валидация не может быть выполнена. Проверьте сообщение об ошибке выше."
+msgid "Created By"
+msgstr "Создано"
 
-msgid "Active"
-msgstr "Активен"
+msgid "Created At"
+msgstr "Дата создания"
+
+msgid "No mailing data available."
+msgstr "Нет данных рассылки."
+
+msgid "Back to list"
+msgstr "Назад к списку"
 
 #: notifications/templates/admin/notifications/short_link_settings_form.html
 msgid "Настройки"
