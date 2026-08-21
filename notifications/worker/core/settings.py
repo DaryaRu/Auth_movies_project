@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     # auth-service (для получения email перед отправкой)
     AUTH_API_URL: str = "http://auth-service:8000/api/v1"
 
+    # user-actions-service (резолв аудитории notification_triggers по закладкам)
+    USER_ACTIONS_API_URL: str = "http://user-actions-service:5000/api/v1"
+
     # SMTP (Mailpit в dev)
     SMTP_HOST: str = "mailpit"
     SMTP_PORT: int = 1025

@@ -11,7 +11,7 @@ import asyncio
 from typing import Any
 from uuid import UUID
 
-from audience import search_users
+from audience import search_bookmark_users, search_users
 from contacts import get_email
 from core.settings import settings
 from faststream import AckPolicy, Logger
@@ -19,6 +19,7 @@ from faststream.kafka import KafkaBroker
 from pydantic import BaseModel, ValidationError
 from render import render
 from repositories.admin_mailings import AdminMailingsRepository
+from repositories.notification_triggers import NotificationTriggersRepository
 from repositories.notifications import NotificationsRepository
 from repositories.templates import TemplateRepository
 from repositories.user_notification_settings import (
@@ -34,6 +35,7 @@ templates_repo = TemplateRepository()
 settings_repo = UserNotificationSettingsRepository()
 notifications_repo = NotificationsRepository()
 admin_mailings_repo = AdminMailingsRepository()
+notification_triggers_repo = NotificationTriggersRepository()
 
 
 async def _backoff_before_retry() -> None:
@@ -284,6 +286,72 @@ async def _handle_admin_mailing(raw: dict, logger: Logger) -> None:
     )
 
 
+class NotificationTriggerMessage(BaseModel):
+    """Схема сообщения из notification-pending, опубликованного notification_triggers."""
+
+    content_id: UUID
+    notification_type: str
+    template_id: UUID
+    payload: dict[str, Any] = {}
+
+
+async def _handle_notification_trigger(raw: dict, logger: Logger) -> None:
+    """Резолв аудитории по закладкам, отправка в notification-ready-bulk."""
+    try:
+        message = NotificationTriggerMessage.model_validate(raw)
+    except ValidationError as exc:
+        logger.error(
+            f"Некорректное сообщение notification_trigger в {settings.KAFKA_PENDING_TOPIC}: {exc}"
+        )
+        return
+
+    trigger = await notification_triggers_repo.get_by_content_and_type(
+        message.content_id, message.notification_type
+    )
+    if trigger is None or not trigger["is_active"]:
+        logger.error(
+            f"{message.content_id}/{message.notification_type}: триггер не найден/неактивен"
+        )
+        return
+
+    template = await templates_repo.get_by_id(message.template_id)
+    if template is None or not template["is_active"]:
+        logger.error(
+            f"{message.content_id}/{message.notification_type}: шаблон {message.template_id} не найден/неактивен"
+        )
+        return
+
+    try:
+        user_ids = await search_bookmark_users(message.content_id)
+    except Exception as exc:
+        logger.warning(
+            f"{message.content_id}/{message.notification_type}: не удалось резолвить аудиторию, будет повторено: {exc}"
+        )
+        raise
+
+    logger.info(
+        f"{message.content_id}/{message.notification_type}: аудитория — {len(user_ids)} получателей"
+    )
+
+    trigger_last_update = trigger["last_update"].isoformat()
+    for user_id in user_ids:
+        ready_message = ReadyMessage(
+            user_id=user_id,
+            template_id=message.template_id,
+            payload=message.payload,
+            channel=template["channel"],
+            deduplication_key=f"{trigger['trigger_id']}:{trigger_last_update}:{user_id}",
+        )
+        await ready_bulk_publisher.publish(
+            ready_message.model_dump(mode="json"), key=str(user_id).encode()
+        )
+
+    await notification_triggers_repo.mark_trigger_sent(trigger["trigger_id"])
+    logger.info(
+        f"{message.content_id}/{message.notification_type}: {len(user_ids)} сообщений опубликовано в {settings.KAFKA_READY_BULK_TOPIC}"
+    )
+
+
 @broker.subscriber(
     settings.KAFKA_PENDING_TOPIC,
     group_id=settings.KAFKA_WORKER_GROUP_ID,
@@ -295,9 +363,7 @@ async def handle_pending(raw: dict, logger: Logger) -> None:
         if "admin_mailing_id" in raw:
             await _handle_admin_mailing(raw, logger)
         elif "content_id" in raw:
-            logger.warning(
-                f"notification_triggers -> notification-pending пока не реализовано, пропускаю: {raw}"
-            )
+            await _handle_notification_trigger(raw, logger)
         else:
             logger.error(
                 f"Неизвестная форма сообщения в {settings.KAFKA_PENDING_TOPIC}: {raw}"

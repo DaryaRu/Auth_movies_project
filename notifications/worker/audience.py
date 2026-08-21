@@ -19,3 +19,17 @@ async def search_users(audience_filter: dict[str, Any]) -> list[UUID]:
         )
         response.raise_for_status()
         return [UUID(user_id) for user_id in response.json()]
+
+
+async def search_bookmark_users(content_id: UUID) -> list[UUID]:
+    """Резолв аудитории notification_triggers: список id пользователей,
+    добавивших content_id в закладки (GET /internal/bookmarks/{content_id}/users/
+    у user-actions-service)."""
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            f"{settings.USER_ACTIONS_API_URL}/internal/bookmarks/{content_id}/users/",
+            headers={"X-Request-Id": str(uuid4())},
+            timeout=10,
+        )
+        response.raise_for_status()
+        return [UUID(user_id) for user_id in response.json()]
