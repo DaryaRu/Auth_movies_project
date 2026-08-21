@@ -20,7 +20,6 @@ from .api_client import (
 from .forms import NotificationTemplateForm, TemplatePreviewForm
 from .models import NotificationTemplate, ShortLinkSettings
 from .short_link_admin import ShortLinkSettingsAdmin
-from .validators import validate_template
 
 
 def get_auth_token(request) -> str | None:
@@ -47,18 +46,13 @@ class NotificationTemplateAdmin(admin.ModelAdmin):
         return obj.code or '-'
 
     def get_urls(self):
-        """Добавляем URL для предпросмотра, валидации и работы с API."""
+        """Добавляем URL для предпросмотра и работы с API."""
         urls = super().get_urls()
         custom_urls = [
             path(
                 '<uuid:pk>/preview/',
                 self.admin_site.admin_view(self.preview_template),
                 name='notifications_notificationtemplate_preview',
-            ),
-            path(
-                '<uuid:pk>/validate/',
-                self.admin_site.admin_view(self.validate_template),
-                name='notifications_notificationtemplate_validate',
             ),
             path(
                 '<uuid:pk>/change/api/',
@@ -211,36 +205,6 @@ class NotificationTemplateAdmin(admin.ModelAdmin):
             **self.admin_site.each_context(request),
         }
         return TemplateResponse(request, 'admin/notifications/preview_template.html', context)
-
-    def validate_template(self, request, pk):
-        """Валидация шаблона с локальной проверкой."""
-        template = None
-        validation_result = None
-        error_message = None
-
-        auth_token = get_auth_token(request)
-
-        try:
-            template = api_client.get_template(str(pk), auth_token)
-            validation_result = validate_template(
-                code=template.get('code', ''),
-                name=template.get('name', ''),
-                channel=template.get('channel', 'email'),
-                subject=template.get('subject') or '',
-                body=template.get('body', ''),
-                allowed_variables=template.get('allowed_variables', []),
-            )
-        except (TemplateNotFoundError, APIError) as e:
-            error_message = str(e)
-
-        context = {
-            'template': template,
-            'title': _('Validate Template'),
-            'validation_result': validation_result,
-            'error_message': error_message,
-            **self.admin_site.each_context(request),
-        }
-        return TemplateResponse(request, 'admin/notifications/validate_template.html', context)
 
     def get_queryset(self, request):
         """Получить список шаблонов из API сервиса нотификаций.
