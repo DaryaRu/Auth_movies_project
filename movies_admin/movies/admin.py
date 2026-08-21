@@ -7,6 +7,7 @@ from django.contrib import admin, messages
 from django.core.exceptions import ValidationError
 from django.forms import ModelForm
 from django.utils.translation import gettext_lazy as _
+from notifications.api_client import APIError, api_client
 
 from movies.models import (
     Episode,
@@ -16,7 +17,6 @@ from movies.models import (
     Person,
     PersonFilmWork,
 )
-from notifications.api_client import APIError, api_client
 
 logger = logging.getLogger(__name__)
 

@@ -3,7 +3,11 @@
 from typing import Any
 
 from jinja2 import meta, nodes
-from jinja2.exceptions import TemplateError, TemplateSyntaxError, UndefinedError
+from jinja2.exceptions import (
+    TemplateError,
+    TemplateSyntaxError,
+    UndefinedError,
+)
 from jinja2.sandbox import SandboxedEnvironment, SecurityError
 
 from src.render import render
