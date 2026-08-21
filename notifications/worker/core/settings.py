@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     # Kafka
     KAFKA_BROKERS: str = ""
     KAFKA_READY_TOPIC: str = "notification-ready"
+    KAFKA_READY_BULK_TOPIC: str = "notification-ready-bulk"
     KAFKA_PENDING_TOPIC: str = "notification-pending"
     KAFKA_DLQ_TOPIC: str = "notification.dlq"
     KAFKA_WORKER_GROUP_ID: str = "notifications-worker"
@@ -37,6 +38,7 @@ class Settings(BaseSettings):
     SMTP_HOST: str = "mailpit"
     SMTP_PORT: int = 1025
     EMAIL_FROM: str = "notifications@example.com"
+    EMAIL_MAX_PER_SEC: float = 10
 
     @property
     def kafka_brokers_list(self) -> list[str]:

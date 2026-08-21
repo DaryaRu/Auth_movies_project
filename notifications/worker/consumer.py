@@ -1,4 +1,4 @@
-"""Консьюмер notification-ready и notification-pending (рендер шаблона и отправка).
+"""Консьюмер notification-ready, notification-ready-bulk и notification-pending (рендер шаблона и отправка).
 
 Использование deduplication_key защищает от повторной отправки одного и того же Kafka-сообщения (at least once).
 
@@ -28,6 +28,7 @@ from senders import SENDERS
 
 broker = KafkaBroker(settings.kafka_brokers_list)
 dlq_publisher = broker.publisher(settings.KAFKA_DLQ_TOPIC)
+ready_bulk_publisher = broker.publisher(settings.KAFKA_READY_BULK_TOPIC)
 
 templates_repo = TemplateRepository()
 settings_repo = UserNotificationSettingsRepository()
@@ -64,14 +65,14 @@ def _channel_enabled(
     )
 
 
-def _parse_message(raw: dict, logger: Logger) -> ReadyMessage | None:
+def _parse_message(
+    raw: dict, logger: Logger, source_topic: str
+) -> ReadyMessage | None:
     """Провалидировать сырое сообщение. None, если некорректное сообщение, ретраить бессмысленно."""
     try:
         return ReadyMessage.model_validate(raw)
     except ValidationError as exc:
-        logger.error(
-            f"Некорректное сообщение в {settings.KAFKA_READY_TOPIC}: {exc}"
-        )
+        logger.error(f"Некорректное сообщение в {source_topic}: {exc}")
         return None
 
 
@@ -170,14 +171,11 @@ async def _render_and_send(
     logger.info(f"{notification_id}: отправлено")
 
 
-@broker.subscriber(
-    settings.KAFKA_READY_TOPIC,
-    group_id=settings.KAFKA_WORKER_GROUP_ID,
-    ack_policy=AckPolicy.NACK_ON_ERROR,
-)
-async def handle_ready(raw: dict, logger: Logger) -> None:
-    """Обработать сообщение из notification-ready."""
-    message = _parse_message(raw, logger)
+async def _process_ready_message(
+    raw: dict, logger: Logger, source_topic: str
+) -> None:
+    """Общая обработка notification-ready/notification-ready-bulk: рендер и отправка."""
+    message = _parse_message(raw, logger, source_topic)
     if message is None:
         return
 
@@ -201,15 +199,31 @@ async def handle_ready(raw: dict, logger: Logger) -> None:
 
         assert template is not None
         await _render_and_send(
-            message,
-            template,
-            notification_id,
-            logger,
-            settings.KAFKA_READY_TOPIC,
+            message, template, notification_id, logger, source_topic
         )
     except Exception:
         await _backoff_before_retry()
         raise
+
+
+@broker.subscriber(
+    settings.KAFKA_READY_TOPIC,
+    group_id=settings.KAFKA_WORKER_GROUP_ID,
+    ack_policy=AckPolicy.NACK_ON_ERROR,
+)
+async def handle_ready(raw: dict, logger: Logger) -> None:
+    """Обработать сообщение из notification-ready (персональные уведомления)."""
+    await _process_ready_message(raw, logger, settings.KAFKA_READY_TOPIC)
+
+
+@broker.subscriber(
+    settings.KAFKA_READY_BULK_TOPIC,
+    group_id=settings.KAFKA_WORKER_GROUP_ID,
+    ack_policy=AckPolicy.NACK_ON_ERROR,
+)
+async def handle_ready_bulk(raw: dict, logger: Logger) -> None:
+    """Обработать сообщение из notification-ready-bulk (fan-out массовых рассылок)."""
+    await _process_ready_message(raw, logger, settings.KAFKA_READY_BULK_TOPIC)
 
 
 class AdminMailingMessage(BaseModel):
@@ -260,29 +274,14 @@ async def _handle_admin_mailing(raw: dict, logger: Logger) -> None:
             channel=template["channel"],
             deduplication_key=f"{message.admin_mailing_id}:{user_id}",
         )
-        notification, created = await _get_or_create_notification(
-            ready_message, template
-        )
-        notification_id = notification["notification_id"]
-
-        if not created and notification["status"] in ("sent", "skipped"):
-            continue
-
-        if not await _check_deliverable(
-            ready_message, template, notification_id, logger
-        ):
-            continue
-
-        await _render_and_send(
-            ready_message,
-            template,
-            notification_id,
-            logger,
-            settings.KAFKA_PENDING_TOPIC,
+        await ready_bulk_publisher.publish(
+            ready_message.model_dump(mode="json"), key=str(user_id).encode()
         )
 
     await admin_mailings_repo.mark_mailing_sent(message.admin_mailing_id)
-    logger.info(f"{message.admin_mailing_id}: рассылка обработана")
+    logger.info(
+        f"{message.admin_mailing_id}: {len(user_ids)} сообщений опубликовано в {settings.KAFKA_READY_BULK_TOPIC}"
+    )
 
 
 @broker.subscriber(
