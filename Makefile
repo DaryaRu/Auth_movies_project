@@ -110,8 +110,16 @@ test-user-actions:
 		down -v; \
 	exit $$code
 
+# Запускает функциональные тесты short-links-сервиса
+test-short-links:
+	docker compose -f short_links/tests/functional/docker-compose.yml --env-file short_links/tests/functional/.env \
+		up --build --abort-on-container-exit --exit-code-from tests; code=$$?; \
+	docker compose -f short_links/tests/functional/docker-compose.yml --env-file short_links/tests/functional/.env \
+		down -v; \
+	exit $$code
+
 # Запускает тесты всех сервисов
-test-all: test-auth test-movies test-analytics test-user-actions
+test-all: test-auth test-movies test-analytics test-user-actions test-short-links
 
 # Прогоняет mypy локально по той же матрице, что и CI (build_mypy_matrix.py) —
 # без Docker и без ожидания GitHub Actions. Окружения кэшируются в

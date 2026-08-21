@@ -7,6 +7,7 @@
 - **movies-admin** — Django-администрирование каталога фильмов. Вход через auth-service.
 - **movies-etl** — синхронизация данных из PostgreSQL в Elasticsearch.
 - **analytics-service** — приём событий пользователей и публикация в Kafka. Верифицирует JWT, отдаёт `202 Accepted` без ожидания подтверждения от брокера.
+- **short-links-service** — генерация и резолвинг коротких ссылок для подтверждения email.
 - **nginx** — единая точка входа, проксирует запросы к сервисам, добавляет `X-Request-Id`.
 
 **Стек:** FastAPI, Django, PostgreSQL, Redis, Elasticsearch, Kafka, JWT RS256, Argon2, OAuth 2.0, Docker
@@ -104,6 +105,8 @@ http://localhost/admin/              — Django-админка
 `make test-auth` — функциональные тесты auth-сервиса
 
 `make test-movies` — функциональные тесты movies-сервиса
+
+`make test-short-links` — функциональные тесты short-links-сервиса
 
 `make test-all` — тесты всех сервисов
 
@@ -325,6 +328,25 @@ ETL → ClickHouse:
    - `DELETE /api/v1/reviews/{review_id}/` — удалить рецензию
    - `POST /api/v1/review-likes/{review_id}/` — поставить лайк рецензии
    - `DELETE /api/v1/review-likes/{review_id}/` — убрать лайк с рецензии
+
+
+## short-links-service
+
+Сервис генерации и резолвинга коротких ссылок для подтверждения email.
+
+**Функционал:**
+- **Создание короткой ссылки** — генерация уникального `short_key` (8 символов, base62) и сохранение в БД
+- **Резолвинг** — HTTP 302 редирект на `redirect_url` при переходе по короткой ссылке, с подтверждением email через auth-service
+- **Настройки** — управление `redirect_url` для подтверждения email (из админ-панели)
+
+### Проверка
+
+1. Открыть документацию API: `http://localhost/api/short-links/openapi`
+2. Доступные эндпоинты:
+   - `POST /api/v1/short-links/` — создать короткую ссылку (нужны `user_id`, `redirect_url`)
+   - `GET /api/v1/resolve/{short_key}` — переход по короткой ссылке (302 редирект)
+   - `GET /api/v1/settings/redirect-url/` — получить текущий redirect_url
+   - `PUT /api/v1/settings/redirect-url/` — обновить redirect_url
 
 
 ## Трассировка
