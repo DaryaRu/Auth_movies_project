@@ -39,6 +39,8 @@ class Settings(BaseSettings):
     SMTP_PORT: int = 1025
     EMAIL_FROM: str = "notifications@example.com"
     EMAIL_MAX_PER_SEC: float = 10
+    SMTP_FAILURE_THRESHOLD: int = 5
+    SMTP_CIRCUIT_COOLDOWN_SEC: float = 30
 
     @property
     def kafka_brokers_list(self) -> list[str]:
