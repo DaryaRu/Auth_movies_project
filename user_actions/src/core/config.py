@@ -65,6 +65,9 @@ class Settings(BaseSettings):
     # Sentry
     SENTRY_DSN: str = ""
 
+    # Service-to-service
+    INTERNAL_SERVICE_SECRET: str = ""
+
     @property
     def POSTGRES_URL(self) -> str:
         """Возвращает URL подключения к PostgreSQL."""
