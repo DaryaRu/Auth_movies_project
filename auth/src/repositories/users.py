@@ -26,6 +26,7 @@ class UsersAbstractRepository(ABC):
         phone: str | None,
         hashed_password: str,
         is_superuser: bool = False,
+        timezone: str | None = None,
     ) -> UserORM:
         """
         Добавляет нового пользователя.
@@ -33,6 +34,7 @@ class UsersAbstractRepository(ABC):
             email (str): Электронная почта пользователя.
             hashed_password (str): Хэшированный пароль
             is_staff (bool): Есть ли права суперпользователя
+            timezone (str): IANA-имя таймзоны пользователя.
         Returns:
             User: Созданный пользователь.
         """
@@ -96,10 +98,21 @@ class UsersAbstractRepository(ABC):
 
     @abstractmethod
     async def search_by_min_subscription_level(
-        self, min_level: int | None
+        self, min_level: int | None, timezone_filter: str | None = None
     ) -> list[UUID]:
         """Возвращает id активных пользователей с уровнем подписки >= min_level.
         Все активные пользователи (min_level=None, без фильтра по подписки).
+        timezone_filter — точный фильтр по IANA-таймзоне (без фильтра, если None);
+        timezone_filter="UTC" дополнительно включает пользователей без заданной таймзоны.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def search_distinct_timezones(
+        self, min_level: int | None
+    ) -> list[str]:
+        """Возвращает уникальные таймзоны активных пользователей с уровнем
+        подписки >= min_level. Пользователи без заданной таймзоны считаются 'UTC'.
         """
         raise NotImplementedError
 
@@ -119,12 +132,14 @@ class UsersPostgreSQLRepository(
         phone: str | None,
         hashed_password: str | None,
         is_superuser: bool = False,
+        timezone: str | None = None,
     ) -> UserORM:
         return await self.add_one(
             email=email,
             hashed_password=hashed_password,
             is_superuser=is_superuser,
             phone=phone,
+            timezone=timezone,
         )
 
     async def get_one_or_none_by_email_or_phone(
@@ -169,7 +184,7 @@ class UsersPostgreSQLRepository(
         return result.scalar_one_or_none()
 
     async def search_by_min_subscription_level(
-        self, min_level: int | None
+        self, min_level: int | None, timezone_filter: str | None = None
     ) -> list[UUID]:
         query = select(self.model.id).where(self.model.is_active.is_(True))
         if min_level is not None:
@@ -188,5 +203,38 @@ class UsersPostgreSQLRepository(
                 .where(func.coalesce(SubscriptionORM.level, 0) >= min_level)
                 .distinct()
             )
+        if timezone_filter is not None:
+            if timezone_filter == "UTC":
+                query = query.where(
+                    or_(
+                        self.model.timezone == "UTC",
+                        self.model.timezone.is_(None),
+                    )
+                )
+            else:
+                query = query.where(self.model.timezone == timezone_filter)
+        result = await self._session.execute(query)
+        return list(result.scalars().all())
+
+    async def search_distinct_timezones(
+        self, min_level: int | None
+    ) -> list[str]:
+        tz_column = func.coalesce(self.model.timezone, "UTC")
+        query = (
+            select(tz_column)
+            .where(self.model.is_active.is_(True))
+            .distinct()
+        )
+        if min_level is not None:
+            now = datetime.now(timezone.utc)
+            query = query.outerjoin(
+                UserSubscriptionORM,
+                (UserSubscriptionORM.user_id == self.model.id)
+                & UserSubscriptionORM.is_active.is_(True)
+                & (UserSubscriptionORM.expires_at > now),
+            ).outerjoin(
+                SubscriptionORM,
+                SubscriptionORM.id == UserSubscriptionORM.subscription_id,
+            ).where(func.coalesce(SubscriptionORM.level, 0) >= min_level)
         result = await self._session.execute(query)
         return list(result.scalars().all())

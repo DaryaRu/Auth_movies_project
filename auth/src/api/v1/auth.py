@@ -283,7 +283,26 @@ async def search_users(data: UserSearchScheme, db: DBDep):
         if data.subscription_level is not None
         else None
     )
-    return await db.users.search_by_min_subscription_level(min_level)
+    return await db.users.search_by_min_subscription_level(
+        min_level, timezone_filter=data.timezone
+    )
+
+
+@router.post(
+    "/internal/users/search/timezones/",
+    summary="Уникальные таймзоны пользователей (для рассылок)",
+    response_model=list[str],
+)
+async def search_user_timezones(data: UserSearchScheme, db: DBDep):
+    """Используется notifications-service для разбивки рассылок по таймзонам.
+    Возвращает уникальные таймзоны активных пользователей.
+    Пользователи без заданной таймзоны считаются 'UTC'."""
+    min_level = (
+        data.subscription_level.gte
+        if data.subscription_level is not None
+        else None
+    )
+    return await db.users.search_distinct_timezones(min_level)
 
 
 @router.patch(
