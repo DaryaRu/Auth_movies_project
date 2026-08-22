@@ -2,7 +2,7 @@
 
 import json
 import logging
-from datetime import datetime, time, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -23,12 +23,12 @@ from src.services.notifications import (
 logger = logging.getLogger(__name__)
 
 
-class InvalidScheduledAtError(Exception):
-    """scheduled_at указан неверно (задавать в будущем)."""
-
-
-def _next_local_time_as_utc(local_time: str, tz_name: str) -> datetime | None:
-    """Момент, когда в таймзоне tz_name наступит local_time (HH:MM), в UTC."""
+def _local_datetime_to_utc(
+    local_datetime: datetime, tz_name: str
+) -> datetime | None:
+    """local_datetime в таймзоне tz_name, переведенный в UTC.
+    None, если tz_name невалидна или если этот
+    момент уже в прошлом — такая таймзона просто пропускается."""
     try:
         tz = ZoneInfo(tz_name)
     except (ZoneInfoNotFoundError, ValueError, OSError):
@@ -37,16 +37,15 @@ def _next_local_time_as_utc(local_time: str, tz_name: str) -> datetime | None:
             f"этой таймзоны не будет создана"
         )
         return None
-    hour, minute = (int(part) for part in local_time.split(":"))
-    now_local = datetime.now(tz)
-    candidate = datetime.combine(
-        now_local.date(), time(hour, minute), tzinfo=tz
-    )
-    if candidate <= now_local:
-        candidate = datetime.combine(
-            now_local.date() + timedelta(days=1), time(hour, minute), tzinfo=tz
+
+    scheduled_at = local_datetime.replace(tzinfo=tz).astimezone(timezone.utc)
+    if scheduled_at <= datetime.now(timezone.utc):
+        logger.warning(
+            f"Для таймзоны {tz_name} указанное местное время уже прошло: "
+            f"рассылка для неё не будет создана"
         )
-    return candidate.astimezone(timezone.utc)
+        return None
+    return scheduled_at
 
 
 class AdminMailingService:
@@ -65,23 +64,17 @@ class AdminMailingService:
         template_id: UUID,
         audience_filter: dict[str, Any],
         payload: dict[str, Any],
-        scheduled_at: datetime | None,
-        scheduled_local_time: str | None,
+        scheduled_local_datetime: datetime | None,
         created_by: UUID,
     ) -> list[AdminMailing]:
         """Создать рассылку.
 
-        Если ни scheduled_at, ни scheduled_local_time не заданы, отправка происходит
-        сразу (Immediate group): публикуется в notification-pending, потом с известным
-        admin_mailing_id создается запись в БД со status=sending. Если Kafka недоступна,
-        публикация падает раньше записи в БД и не будет ошибочной строки со статусом
-        sending без реального отправленного сообщения.
-
-        scheduled_at задавать в будущем, status=scheduled — одна рассылка.
-
-        scheduled_local_time (HH:MM) разбивает аудиторию по её таймзонам и создаёт
-        по одной рассылке status=scheduled на каждую таймзону, с scheduled_at,
-        рассчитанным как ближайшее будущее наступление local_time в этой таймзоне.
+        Если scheduled_local_datetime не задан, отправка происходит сразу
+        (Immediate group): публикуется в notification-pending, потом с
+        известным admin_mailing_id создается запись в БД со status=sending.
+        Если Kafka недоступна, публикация падает раньше записи в БД и не
+        будет ошибочной строки со статусом sending без реального
+        отправленного сообщения.
         """
         template = await self.template_repo.get_by_id(template_id)
         if template is None or not template.is_active:
@@ -94,35 +87,26 @@ class AdminMailingService:
             if unknown_keys:
                 raise InvalidPayloadError(unknown_keys)
 
-        if scheduled_at is not None and scheduled_at <= datetime.now(
-            timezone.utc
-        ):
-            raise InvalidScheduledAtError(str(scheduled_at))
-
-        if scheduled_local_time is not None:
+        if scheduled_local_datetime is not None:
             return await self._create_bucketed_by_timezone(
                 template_id,
                 audience_filter,
                 payload,
-                scheduled_local_time,
+                scheduled_local_datetime,
                 created_by,
             )
 
-        status = "scheduled" if scheduled_at is not None else "sending"
         admin_mailing_id = uuid4()
-
-        if status == "sending":
-            await self._publish_pending(
-                admin_mailing_id, template_id, audience_filter, payload
-            )
-
+        await self._publish_pending(
+            admin_mailing_id, template_id, audience_filter, payload
+        )
         mailing = await self.mailing_repo.create(
             admin_mailing_id,
             template_id,
             audience_filter,
             payload,
-            status,
-            scheduled_at,
+            "sending",
+            None,
             created_by,
         )
         return [mailing]
@@ -132,16 +116,17 @@ class AdminMailingService:
         template_id: UUID,
         audience_filter: dict[str, Any],
         payload: dict[str, Any],
-        scheduled_local_time: str,
+        scheduled_local_datetime: datetime,
         created_by: UUID,
     ) -> list[AdminMailing]:
         """Разбить рассылку на несколько физических рассылок, по одной на каждую
-        таймзону, встречающуюся у аудитории, подходящей под audience_filter."""
+        таймзону, встречающуюся у аудитории, подходящей под audience_filter.
+        Создаются одной транзакцией — либо все бакеты, либо ни одного."""
         timezones = await search_distinct_timezones(audience_filter)
         rows = []
         for tz_name in timezones:
-            scheduled_at = _next_local_time_as_utc(
-                scheduled_local_time, tz_name
+            scheduled_at = _local_datetime_to_utc(
+                scheduled_local_datetime, tz_name
             )
             if scheduled_at is None:
                 continue
