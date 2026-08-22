@@ -6,6 +6,7 @@
 import logging
 
 import httpx
+from django.conf import settings
 from django.contrib import admin, messages
 from django.http import HttpResponseRedirect
 from django.template.response import TemplateResponse
@@ -73,6 +74,9 @@ class ShortLinkSettingsAdmin(admin.ModelAdmin):
                         response = client.put(
                             f"{SHORT_LINKS_API_URL}/settings/redirect-url/",
                             json={"redirect_url": new_url},
+                            headers={
+                                "X-Internal-Secret": settings.INTERNAL_SERVICE_SECRET
+                            },
                         )
                         if response.status_code == 200:
                             redirect_url = new_url
