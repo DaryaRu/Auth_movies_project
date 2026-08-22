@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "local"
     DEBUG: bool = False
 
+    # Service-to-service
+    INTERNAL_SERVICE_SECRET: str = ""
+
     @property
     def POSTGRES_DSN(self) -> str:
         """DSN для подключения к PostgreSQL (для asyncpg)."""

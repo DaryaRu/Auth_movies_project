@@ -4,6 +4,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from src.api.v1.dependencies import InternalServiceDep
 from src.repositories.admin_mailings import AdminMailingRepository
 from src.repositories.templates import TemplateRepository
 from src.schemas.admin_mailings import AdminMailing, AdminMailingCreate
@@ -70,6 +71,7 @@ async def get_mailing(
 )
 async def create_mailing(
     data: AdminMailingCreate,
+    _: InternalServiceDep,
     mailing_service: AdminMailingService = AdminMailingServiceDep,
 ) -> AdminMailing:
     """Создать ручную рассылку."""
