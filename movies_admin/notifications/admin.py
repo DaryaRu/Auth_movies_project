@@ -1,5 +1,6 @@
 """Админ-панель для шаблонов уведомлений с интеграцией API сервиса нотификаций."""
 
+import json
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -13,12 +14,17 @@ from django.utils.translation import gettext_lazy as _
 
 from .api_client import (
     APIError,
+    MailingNotFoundError,
     TemplateNotFoundError,
     TemplatePreviewError,
     api_client,
 )
-from .forms import NotificationTemplateForm, TemplatePreviewForm
-from .models import NotificationTemplate, ShortLinkSettings
+from .forms import (
+    AdminMailingForm,
+    NotificationTemplateForm,
+    TemplatePreviewForm,
+)
+from .models import AdminMailing, NotificationTemplate, ShortLinkSettings
 from .short_link_admin import ShortLinkSettingsAdmin
 
 
@@ -351,23 +357,6 @@ class NotificationTemplateAdmin(admin.ModelAdmin):
         
         return TemplateResponse(request, self.change_form_template, context)
 
-    def get_form(self, request, obj=None, **kwargs):
-        """Получить форму с данными из API.
-        
-        Переопределяем для передачи api_data в форму.
-        """
-        api_data = request.session.get('api_template_data')
-        
-        if api_data:
-            class ApiDataForm(NotificationTemplateForm):
-                def __init__(self, *args, **form_kwargs):
-                    form_kwargs['api_data'] = api_data
-                    super().__init__(*args, **form_kwargs)
-            
-            return ApiDataForm
-        
-        return NotificationTemplateForm
-
     def change_view_api(self, request, pk, form_url='', extra_context=None):
         """Обработка изменения шаблона через API.
         
@@ -425,6 +414,174 @@ class NotificationTemplateAdmin(admin.ModelAdmin):
                 self.message_user(request, _('Please correct the errors below'), messages.ERROR)
         
         return self.change_view(request, str(pk), form_url, extra_context)
+
+
+@admin.register(AdminMailing)
+class AdminMailingAdmin(admin.ModelAdmin):
+    """Админ-панель для ручных рассылок (интеграция с API сервиса)."""
+
+    list_display = ('id', 'template_name', 'status', 'scheduled_at', 'sent_at', 'created_at')
+    list_filter = ('status',)
+    search_fields = ('id',)
+    change_list_template = 'admin/notifications/mailing_changelist.html'
+    readonly_fields = ('template_id', 'audience_filter', 'payload', 'status',
+                       'scheduled_at', 'sent_at', 'created_by', 'created_at')
+
+    @admin.display(description=_('Template'))
+    def template_name(self, obj):
+        """Отображение названия шаблона."""
+        template = NotificationTemplate.objects.filter(id=obj.template_id).first()
+        return template.name if template else str(obj.template_id)
+
+    def get_urls(self):
+        """Кастомные URL для рассылок."""
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                'add/api/',
+                self.admin_site.admin_view(self.add_view_api),
+                name='notifications_adminmailing_add_api',
+            ),
+        ]
+        return custom_urls + urls
+
+    def add_view(self, request, form_url='', extra_context=None):
+        """Перенаправляем на API view для создания рассылки."""
+        return self.add_view_api(request)
+
+    def add_view_api(self, request):
+        """Обработка создания рассылки через API."""
+        logger = logging.getLogger(__name__)
+
+        if request.method == 'POST':
+            form = AdminMailingForm(request.POST)
+            if form.is_valid():
+                try:
+                    auth_token = get_auth_token(request)
+                    created_by = str(request.user.id) if hasattr(request.user, 'id') else str(uuid.uuid4())
+                    result = form.save_mailing(auth_token=auth_token, created_by=created_by)
+                    self.message_user(request, _('Mailing created successfully'), messages.SUCCESS)
+
+                    self._sync_mailing(result)
+
+                    return HttpResponseRedirect(
+                        reverse('admin:notifications_adminmailing_changelist')
+                    )
+                except Exception as e:
+                    logger.error(f"Error creating mailing: {e}")
+                    self.message_user(request, str(e), messages.ERROR)
+        else:
+            form = AdminMailingForm()
+
+        # Собираем данные шаблонов для отображения в форме
+        template_data = {}
+        for t in form.fields['template'].queryset:
+            template_data[str(t.id)] = {
+                'name': t.name,
+                'subject': t.subject or '',
+                'body': t.body or '',
+                'allowed_variables': t.allowed_variables or [],
+            }
+
+        context = {
+            'title': _('Add Mailing'),
+            'form': form,
+            'opts': self.model._meta,
+            'template_data_json': json.dumps(template_data, ensure_ascii=False),
+            **self.admin_site.each_context(request),
+        }
+        return TemplateResponse(request, 'admin/notifications/mailing_form.html', context)
+
+    def get_queryset(self, request):
+        """Синхронизация рассылок из API (аналогично шаблонам)."""
+        auth_token = get_auth_token(request)
+        try:
+            api_mailings = api_client.list_mailings(auth_token)
+        except APIError:
+            return super().get_queryset(request).none()
+
+        base_manager = self.model._base_manager
+
+        with transaction.atomic():
+            existing_ids = set(base_manager.values_list('id', flat=True))
+            api_ids = set()
+
+            for m in api_mailings:
+                mailing_id = m.get('admin_mailing_id')
+                if not mailing_id:
+                    continue
+                try:
+                    api_ids.add(uuid.UUID(str(mailing_id)))
+                except (ValueError, TypeError):
+                    continue
+                self._sync_mailing(m)
+
+            to_delete = existing_ids - api_ids
+            if to_delete:
+                base_manager.filter(id__in=to_delete).delete()
+
+        return super().get_queryset(request)
+
+    def _sync_mailing(self, mailing_data: dict):
+        """Синхронизировать одну рассылку из API-ответа."""
+        try:
+            mailing_id = uuid.UUID(str(mailing_data.get('admin_mailing_id', '')))
+        except (ValueError, TypeError):
+            return
+
+        try:
+            template_id = uuid.UUID(str(mailing_data.get('template_id', '')))
+        except (ValueError, TypeError):
+            template_id = uuid.uuid4()
+
+        try:
+            created_by = uuid.UUID(str(mailing_data.get('created_by', '')))
+        except (ValueError, TypeError):
+            created_by = uuid.uuid4()
+
+        AdminMailing.objects.update_or_create(
+            id=mailing_id,
+            defaults={
+                'template_id': template_id,
+                'audience_filter': mailing_data.get('audience_filter', {}),
+                'payload': mailing_data.get('payload', {}),
+                'status': mailing_data.get('status', 'sending'),
+                'scheduled_at': mailing_data.get('scheduled_at'),
+                'sent_at': mailing_data.get('sent_at'),
+                'created_by': created_by,
+            }
+        )
+
+    def has_change_permission(self, request, obj=None):
+        """Рассылка неизменяема."""
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        """Рассылка не удаляется."""
+        return False
+
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        """Readonly-страница рассылки."""
+        auth_token = get_auth_token(request)
+        mailing = None
+        error_message = None
+
+        try:
+            mailing = api_client.get_mailing(str(object_id), auth_token)
+        except (MailingNotFoundError, APIError) as e:
+            error_message = str(e)
+
+        context = {
+            'title': _('Mailing details'),
+            'mailing': mailing,
+            'error_message': error_message,
+            'object_id': object_id,
+            'opts': self.model._meta,
+            **self.admin_site.each_context(request),
+        }
+        return TemplateResponse(
+            request, 'admin/notifications/mailing_change_form.html', context
+        )
 
 
 @admin.register(ShortLinkSettings)

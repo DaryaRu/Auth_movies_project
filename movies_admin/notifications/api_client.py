@@ -11,6 +11,9 @@ TEMPLATE_UPDATE_PATCH_URL = "/notifications/templates/{template_id}/"
 TEMPLATE_PREVIEW_POST_URL = "/notifications/templates/{template_id}/preview/"
 TEMPLATE_BY_CODE_GET_URL = "/notifications/templates/by-code/{code}/"
 NOTIFICATION_TRIGGERS_UPSERT_URL = "/notification-triggers/"
+MAILINGS_LIST_URL = "/admin-mailings/"
+MAILING_CREATE_URL = "/admin-mailings/"
+MAILING_GET_URL = "/admin-mailings/{mailing_id}/"
 
 
 def _error_detail(response: httpx.Response) -> str:
@@ -280,6 +283,98 @@ class NotificationsAPIClient:
         except httpx.HTTPError as e:
             raise APIError(f"Failed to upsert notification trigger: {e}") from e
 
+    def list_mailings(self, auth_token: str | None = None) -> list[dict]:
+        """Получить список всех рассылок.
+
+        Args:
+            auth_token: JWT токен пользователя из auth-сервиса.
+        """
+        cache_key = "notifications_mailings_list"
+        cached = cache.get(cache_key)
+        if cached:
+            return cached
+
+        try:
+            with httpx.Client(timeout=self.timeout) as client:
+                response = client.get(
+                    f"{self.base_url}{MAILINGS_LIST_URL}",
+                    headers=self._get_headers(auth_token),
+                )
+                result = self._handle_response(response)
+
+                if not isinstance(result, list):
+                    raise APIError(
+                        f"Unexpected response format: expected list, got {type(result)}"
+                    )
+
+                cache.set(cache_key, result, 60)
+                return result
+        except httpx.HTTPError as e:
+            raise APIError(f"Failed to list mailings: {e}") from e
+
+    def create_mailing(self, data: dict, auth_token: str | None = None) -> dict:
+        """Создать рассылку.
+
+        Args:
+            data: Данные рассылки (template_id, audience_filter, payload, scheduled_at, created_by).
+            auth_token: JWT токен пользователя из auth-сервиса.
+        """
+        try:
+            with httpx.Client(timeout=self.timeout) as client:
+                response = client.post(
+                    f"{self.base_url}{MAILING_CREATE_URL}",
+                    json=data,
+                    headers=self._get_headers(auth_token),
+                )
+
+                response.raise_for_status()
+
+                result = self._handle_response(response)
+
+                if not isinstance(result, dict):
+                    raise APIError(f"Expected dict, got {type(result)}")
+
+                cache.delete("notifications_mailings_list")
+                return result
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise MailingTemplateNotFoundError(
+                    _error_detail(e.response)
+                ) from e
+            if e.response.status_code == 422:
+                raise MailingValidationError(
+                    _error_detail(e.response)
+                ) from e
+            raise APIError(f"Failed to create mailing: {e}") from e
+        except httpx.HTTPError as e:
+            raise APIError(f"Failed to create mailing: {e}") from e
+
+    def get_mailing(self, mailing_id: str, auth_token: str | None = None) -> dict:
+        """Получить рассылку по ID.
+
+        Args:
+            mailing_id: UUID рассылки.
+            auth_token: JWT токен пользователя из auth-сервиса.
+        """
+        try:
+            with httpx.Client(timeout=self.timeout) as client:
+                response = client.get(
+                    f"{self.base_url}{MAILING_GET_URL.format(mailing_id=mailing_id)}",
+                    headers=self._get_headers(auth_token),
+                )
+                result = self._handle_response(response)
+                if not isinstance(result, dict):
+                    raise APIError(f"Expected dict, got {type(result)}")
+                return result
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise MailingNotFoundError(
+                    f"Mailing {mailing_id} not found"
+                ) from e
+            raise APIError(f"Failed to get mailing: {e}") from e
+        except httpx.HTTPError as e:
+            raise APIError(f"Failed to get mailing: {e}") from e
+
 
 class APIError(Exception):
     """Ошибка API."""
@@ -301,6 +396,23 @@ class DuplicateError(APIError):
 
 class TemplatePreviewError(APIError):
     """payload не подходит для рендера шаблона (лишний ключ или не хватает переменной)."""
+
+    pass
+
+class MailingNotFoundError(APIError):
+    """Рассылка не найдена."""
+
+    pass
+
+
+class MailingTemplateNotFoundError(APIError):
+    """Шаблон для рассылки не найден или неактивен."""
+
+    pass
+
+
+class MailingValidationError(APIError):
+    """Ошибка валидации рассылки (payload, scheduled_at)."""
 
     pass
 

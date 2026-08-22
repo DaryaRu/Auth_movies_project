@@ -1,6 +1,8 @@
 """Формы для админ-панели уведомлений."""
 
 import json
+import uuid
+from datetime import timezone
 
 from django import forms
 from django.utils.translation import gettext_lazy as _
@@ -8,6 +10,8 @@ from django.utils.translation import gettext_lazy as _
 from .api_client import (
     APIError,
     DuplicateError,
+    MailingTemplateNotFoundError,
+    MailingValidationError,
     TemplateNotFoundError,
     api_client,
 )
@@ -40,7 +44,7 @@ class NotificationTemplateForm(forms.Form):
     )
     channel = forms.ChoiceField(
         label=_('Channel'),
-        choices=[('email', 'Email'), ('sms', 'SMS'), ('push', 'Push')],
+        choices=[('email', _('Email')), ('sms', _('SMS')), ('push', _('Push'))],
         widget=forms.RadioSelect()
     )
     subject = forms.CharField(
@@ -48,12 +52,12 @@ class NotificationTemplateForm(forms.Form):
         max_length=500,
         required=False,
         widget=forms.TextInput(attrs={'class': 'vTextField', 'maxlength': 500}),
-        help_text=_('Тема сообщения. Поддерживает переменные: {{user_name}}, {{movie_title}}, etс.')
+        help_text=_('Тема сообщения. Поддерживает переменные в виде {{movie_title}}.')
     )
     body = forms.CharField(
         label=_('Body'),
         widget=forms.Textarea(attrs={'class': 'vLargeTextField', 'rows': 10}),
-        help_text=_('Содержимое сообщения. Поддерживает переменные: {{user_name}}, {{movie_title}}, etс.')
+        help_text=_('Содержимое сообщения. Поддерживает переменные в виде {{movie_title}}.')
     )
     allowed_variables = forms.CharField(
         label=_('Allowed Variables'),
@@ -166,7 +170,21 @@ class NotificationTemplateForm(forms.Form):
                 raise forms.ValidationError(str(e)) from e
 
 
-class TemplatePreviewForm(forms.Form):
+class JSONPayloadMixin:
+    """Миксин для валидации JSON-поля payload_json."""
+
+    def clean_payload_json(self):
+        """Валидировать JSON."""
+        value = self.cleaned_data.get('payload_json', '{}')
+        if not value:
+            return {}
+        try:
+            return json.loads(value)
+        except json.JSONDecodeError as e:
+            raise forms.ValidationError(_('Invalid JSON: ') + str(e)) from e
+
+
+class TemplatePreviewForm(JSONPayloadMixin, forms.Form):
     """Форма для предпросмотра шаблона с переменными."""
     class Meta:
         fields = '__all__'
@@ -180,12 +198,83 @@ class TemplatePreviewForm(forms.Form):
         help_text=_('JSON с тестовыми данными для подстановки в шаблон')
     )
 
-    def clean_payload_json(self):
-        """Валидировать JSON."""
-        value = self.cleaned_data.get('payload_json', '{}')
-        if not value:
-            return {}
+
+class AdminMailingForm(JSONPayloadMixin, forms.Form):
+    """Форма создания рассылки."""
+
+    template = forms.ModelChoiceField(
+        label=_('Template'),
+        queryset=NotificationTemplate.objects.filter(is_active=True, channel='email'),
+        widget=forms.Select(attrs={'class': 'vTextField'}),
+        help_text=_('Выберите шаблон для рассылки')
+    )
+    audience_type = forms.ChoiceField(
+        label=_('Audience'),
+        choices=[
+            ('all', _('All users')),
+            ('subscription', _('By subscription level')),
+        ],
+        widget=forms.RadioSelect(),
+        initial='all'
+    )
+    subscription_level = forms.IntegerField(
+        label=_('Min subscription level'),
+        min_value=1,
+        required=False,
+        widget=forms.NumberInput(attrs={'class': 'vTextField', 'min': 1}),
+        help_text=_('Минимальный уровень подписки (для фильтра "По уровню подписки")')
+    )
+    payload_json = forms.CharField(
+        label=_('Payload (JSON)'),
+        widget=forms.Textarea(attrs={'class': 'vLargeTextField', 'rows': 5}),
+        required=False,
+        help_text=_('Дополнительные данные для подстановки в шаблон (JSON). '
+                    'Допустимые ключи — allowed_variables выбранного шаблона.')
+    )
+    scheduled_at = forms.DateTimeField(
+        label=_('Scheduled at'),
+        required=False,
+        widget=forms.DateTimeInput(attrs={'type': 'datetime-local'}),
+        help_text=_('Когда отправить. Пусто = отправить сразу.')
+    )
+
+    def clean(self):
+        """Кросс-валидация: subscription_level обязателен при audience_type=subscription."""
+        cleaned = super().clean()
+        if cleaned.get('audience_type') == 'subscription' and not cleaned.get('subscription_level'):
+            self.add_error('subscription_level', _('Required when audience type is "subscription"'))
+        return cleaned
+
+    def build_api_data(self, created_by: str) -> dict:
+        """Собрать dict для API."""
+        audience_filter = {}
+        if self.cleaned_data['audience_type'] == 'subscription':
+            audience_filter['subscription_level'] = {
+                'gte': self.cleaned_data['subscription_level']
+            }
+
+        scheduled_at = self.cleaned_data.get('scheduled_at')
+        if scheduled_at:
+            if scheduled_at.tzinfo is None:
+                scheduled_at = scheduled_at.replace(tzinfo=timezone.utc)
+            scheduled_at = scheduled_at.isoformat()
+
+        return {
+            'template_id': str(self.cleaned_data['template'].id),
+            'audience_filter': audience_filter,
+            'payload': self.cleaned_data['payload_json'],
+            'scheduled_at': scheduled_at,
+            'created_by': created_by,
+        }
+
+    def save_mailing(self, auth_token: str | None = None, created_by: str | None = None) -> dict:
+        """Создать рассылку через API."""
+        data = self.build_api_data(created_by or str(uuid.uuid4()))
         try:
-            return json.loads(value)
-        except json.JSONDecodeError as e:
-            raise forms.ValidationError(_('Invalid JSON: ') + str(e)) from e
+            return api_client.create_mailing(data, auth_token)
+        except MailingValidationError as e:
+            raise forms.ValidationError(str(e)) from e
+        except MailingTemplateNotFoundError as e:
+            raise forms.ValidationError(str(e)) from e
+        except APIError as e:
+            raise forms.ValidationError(str(e)) from e
