@@ -459,10 +459,19 @@ class AdminMailingAdmin(admin.ModelAdmin):
                 try:
                     auth_token = get_auth_token(request)
                     created_by = str(request.user.id) if hasattr(request.user, 'id') else str(uuid.uuid4())
-                    result = form.save_mailing(auth_token=auth_token, created_by=created_by)
-                    self.message_user(request, _('Mailing created successfully'), messages.SUCCESS)
+                    mailings = form.save_mailing(auth_token=auth_token, created_by=created_by)
 
-                    self._sync_mailing(result)
+                    if len(mailings) > 1:
+                        self.message_user(
+                            request,
+                            _('Mailing split into %(count)d timezone buckets') % {'count': len(mailings)},
+                            messages.SUCCESS,
+                        )
+                    else:
+                        self.message_user(request, _('Mailing created successfully'), messages.SUCCESS)
+
+                    for mailing in mailings:
+                        self._sync_mailing(mailing)
 
                     return HttpResponseRedirect(
                         reverse('admin:notifications_adminmailing_changelist')

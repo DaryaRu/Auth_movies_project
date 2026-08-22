@@ -312,11 +312,18 @@ class NotificationsAPIClient:
         except httpx.HTTPError as e:
             raise APIError(f"Failed to list mailings: {e}") from e
 
-    def create_mailing(self, data: dict, auth_token: str | None = None) -> dict:
+    def create_mailing(
+        self, data: dict, auth_token: str | None = None
+    ) -> list[dict]:
         """Создать рассылку.
 
+        Возвращает список рассылок: один элемент — обычная рассылка (сразу),
+        несколько — если scheduled_local_datetime разбил аудиторию по
+        таймзонам (по одной рассылке на каждую таймзону).
+
         Args:
-            data: Данные рассылки (template_id, audience_filter, payload, scheduled_at, created_by).
+            data: Данные рассылки (template_id, audience_filter, payload,
+                scheduled_local_datetime, created_by).
             auth_token: JWT токен пользователя из auth-сервиса.
         """
         try:
@@ -331,8 +338,8 @@ class NotificationsAPIClient:
 
                 result = self._handle_response(response)
 
-                if not isinstance(result, dict):
-                    raise APIError(f"Expected dict, got {type(result)}")
+                if not isinstance(result, list):
+                    raise APIError(f"Expected list, got {type(result)}")
 
                 cache.delete("notifications_mailings_list")
                 return result
