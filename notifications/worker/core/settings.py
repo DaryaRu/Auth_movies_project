@@ -25,15 +25,25 @@ class Settings(BaseSettings):
     # Kafka
     KAFKA_BROKERS: str = ""
     KAFKA_READY_TOPIC: str = "notification-ready"
+    KAFKA_READY_BULK_TOPIC: str = "notification-ready-bulk"
+    KAFKA_PENDING_TOPIC: str = "notification-pending"
+    KAFKA_DLQ_TOPIC: str = "notification.dlq"
     KAFKA_WORKER_GROUP_ID: str = "notifications-worker"
+    KAFKA_RETRY_BACKOFF_TIME: int = 5
 
     # auth-service (для получения email перед отправкой)
     AUTH_API_URL: str = "http://auth-service:8000/api/v1"
+
+    # user-actions-service (резолв аудитории notification_triggers по закладкам)
+    USER_ACTIONS_API_URL: str = "http://user-actions-service:5000/api/v1"
 
     # SMTP (Mailpit в dev)
     SMTP_HOST: str = "mailpit"
     SMTP_PORT: int = 1025
     EMAIL_FROM: str = "notifications@example.com"
+    EMAIL_MAX_PER_SEC: float = 10
+    SMTP_FAILURE_THRESHOLD: int = 5
+    SMTP_CIRCUIT_COOLDOWN_SEC: float = 30
 
     @property
     def kafka_brokers_list(self) -> list[str]:

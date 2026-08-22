@@ -4,6 +4,7 @@ from fastapi import FastAPI
 
 from src.api.v1 import (
     bookmarks_router,
+    internal_router,
     likes_router,
     review_likes_router,
     reviews_router,
@@ -16,6 +17,7 @@ def register_routers(app: FastAPI) -> None:
     api_prefix = settings.API_V1_PREFIX
 
     app.include_router(bookmarks_router, prefix=api_prefix)
+    app.include_router(internal_router, prefix=api_prefix)
     app.include_router(likes_router, prefix=api_prefix)
     app.include_router(review_likes_router, prefix=api_prefix)
     app.include_router(reviews_router, prefix=api_prefix)

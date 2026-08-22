@@ -587,6 +587,10 @@ services:
         condition: service_completed_successfully
       kafka-topic-init-notification-pending:
         condition: service_completed_successfully
+      kafka-topic-init-notification-ready-bulk:
+        condition: service_completed_successfully
+      kafka-topic-init-notification-dlq:
+        condition: service_completed_successfully
       kafka-0:
         condition: service_started
       kafka-1:
@@ -595,7 +599,42 @@ services:
         condition: service_started
       auth-service:
         condition: service_healthy
+      user-actions-service:
+        condition: service_healthy
       mailpit:
+        condition: service_started
+    logging:
+      driver: gelf
+      options:
+        gelf-address: "udp://127.0.0.1:12201"
+        tag: "{{.Name}}"
+
+  # Периодически проверяет notification_triggers/admin_mailings и публикует в notification-pending.
+  notifications-scheduler:
+    build: ./notifications/scheduler
+    image: notifications-scheduler-image
+    container_name: notifications-scheduler
+    restart: unless-stopped
+    profiles: ["analytics"]
+    env_file: .env
+    environment:
+      POSTGRES_HOST: notifications-db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: notifications
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    depends_on:
+      notifications-db:
+        condition: service_healthy
+      notifications-service:
+        condition: service_healthy
+      kafka-topic-init-notification-pending:
+        condition: service_completed_successfully
+      kafka-0:
+        condition: service_started
+      kafka-1:
+        condition: service_started
+      kafka-2:
         condition: service_started
     logging:
       driver: gelf
@@ -746,6 +785,43 @@ services:
       --partitions ${KAFKA_PARTITIONS:-3}
       --replication-factor ${KAFKA_REPLICATION_FACTOR:-1}
       --config min.insync.replicas=${KAFKA_MIN_INSYNC_REPLICAS:-1}
+
+  # Fan-out массовых рассылок (admin_mailings): отдельно от notification-ready
+  # с персональными уведомлениями, чтобы большая рассылка не задерживала их в общей очереди.
+  kafka-topic-init-notification-ready-bulk:
+    image: apache/kafka:3.7.0
+    profiles: ["analytics"]
+    restart: on-failure
+    depends_on:
+      - kafka-0
+      - kafka-1
+      - kafka-2
+    command: >
+      /opt/kafka/bin/kafka-topics.sh
+      --bootstrap-server kafka-0:9092
+      --create --if-not-exists
+      --topic notification-ready-bulk
+      --partitions ${KAFKA_PARTITIONS:-3}
+      --replication-factor ${KAFKA_REPLICATION_FACTOR:-1}
+      --config min.insync.replicas=${KAFKA_MIN_INSYNC_REPLICAS:-1}
+
+  kafka-topic-init-notification-dlq:
+    image: apache/kafka:3.7.0
+    profiles: ["analytics"]
+    restart: on-failure
+    depends_on:
+      - kafka-0
+      - kafka-1
+      - kafka-2
+    command: >
+      /opt/kafka/bin/kafka-topics.sh
+      --bootstrap-server kafka-0:9092
+      --create --if-not-exists
+      --topic notification.dlq
+      --partitions ${KAFKA_PARTITIONS:-3}
+      --replication-factor ${KAFKA_REPLICATION_FACTOR:-1}
+      --config min.insync.replicas=${KAFKA_MIN_INSYNC_REPLICAS:-1}
+      --config retention.ms=${KAFKA_DLQ_RETENTION_MS:-604800000}
 
   ui:
     image: provectuslabs/kafka-ui:v0.7.0

@@ -40,3 +40,12 @@ ON CONFLICT (code) DO NOTHING;
 UPDATE templates
 SET allowed_variables = '["user_name", "confirmation_link"]'::jsonb
 WHERE code = 'user_registered';
+
+-- Шаблон для уведомления о выходе новой серии.
+INSERT INTO templates (code, name, channel, subject, body, allowed_variables)
+VALUES
+    ('new_episode', 'Новая серия сериала (email)', 'email',
+     'Вышла новая серия «{{ tv_show_title }}»',
+     'Сезон {{ season_number }}, серия {{ episode_number }}: «{{ episode_title }}» — уже доступна.',
+     '["tv_show_title", "season_number", "episode_number", "episode_title"]')
+ON CONFLICT (code) DO NOTHING;
