@@ -14,6 +14,14 @@ def _row_to_mailing(row: Record) -> AdminMailing:
     return AdminMailing.model_validate(dict(row))
 
 
+_INSERT_SQL = """
+    INSERT INTO admin_mailings
+        (admin_mailing_id, template_id, audience_filter, payload, status, scheduled_at, created_by)
+    VALUES ($1, $2, $3, $4, $5, $6, $7)
+    RETURNING *
+    """
+
+
 class AdminMailingRepository:
     """Репозиторий для работы с admin_mailings."""
 
@@ -31,12 +39,7 @@ class AdminMailingRepository:
         assert PostgreSQL.pool is not None
         async with PostgreSQL.pool.acquire() as conn:
             row = await conn.fetchrow(
-                """
-                INSERT INTO admin_mailings
-                    (admin_mailing_id, template_id, audience_filter, payload, status, scheduled_at, created_by)
-                VALUES ($1, $2, $3, $4, $5, $6, $7)
-                RETURNING *
-                """,
+                _INSERT_SQL,
                 admin_mailing_id,
                 template_id,
                 audience_filter,
@@ -47,6 +50,30 @@ class AdminMailingRepository:
             )
         assert row is not None
         return _row_to_mailing(row)
+
+    async def create_many(
+        self,
+        rows: list[
+            tuple[
+                UUID,
+                UUID,
+                dict[str, Any],
+                dict[str, Any],
+                str,
+                datetime | None,
+                UUID,
+            ]
+        ],
+    ) -> list[AdminMailing]:
+        """Создать несколько рассылок одной транзакцией."""
+        assert PostgreSQL.pool is not None
+        mailings = []
+        async with PostgreSQL.pool.acquire() as conn, conn.transaction():
+            for row_values in rows:
+                row = await conn.fetchrow(_INSERT_SQL, *row_values)
+                assert row is not None
+                mailings.append(_row_to_mailing(row))
+        return mailings
 
     async def get_by_id(self, admin_mailing_id: UUID) -> AdminMailing | None:
         """Получить рассылку по ID."""

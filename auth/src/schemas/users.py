@@ -1,6 +1,7 @@
 import re
 from datetime import datetime
 from uuid import UUID
+from zoneinfo import available_timezones
 
 from pydantic import (
     BaseModel,
@@ -12,6 +13,7 @@ from pydantic import (
 )
 
 PHONE_REGEX = re.compile(r"^\+[1-9]\d{7,14}$")
+_VALID_TIMEZONES = available_timezones()
 
 
 class UserRequestScheme(BaseModel):
@@ -20,11 +22,13 @@ class UserRequestScheme(BaseModel):
     Атрибуты:
         email (EmailStr): Электронная почта пользователя.
         password (str): Пароль пользователя.
+        timezone (str): IANA-имя таймзоны (например Europe/Moscow).
     """
 
     email: EmailStr | None = None
     phone: str | None = None
     password: str
+    timezone: str | None = None
 
     @field_validator("phone")
     @classmethod
@@ -34,6 +38,17 @@ class UserRequestScheme(BaseModel):
 
         if not PHONE_REGEX.match(v):
             raise ValueError("Некорректный формат телефона")
+
+        return v
+
+    @field_validator("timezone")
+    @classmethod
+    def validate_timezone(cls, v: str | None):
+        if v is None:
+            return v
+
+        if v not in _VALID_TIMEZONES:
+            raise ValueError(f"Неизвестная таймзона: {v}")
 
         return v
 
@@ -59,6 +74,7 @@ class UserResponseScheme(BaseModel):
     is_superuser: bool
     is_active: bool
     email_verified: bool = False
+    timezone: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -87,6 +103,10 @@ class UserSearchScheme(BaseModel):
     subscription_level: SubscriptionLevelFilter | None = Field(
         default=None,
         description="Без фильтра. Все активные пользователи",
+    )
+    timezone: str | None = Field(
+        default=None,
+        description="Точное совпадение по IANA-таймзоне. Без фильтра — любая (включая не заданную).",
     )
 
 

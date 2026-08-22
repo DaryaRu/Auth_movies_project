@@ -35,6 +35,7 @@ class UserORM(Base, BaseORM):
     is_superuser: Mapped[bool] = mapped_column(default=False)
     is_active: Mapped[bool] = mapped_column(default=True)
     email_verified: Mapped[bool] = mapped_column(default=False)
+    timezone: Mapped[str | None] = mapped_column(String(64))
     roles: Mapped[list["RoleORM"]] = relationship(
         secondary=user_roles_table,
         back_populates="users",
