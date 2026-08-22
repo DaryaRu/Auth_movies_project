@@ -31,7 +31,7 @@ def _next_local_time_as_utc(local_time: str, tz_name: str) -> datetime | None:
     """Момент, когда в таймзоне tz_name наступит local_time (HH:MM), в UTC."""
     try:
         tz = ZoneInfo(tz_name)
-    except ZoneInfoNotFoundError:
+    except (ZoneInfoNotFoundError, ValueError, OSError):
         logger.warning(
             f"Неизвестная таймзона {tz_name}: рассылка для пользователей "
             f"этой таймзоны не будет создана"
@@ -138,7 +138,7 @@ class AdminMailingService:
         """Разбить рассылку на несколько физических рассылок, по одной на каждую
         таймзону, встречающуюся у аудитории, подходящей под audience_filter."""
         timezones = await search_distinct_timezones(audience_filter)
-        mailings = []
+        rows = []
         for tz_name in timezones:
             scheduled_at = _next_local_time_as_utc(
                 scheduled_local_time, tz_name
@@ -146,17 +146,20 @@ class AdminMailingService:
             if scheduled_at is None:
                 continue
             bucket_filter = {**audience_filter, "timezone": tz_name}
-            mailing = await self.mailing_repo.create(
-                uuid4(),
-                template_id,
-                bucket_filter,
-                payload,
-                "scheduled",
-                scheduled_at,
-                created_by,
+            rows.append(
+                (
+                    uuid4(),
+                    template_id,
+                    bucket_filter,
+                    payload,
+                    "scheduled",
+                    scheduled_at,
+                    created_by,
+                )
             )
-            mailings.append(mailing)
-        return mailings
+        if not rows:
+            return []
+        return await self.mailing_repo.create_many(rows)
 
     async def _publish_pending(
         self,

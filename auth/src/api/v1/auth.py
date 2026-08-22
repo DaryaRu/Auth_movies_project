@@ -302,7 +302,9 @@ async def search_user_timezones(data: UserSearchScheme, db: DBDep):
         if data.subscription_level is not None
         else None
     )
-    return await db.users.search_distinct_timezones(min_level)
+    return await db.users.search_distinct_timezones(
+        min_level, timezone_filter=data.timezone
+    )
 
 
 @router.patch(

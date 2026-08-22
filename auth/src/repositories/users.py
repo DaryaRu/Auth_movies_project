@@ -109,7 +109,7 @@ class UsersAbstractRepository(ABC):
 
     @abstractmethod
     async def search_distinct_timezones(
-        self, min_level: int | None
+        self, min_level: int | None, timezone_filter: str | None = None
     ) -> list[str]:
         """Возвращает уникальные таймзоны активных пользователей с уровнем
         подписки >= min_level. Пользователи без заданной таймзоны считаются 'UTC'.
@@ -217,24 +217,36 @@ class UsersPostgreSQLRepository(
         return list(result.scalars().all())
 
     async def search_distinct_timezones(
-        self, min_level: int | None
+        self, min_level: int | None, timezone_filter: str | None = None
     ) -> list[str]:
         tz_column = func.coalesce(self.model.timezone, "UTC")
         query = (
-            select(tz_column)
-            .where(self.model.is_active.is_(True))
-            .distinct()
+            select(tz_column).where(self.model.is_active.is_(True)).distinct()
         )
         if min_level is not None:
             now = datetime.now(timezone.utc)
-            query = query.outerjoin(
-                UserSubscriptionORM,
-                (UserSubscriptionORM.user_id == self.model.id)
-                & UserSubscriptionORM.is_active.is_(True)
-                & (UserSubscriptionORM.expires_at > now),
-            ).outerjoin(
-                SubscriptionORM,
-                SubscriptionORM.id == UserSubscriptionORM.subscription_id,
-            ).where(func.coalesce(SubscriptionORM.level, 0) >= min_level)
+            query = (
+                query.outerjoin(
+                    UserSubscriptionORM,
+                    (UserSubscriptionORM.user_id == self.model.id)
+                    & UserSubscriptionORM.is_active.is_(True)
+                    & (UserSubscriptionORM.expires_at > now),
+                )
+                .outerjoin(
+                    SubscriptionORM,
+                    SubscriptionORM.id == UserSubscriptionORM.subscription_id,
+                )
+                .where(func.coalesce(SubscriptionORM.level, 0) >= min_level)
+            )
+        if timezone_filter is not None:
+            if timezone_filter == "UTC":
+                query = query.where(
+                    or_(
+                        self.model.timezone == "UTC",
+                        self.model.timezone.is_(None),
+                    )
+                )
+            else:
+                query = query.where(self.model.timezone == timezone_filter)
         result = await self._session.execute(query)
         return list(result.scalars().all())
