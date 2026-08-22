@@ -136,6 +136,7 @@ class AuthService(BaseService):
             email=user.email,
             hashed_password=hash_password,
             is_superuser=is_superuser,
+            timezone=user.timezone,
         )
         await self._assign_free_subscription(new_user.id)
         return new_user
