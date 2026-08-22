@@ -268,6 +268,7 @@ services:
       EXCLUDED_PATHS: ${ADMIN_EXCLUDED_PATHS}
       SENTRY_DSN: ${SENTRY_DSN}
       NOTIFICATIONS_API_BASE_URL: ${NOTIFICATIONS_API_BASE_URL}
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET}
     command: >
       sh -c "
       python manage.py collectstatic --no-input &&
