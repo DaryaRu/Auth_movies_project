@@ -12,7 +12,10 @@ async def get_email(user_id: UUID) -> str | None:
     async with httpx.AsyncClient() as client:
         response = await client.get(
             f"{settings.AUTH_API_URL}/internal/users/{user_id}/",
-            headers={"X-Request-Id": str(uuid4())},
+            headers={
+                "X-Request-Id": str(uuid4()),
+                "X-Internal-Secret": settings.INTERNAL_SERVICE_SECRET,
+            },
             timeout=5,
         )
         if response.status_code == 404:

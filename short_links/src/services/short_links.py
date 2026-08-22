@@ -92,6 +92,7 @@ class ShortLinkService:
                 response = await client.get(
                     f"{settings.AUTH_API_URL}/confirm-email/",
                     params={"user_id": str(user_id)},
+                    headers={"X-Internal-Secret": settings.INTERNAL_SERVICE_SECRET},
                     timeout=10,
                 )
                 response.raise_for_status()

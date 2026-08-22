@@ -14,7 +14,10 @@ async def search_users(audience_filter: dict[str, Any]) -> list[UUID]:
         response = await client.post(
             f"{settings.AUTH_API_URL}/internal/users/search/",
             json=audience_filter,
-            headers={"X-Request-Id": str(uuid4())},
+            headers={
+                "X-Request-Id": str(uuid4()),
+                "X-Internal-Secret": settings.INTERNAL_SERVICE_SECRET,
+            },
             timeout=10,
         )
         response.raise_for_status()
@@ -28,7 +31,10 @@ async def search_bookmark_users(content_id: UUID) -> list[UUID]:
     async with httpx.AsyncClient() as client:
         response = await client.get(
             f"{settings.USER_ACTIONS_API_URL}/internal/bookmarks/{content_id}/users/",
-            headers={"X-Request-Id": str(uuid4())},
+            headers={
+                "X-Request-Id": str(uuid4()),
+                "X-Internal-Secret": settings.INTERNAL_SERVICE_SECRET,
+            },
             timeout=10,
         )
         response.raise_for_status()

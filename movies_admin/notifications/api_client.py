@@ -49,6 +49,7 @@ class NotificationsAPIClient:
         headers = {
             "Content-Type": "application/json",
             "Accept": "application/json",
+            "X-Internal-Secret": settings.INTERNAL_SERVICE_SECRET,
         }
         if auth_token:
             headers["Authorization"] = f"Bearer {auth_token}"

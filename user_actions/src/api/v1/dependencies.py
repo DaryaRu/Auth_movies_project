@@ -1,15 +1,44 @@
 """Зависимости для API."""
 
+import secrets
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, HTTPException, Query, Request, Security, status
+from fastapi import (
+    Depends,
+    Header,
+    HTTPException,
+    Query,
+    Request,
+    Security,
+    status,
+)
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from src.core.config import settings
 from src.utils.jwt import decode_token
 
 _bearer = HTTPBearer(auto_error=False)
+
+
+def verify_internal_secret(
+    x_internal_secret: str | None = Header(default=None),
+) -> None:
+    """Требует X-Internal-Secret для вызовов от другого сервиса."""
+    if (
+        not settings.INTERNAL_SERVICE_SECRET
+        or x_internal_secret is None
+        or not secrets.compare_digest(
+            x_internal_secret, settings.INTERNAL_SERVICE_SECRET
+        )
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid internal secret",
+        )
+
+
+InternalServiceDep = Annotated[None, Depends(verify_internal_secret)]
 
 
 class PaginationParams:
@@ -44,7 +73,9 @@ def get_pagination_params(
 
 async def get_current_user(
     request: Request,
-    credentials: Annotated[HTTPAuthorizationCredentials | None, Security(_bearer)] = None,
+    credentials: Annotated[
+        HTTPAuthorizationCredentials | None, Security(_bearer)
+    ] = None,
 ) -> UUID:
     """Получить текущего пользователя из JWT-токена."""
     exception_401 = HTTPException(

@@ -1,9 +1,11 @@
+import secrets
 from typing import Annotated, Any
 from uuid import UUID
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, Header, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials
 
+from src.core.config import settings
 from src.databases import redis
 from src.databases.pg import async_session_maker
 from src.exceptions import (
@@ -35,8 +37,27 @@ from src.utils.tokens import JWTTokenService
 security = CustomHTTPBearer(auto_error=False)
 
 
-def get_token(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
+def get_token(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+) -> str:
     return credentials.credentials
+
+
+def verify_internal_secret(
+    x_internal_secret: str | None = Header(default=None),
+) -> None:
+    """Требует X-Internal-Secret."""
+    if (
+        not settings.INTERNAL_SERVICE_SECRET
+        or x_internal_secret is None
+        or not secrets.compare_digest(
+            x_internal_secret, settings.INTERNAL_SERVICE_SECRET
+        )
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid internal secret",
+        )
 
 
 def get_refresh_token(request: Request) -> str:
@@ -53,21 +74,18 @@ def get_db_manager():
 async def get_db():
     async with get_db_manager() as db:
         yield db
-        
-        
+
+
 def get_session_service() -> SessionService:
     assert redis.redis is not None
-    return SessionService(
-        SessionRedisRepository(redis.redis)
-    )
+    return SessionService(SessionRedisRepository(redis.redis))
 
 
-def get_auth_service(db: "DBDep", session_service: "SessionServiceDep") -> AuthService:
+def get_auth_service(
+    db: "DBDep", session_service: "SessionServiceDep"
+) -> AuthService:
     return AuthService(
-        HashArgon2Service(),
-        JWTTokenService(),
-        session_service,
-        db
+        HashArgon2Service(), JWTTokenService(), session_service, db
     )
 
 
@@ -131,27 +149,36 @@ def get_oauth_provider_factory() -> OAuthProviderFactory:
     return OAuthProviderFactory(
         yandex=YandexOAuthProvider(),
         google=GoogleOAuthProvider(),
-        vk=VkOAuthProvider()
+        vk=VkOAuthProvider(),
     )
 
 
 def get_oauth_service(
     auth_service: "AuthServiceDep",
-    oauth_provider_factory: OAuthProviderFactory = Depends(get_oauth_provider_factory),
+    oauth_provider_factory: OAuthProviderFactory = Depends(
+        get_oauth_provider_factory
+    ),
 ) -> OAuthService:
     assert redis.redis is not None
     return OAuthService(oauth_provider_factory, auth_service, redis.redis)
-    
+
 
 CurrentUserDep = Annotated[UserORM, Depends(get_current_user)]
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
 RefreshTokenDep = Annotated[str, Depends(get_refresh_token)]
 RoleServiceDep = Annotated[RoleService, Depends(get_role_service)]
-PermissionServiceDep = Annotated[PermissionService, Depends(get_permission_service)]
+PermissionServiceDep = Annotated[
+    PermissionService, Depends(get_permission_service)
+]
 StaffUserDep = Annotated[UserORM, Depends(get_current_staff_user)]
 TokenPayloadDep = Annotated[dict[str, Any], Depends(get_token_payload)]
 DBDep = Annotated[DBManager, Depends(get_db)]
 SessionServiceDep = Annotated[SessionService, Depends(get_session_service)]
 OAuthServiceDep = Annotated[OAuthService, Depends(get_oauth_service)]
-SubscriptionServiceDep = Annotated[SubscriptionService, Depends(get_subscription_service)]
-UserSubscriptionServiceDep = Annotated[UserSubscriptionService, Depends(get_user_subscription_service)]
+SubscriptionServiceDep = Annotated[
+    SubscriptionService, Depends(get_subscription_service)
+]
+UserSubscriptionServiceDep = Annotated[
+    UserSubscriptionService, Depends(get_user_subscription_service)
+]
+InternalServiceDep = Annotated[None, Depends(verify_internal_secret)]

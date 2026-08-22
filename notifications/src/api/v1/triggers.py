@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from src.api.v1.dependencies import InternalServiceDep
 from src.repositories.notification_triggers import (
     NotificationTriggerRepository,
 )
@@ -41,6 +42,7 @@ NotificationTriggerServiceDep = Depends(get_trigger_service)
 )
 async def upsert_trigger(
     trigger: NotificationTriggerUpsert,
+    _: InternalServiceDep,
     trigger_service: NotificationTriggerService = NotificationTriggerServiceDep,
 ) -> NotificationTrigger:
     """Создать или обновить триггер уведомления по (content_id, notification_type)."""

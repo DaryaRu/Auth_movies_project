@@ -6,6 +6,7 @@ from asyncpg.exceptions import UniqueViolationError
 from fastapi import APIRouter, Depends, HTTPException, status
 from jinja2.exceptions import UndefinedError
 
+from src.api.v1.dependencies import InternalServiceDep
 from src.repositories.templates import TemplateRepository
 from src.schemas.templates import (
     Template,
@@ -53,6 +54,7 @@ async def list_templates(
 @router.get("/by-code/{code}/", summary="Получить шаблон по code")
 async def get_template_by_code(
     code: str,
+    _: InternalServiceDep,
     repo: TemplateRepository = TemplateRepositoryDep,
 ) -> Template:
     """Получить шаблон по code."""

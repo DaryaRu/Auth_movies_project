@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     # user-actions-service (резолв аудитории notification_triggers по закладкам)
     USER_ACTIONS_API_URL: str = "http://user-actions-service:5000/api/v1"
 
+    # Service-to-service
+    INTERNAL_SERVICE_SECRET: str = ""
+
     # SMTP (Mailpit в dev)
     SMTP_HOST: str = "mailpit"
     SMTP_PORT: int = 1025
