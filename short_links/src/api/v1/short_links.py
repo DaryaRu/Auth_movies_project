@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
+from src.api.v1.dependencies import InternalServiceDep
 from src.repositories.settings import SettingsRepository
 from src.schemas.short_links import ShortLinkCreate, ShortLinkResponse
 from src.services.short_links import ShortLinkService
@@ -33,7 +34,9 @@ class RedirectUrlUpdate(BaseModel):
 
 
 @router.post("/short-links/", response_model=ShortLinkResponse, status_code=201)
-async def create_short_link(request: ShortLinkCreate) -> ShortLinkResponse:
+async def create_short_link(
+    request: ShortLinkCreate, _: InternalServiceDep
+) -> ShortLinkResponse:
     """Создать короткую ссылку для подтверждения email.
 
     Генерирует уникальный short_key и сохраняет ссылку в БД.
@@ -71,7 +74,9 @@ async def get_redirect_url() -> RedirectUrlResponse:
 
 
 @router.put("/settings/redirect-url/", response_model=RedirectUrlResponse)
-async def update_redirect_url(request: RedirectUrlUpdate) -> RedirectUrlResponse:
+async def update_redirect_url(
+    request: RedirectUrlUpdate, _: InternalServiceDep
+) -> RedirectUrlResponse:
     """Обновить redirect_url для подтверждения email (из админ-панели)."""
     await _settings_repo.set(REDIRECT_URL_KEY, request.redirect_url)
     logger.info("Обновлён redirect_url: %s", request.redirect_url)

@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     # URL auth-сервиса для подтверждения email
     AUTH_API_URL: str = "http://auth-service:8000/api/v1"
 
+    # Service-to-service
+    INTERNAL_SERVICE_SECRET: str = ""
+
     ENVIRONMENT: str = "local"
     DEBUG: bool = False
 
