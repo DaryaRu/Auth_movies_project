@@ -1,10 +1,13 @@
 """Схемы для ручных рассылок из админки (admin_mailings)."""
 
+import re
 from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from pydantic import AwareDatetime, BaseModel, Field
+from pydantic import AwareDatetime, BaseModel, Field, model_validator
+
+LOCAL_TIME_REGEX = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)$")
 
 
 class SubscriptionLevelFilter(BaseModel):
@@ -20,6 +23,10 @@ class AudienceFilter(BaseModel):
 
     subscription_level: SubscriptionLevelFilter | None = Field(
         default=None, description="Без фильтра. Все активные пользователи"
+    )
+    timezone: str | None = Field(
+        default=None,
+        description=("Заполняется автоматически при scheduled_local_time."),
     )
 
 
@@ -54,9 +61,36 @@ class AdminMailingCreate(BaseModel):
             "2057-07-27T10:00:00+00:00). Если не указывать, то отправить сразу"
         ),
     )
+    scheduled_local_time: str | None = Field(
+        default=None,
+        description=(
+            "Локальное время получателя вида HH:MM (например 10:00). "
+            "Рассылка будет разбита по таймзонам аудитории. "
+            "Для каждой отдельная рассылка на ближайшее наступление этого "
+            "времени в соответствующей таймзоне."
+        ),
+    )
     created_by: UUID = Field(
         ..., description="Администратор, создающий рассылку"
     )
+
+    @model_validator(mode="after")
+    def validate_scheduling(self):
+        if (
+            self.scheduled_at is not None
+            and self.scheduled_local_time is not None
+        ):
+            raise ValueError(
+                "Нельзя одновременно указывать scheduled_at и scheduled_local_time"
+            )
+        if (
+            self.scheduled_local_time is not None
+            and not LOCAL_TIME_REGEX.match(self.scheduled_local_time)
+        ):
+            raise ValueError(
+                f"Некорректный формат scheduled_local_time (ожидается HH:MM): {self.scheduled_local_time}"
+            )
+        return self
 
     model_config = {
         "json_schema_extra": {

@@ -1,12 +1,15 @@
 """Сервис для ручных рассылок из админки (Scheduled group / Immediate group)."""
 
 import json
-from datetime import datetime, timezone
+import logging
+from datetime import datetime, time, timedelta, timezone
 from typing import Any
 from uuid import UUID, uuid4
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from aiokafka.errors import KafkaError
 
+from src.clients.auth import search_distinct_timezones
 from src.core.config import settings
 from src.db import kafka
 from src.repositories.admin_mailings import AdminMailingRepository
@@ -17,9 +20,33 @@ from src.services.notifications import (
     TemplateNotFoundError,
 )
 
+logger = logging.getLogger(__name__)
+
 
 class InvalidScheduledAtError(Exception):
     """scheduled_at указан неверно (задавать в будущем)."""
+
+
+def _next_local_time_as_utc(local_time: str, tz_name: str) -> datetime | None:
+    """Момент, когда в таймзоне tz_name наступит local_time (HH:MM), в UTC."""
+    try:
+        tz = ZoneInfo(tz_name)
+    except ZoneInfoNotFoundError:
+        logger.warning(
+            f"Неизвестная таймзона {tz_name}: рассылка для пользователей "
+            f"этой таймзоны не будет создана"
+        )
+        return None
+    hour, minute = (int(part) for part in local_time.split(":"))
+    now_local = datetime.now(tz)
+    candidate = datetime.combine(
+        now_local.date(), time(hour, minute), tzinfo=tz
+    )
+    if candidate <= now_local:
+        candidate = datetime.combine(
+            now_local.date() + timedelta(days=1), time(hour, minute), tzinfo=tz
+        )
+    return candidate.astimezone(timezone.utc)
 
 
 class AdminMailingService:
@@ -39,17 +66,22 @@ class AdminMailingService:
         audience_filter: dict[str, Any],
         payload: dict[str, Any],
         scheduled_at: datetime | None,
+        scheduled_local_time: str | None,
         created_by: UUID,
-    ) -> AdminMailing:
+    ) -> list[AdminMailing]:
         """Создать рассылку.
 
-        Если scheduled_at не задан, то отправка происходит сразу (Immediate group).
-        Сначала публикуется в notification-pending, потом с известным admin_mailing_id
-        создается запись в БД со status=sending.
-        Если Kafka недоступна, публикация падает раньше записи в БД и не будет ошибочной строки
-        со статусом sending без реального отправленного сообщения.
+        Если ни scheduled_at, ни scheduled_local_time не заданы, отправка происходит
+        сразу (Immediate group): публикуется в notification-pending, потом с известным
+        admin_mailing_id создается запись в БД со status=sending. Если Kafka недоступна,
+        публикация падает раньше записи в БД и не будет ошибочной строки со статусом
+        sending без реального отправленного сообщения.
 
-        scheduled_at задавать в будущем, status=scheduled.
+        scheduled_at задавать в будущем, status=scheduled — одна рассылка.
+
+        scheduled_local_time (HH:MM) разбивает аудиторию по её таймзонам и создаёт
+        по одной рассылке status=scheduled на каждую таймзону, с scheduled_at,
+        рассчитанным как ближайшее будущее наступление local_time в этой таймзоне.
         """
         template = await self.template_repo.get_by_id(template_id)
         if template is None or not template.is_active:
@@ -67,6 +99,15 @@ class AdminMailingService:
         ):
             raise InvalidScheduledAtError(str(scheduled_at))
 
+        if scheduled_local_time is not None:
+            return await self._create_bucketed_by_timezone(
+                template_id,
+                audience_filter,
+                payload,
+                scheduled_local_time,
+                created_by,
+            )
+
         status = "scheduled" if scheduled_at is not None else "sending"
         admin_mailing_id = uuid4()
 
@@ -75,7 +116,7 @@ class AdminMailingService:
                 admin_mailing_id, template_id, audience_filter, payload
             )
 
-        return await self.mailing_repo.create(
+        mailing = await self.mailing_repo.create(
             admin_mailing_id,
             template_id,
             audience_filter,
@@ -84,6 +125,38 @@ class AdminMailingService:
             scheduled_at,
             created_by,
         )
+        return [mailing]
+
+    async def _create_bucketed_by_timezone(
+        self,
+        template_id: UUID,
+        audience_filter: dict[str, Any],
+        payload: dict[str, Any],
+        scheduled_local_time: str,
+        created_by: UUID,
+    ) -> list[AdminMailing]:
+        """Разбить рассылку на несколько физических рассылок, по одной на каждую
+        таймзону, встречающуюся у аудитории, подходящей под audience_filter."""
+        timezones = await search_distinct_timezones(audience_filter)
+        mailings = []
+        for tz_name in timezones:
+            scheduled_at = _next_local_time_as_utc(
+                scheduled_local_time, tz_name
+            )
+            if scheduled_at is None:
+                continue
+            bucket_filter = {**audience_filter, "timezone": tz_name}
+            mailing = await self.mailing_repo.create(
+                uuid4(),
+                template_id,
+                bucket_filter,
+                payload,
+                "scheduled",
+                scheduled_at,
+                created_by,
+            )
+            mailings.append(mailing)
+        return mailings
 
     async def _publish_pending(
         self,

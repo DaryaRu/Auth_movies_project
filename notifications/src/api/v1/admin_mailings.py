@@ -71,14 +71,20 @@ async def get_mailing(
 async def create_mailing(
     data: AdminMailingCreate,
     mailing_service: AdminMailingService = AdminMailingServiceDep,
-) -> AdminMailing:
-    """Создать ручную рассылку."""
+) -> list[AdminMailing]:
+    """Создать ручную рассылку.
+
+    При scheduled_local_time вместо scheduled_at аудитория разбивается по
+    таймзонам, встречающимся среди подходящих под audience_filter пользователей:
+    на каждую таймзону создаётся своя отдельная рассылка.
+    """
     try:
         return await mailing_service.create(
             data.template_id,
             data.audience_filter.model_dump(exclude_none=True),
             data.payload,
             data.scheduled_at,
+            data.scheduled_local_time,
             data.created_by,
         )
     except TemplateNotFoundError as e:

@@ -551,6 +551,8 @@ services:
         condition: service_started
       kafka-2:
         condition: service_started
+      auth-service:
+        condition: service_healthy
     logging:
       driver: gelf
       options:
