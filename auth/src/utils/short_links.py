@@ -61,6 +61,7 @@ async def create_short_link(
             response = await client.post(
                 f"{settings.SHORT_LINKS_API_URL}/short-links/",
                 json=payload,
+                headers={"X-Internal-Secret": settings.INTERNAL_SERVICE_SECRET},
                 timeout=10,
             )
             response.raise_for_status()

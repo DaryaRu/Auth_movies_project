@@ -20,6 +20,7 @@ async def _fetch_template_id(code: str) -> str | None:
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 f"{settings.NOTIFICATIONS_API_URL}/templates/by-code/{code}/",
+                headers={"X-Internal-Secret": settings.INTERNAL_SERVICE_SECRET},
                 timeout=5,
             )
             if response.status_code != 200:

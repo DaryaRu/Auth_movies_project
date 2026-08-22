@@ -8,6 +8,7 @@ from src.api.v1.dependencies import (
     AuthServiceDep,
     CurrentUserDep,
     DBDep,
+    InternalServiceDep,
     RefreshTokenDep,
     RoleServiceDep,
     SessionServiceDep,
@@ -56,6 +57,7 @@ router = APIRouter(tags=["Auth"])
 async def confirm_email(
     user_id: UUID,
     auth_service: AuthServiceDep,
+    _: InternalServiceDep,
 ):
     """Подтверждает email пользователя после перехода по короткой ссылке."""
     try:
@@ -262,7 +264,7 @@ async def get_my_permissions(
     summary="Email пользователя по ID",
     response_model=UserContactScheme,
 )
-async def get_user_contact(user_id: UUID, db: DBDep):
+async def get_user_contact(user_id: UUID, db: DBDep, _: InternalServiceDep):
     """Получение контактов пользователя между сервисами."""
     user = await db.users.get_one_or_none_by_id(id=user_id)
     if user is None:
@@ -275,7 +277,7 @@ async def get_user_contact(user_id: UUID, db: DBDep):
     summary="Поиск пользователей по audience_filter (для рассылок)",
     response_model=list[UUID],
 )
-async def search_users(data: UserSearchScheme, db: DBDep):
+async def search_users(data: UserSearchScheme, db: DBDep, _: InternalServiceDep):
     """Используется notifications-service (воркер). Возвращает id активных пользователей,
     подходящих под фильтр."""
     min_level = (
