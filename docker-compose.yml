@@ -581,10 +581,14 @@ services:
       POSTGRES_DB: notifications
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
     depends_on:
       notifications-db:
-        condition: service_healthy      
+        condition: service_healthy
       notifications-service:
+        condition: service_healthy
+      redis:
         condition: service_healthy
       kafka-topic-init-notifications:
         condition: service_completed_successfully
@@ -606,6 +610,28 @@ services:
         condition: service_healthy
       mailpit:
         condition: service_started
+    logging:
+      driver: gelf
+      options:
+        gelf-address: "udp://127.0.0.1:12201"
+        tag: "{{.Name}}"
+
+  ws-gateway:
+    build: ./notifications/ws_gateway
+    image: ws-gateway-image
+    container_name: ws-gateway
+    restart: unless-stopped
+    profiles: ["analytics"]
+    env_file: .env
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      AUTH_API_URL: http://auth-service:8000/api/v1
+    depends_on:
+      redis:
+        condition: service_healthy
+      auth-service:
+        condition: service_healthy
     logging:
       driver: gelf
       options:

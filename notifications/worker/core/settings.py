@@ -31,6 +31,11 @@ class Settings(BaseSettings):
     KAFKA_WORKER_GROUP_ID: str = "notifications-worker"
     KAFKA_RETRY_BACKOFF_TIME: int = 5
 
+    # Redis (push-уведомления через Pub/Sub)
+    REDIS_HOST: str = "redis"
+    REDIS_PORT: int = 6379
+    REDIS_DB: int = 0
+
     # auth-service (для получения email перед отправкой)
     AUTH_API_URL: str = "http://auth-service:8000/api/v1"
 

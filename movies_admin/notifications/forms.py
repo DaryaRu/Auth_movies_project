@@ -236,9 +236,7 @@ class AdminMailingForm(JSONPayloadMixin, forms.Form):
 
     template = forms.ModelChoiceField(
         label=_("Template"),
-        queryset=NotificationTemplate.objects.filter(
-            is_active=True, channel="email"
-        ),
+        queryset=NotificationTemplate.objects.filter(is_active=True),
         widget=forms.Select(attrs={"class": "vTextField"}),
         help_text=_("Выберите шаблон для рассылки"),
     )
