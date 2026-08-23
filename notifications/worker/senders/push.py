@@ -38,6 +38,7 @@ class PushSender:
         """Опубликовать push-уведомление. delivery_address = user_id."""
         assert self._redis is not None, "PushSender not started"
         message = {
+            "type": "notification",
             "user_id": delivery_address,
             "subject": subject,
             "body": body,
