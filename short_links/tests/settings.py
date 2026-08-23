@@ -23,6 +23,10 @@ class TestSettings(BaseSettings):
     api_prefix: str = Field(default="/api/v1", alias="API_PREFIX")
     environment: str = Field(default="test", alias="ENVIRONMENT")
 
+    internal_service_secret: str = Field(
+        default="service-secret", alias="INTERNAL_SERVICE_SECRET"
+    )
+
     service_wait_max_attempts: int = Field(
         default=30, alias="SERVICE_WAIT_MAX_ATTEMPTS"
     )

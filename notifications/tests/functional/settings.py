@@ -30,6 +30,10 @@ class TestSettings(BaseSettings):
         default="http://auth-service:8000/api/v1", alias="AUTH_API_URL"
     )
 
+    internal_service_secret: str = Field(
+        default="service-secret", alias="INTERNAL_SERVICE_SECRET"
+    )
+
     kafka_brokers: str = Field(default="kafka:9092", alias="KAFKA_BROKERS")
     kafka_pending_topic: str = Field(
         default="notification-pending", alias="KAFKA_PENDING_TOPIC"
