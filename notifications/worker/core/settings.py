@@ -40,9 +40,12 @@ class Settings(BaseSettings):
     # Service-to-service
     INTERNAL_SERVICE_SECRET: str = ""
 
-    # SMTP (Mailpit в dev)
+    # SMTP (Mailpit в dev, Yandex в проде — smtp.yandex.ru:465, use_tls=True)
     SMTP_HOST: str = "mailpit"
     SMTP_PORT: int = 1025
+    SMTP_USERNAME: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_USE_TLS: bool = False
     EMAIL_FROM: str = "notifications@example.com"
     EMAIL_MAX_PER_SEC: float = 10
     SMTP_FAILURE_THRESHOLD: int = 5

@@ -67,6 +67,9 @@ class EmailSender:
                 message,
                 hostname=settings.SMTP_HOST,
                 port=settings.SMTP_PORT,
+                username=settings.SMTP_USERNAME or None,
+                password=settings.SMTP_PASSWORD or None,
+                use_tls=settings.SMTP_USE_TLS,
             )
         except Exception:
             await self._record_result(False)
