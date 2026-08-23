@@ -166,7 +166,7 @@ logs-user-actions:
 notifications-up:
 	docker compose --profile analytics up -d --build \
 		zookeeper kafka-0 kafka-1 kafka-2 kafka-topic-init-notifications kafka-topic-init-notification-pending kafka-topic-init-notification-ready-bulk kafka-topic-init-notification-dlq \
-		notifications-db notifications-service notifications-worker notifications-scheduler mailpit auth-service user-actions-service nginx
+		notifications-db notifications-service notifications-worker notifications-scheduler ws-gateway mailpit auth-service user-actions-service nginx
 
 # Шаг 2: находит template_id реального шаблона review_liked и отправляет
 # тестовый POST /api/v1/notifications/ изнутри контейнера сервиса.
@@ -206,6 +206,9 @@ notifications-worker-logs:
 notifications-scheduler-logs:
 	docker compose logs -f notifications-scheduler
 
-# Шаг 4: опускает стек, поднятый notifications-up
+ws-gateway-logs:
+	docker compose logs -f ws-gateway
+
+# Шаг 4: опускает стек, поднятый notifications-up, вместе с томами
 notifications-down:
 	docker compose --profile analytics down -v

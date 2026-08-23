@@ -141,17 +141,22 @@ async def _render_and_send(
     не пробрасывает исключение дальше.
     """
     try:
-        email = await get_email(message.user_id)
-        if email is None:
-            await notifications_repo.mark_notification_failed(
-                notification_id, f"no email for user {message.user_id}"
-            )
-            logger.error(f"{notification_id}: нет email у {message.user_id}")
-            return
-
         subject = render(template["subject"], message.payload)
         body = render(template["body"], message.payload)
-        await SENDERS[message.channel].send(email, subject, body)
+
+        if message.channel == "push":
+            delivery_address = str(message.user_id)
+        else:
+            email = await get_email(message.user_id)
+            if email is None:
+                await notifications_repo.mark_notification_failed(
+                    notification_id, f"no email for user {message.user_id}"
+                )
+                logger.error(f"{notification_id}: нет email у {message.user_id}")
+                return
+            delivery_address = email
+
+        await SENDERS[message.channel].send(delivery_address, subject, body)
     except Exception as exc:
         await notifications_repo.mark_notification_failed(
             notification_id, str(exc)
@@ -169,7 +174,7 @@ async def _render_and_send(
         )
         return
 
-    await notifications_repo.mark_notification_sent(notification_id, email)
+    await notifications_repo.mark_notification_sent(notification_id, delivery_address)
     logger.info(f"{notification_id}: отправлено")
 
 
