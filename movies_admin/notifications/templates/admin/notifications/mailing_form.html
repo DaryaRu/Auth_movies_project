@@ -86,11 +86,23 @@
             </div>
 
             <div class="form-row">
-                {{ form.scheduled_at.errors }}
-                <label for="{{ form.scheduled_at.id_for_label }}">{% trans 'Scheduled at' %}</label>
-                {{ form.scheduled_at }}
-                {% if form.scheduled_at.help_text %}
-                    <span class="helptext">{{ form.scheduled_at.help_text }}</span>
+                {{ form.send_mode.errors }}
+                <label>{% trans 'Send' %} *</label>
+                <div>
+                    {% for radio in form.send_mode %}
+                        <label class="audience-radio">
+                            {{ radio.tag }} {{ radio.choice_label }}
+                        </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="form-row" id="scheduled-local-datetime-row" style="display: none;">
+                {{ form.scheduled_local_datetime.errors }}
+                <label for="{{ form.scheduled_local_datetime.id_for_label }}">{% trans 'Scheduled at (recipient local time)' %}</label>
+                {{ form.scheduled_local_datetime }}
+                {% if form.scheduled_local_datetime.help_text %}
+                    <span class="helptext">{{ form.scheduled_local_datetime.help_text }}</span>
                 {% endif %}
             </div>
         </fieldset>
@@ -121,6 +133,20 @@ document.addEventListener('DOMContentLoaded', function() {
         radio.addEventListener('change', toggleSubscriptionRow);
     });
     toggleSubscriptionRow();
+
+    // Toggle send mode
+    var sendRadios = document.querySelectorAll('input[name="send_mode"]');
+    var scheduledRow = document.getElementById('scheduled-local-datetime-row');
+
+    function toggleScheduledRow() {
+        var checked = document.querySelector('input[name="send_mode"]:checked');
+        scheduledRow.style.display = (checked && checked.value === 'scheduled') ? '' : 'none';
+    }
+
+    sendRadios.forEach(function(radio) {
+        radio.addEventListener('change', toggleScheduledRow);
+    });
+    toggleScheduledRow();
 
     // Template info
     var templateSelect = document.getElementById('id_template');

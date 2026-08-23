@@ -217,11 +217,47 @@ msgstr "Дополнительные данные для подстановки 
 msgid "Scheduled at"
 msgstr "Время отправки"
 
+msgid "Scheduled at (recipient local time)"
+msgstr "Время отправки (местное время получателя)"
+
 msgid "Когда отправить. Пусто = отправить сразу."
 msgstr "Когда отправить. Пусто = отправить сразу."
 
+msgid "Schedule"
+msgstr "Расписание"
+
+msgid "Send"
+msgstr "Отправка"
+
+msgid "Send immediately"
+msgstr "Отправить сразу"
+
+msgid "Schedule for recipient local time"
+msgstr "По местному времени получателя"
+
+msgid "Required when send is \"Schedule for recipient local time\""
+msgstr "Обязательно при отправке «По местному времени получателя»"
+
+msgid "Exact time"
+msgstr "Точное время"
+
+msgid "Local time per recipient"
+msgstr "Местное время получателя"
+
+msgid "Scheduled local time"
+msgstr "Местное время отправки"
+
 msgid "Required when audience type is \"subscription\""
 msgstr "Обязательно при типе аудитории «По уровню подписки»"
+
+msgid "Required when schedule is \"Exact time\""
+msgstr "Обязательно при расписании «Точное время»"
+
+msgid "Required when schedule is \"Local time per recipient\""
+msgstr "Обязательно при расписании «Местное время получателя»"
+
+msgid "Некорректный формат времени (ожидается ЧЧ:ММ)"
+msgstr "Некорректный формат времени (ожидается ЧЧ:ММ)"
 
 #: notifications/short_link_admin.py
 msgid "Redirect URL обновлён"

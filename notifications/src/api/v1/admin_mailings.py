@@ -8,10 +8,7 @@ from src.api.v1.dependencies import InternalServiceDep
 from src.repositories.admin_mailings import AdminMailingRepository
 from src.repositories.templates import TemplateRepository
 from src.schemas.admin_mailings import AdminMailing, AdminMailingCreate
-from src.services.admin_mailings import (
-    AdminMailingService,
-    InvalidScheduledAtError,
-)
+from src.services.admin_mailings import AdminMailingService
 from src.services.notifications import (
     InvalidPayloadError,
     TemplateNotFoundError,
@@ -65,22 +62,27 @@ async def get_mailing(
     status_code=status.HTTP_201_CREATED,
     summary="Создать рассылку",
     description=(
-        "Если scheduled_at не указан, то отправка происходит сразу. "
-        "Если scheduled_at указан в будущем, то рассылка ждет шедулер."
+        "Если scheduled_local_datetime не указан, то отправка происходит "
+        "сразу. Если указан, то это дата и время по таймзоне получателя."
     ),
 )
 async def create_mailing(
     data: AdminMailingCreate,
     _: InternalServiceDep,
     mailing_service: AdminMailingService = AdminMailingServiceDep,
-) -> AdminMailing:
-    """Создать ручную рассылку."""
+) -> list[AdminMailing]:
+    """Создать ручную рассылку.
+
+    При scheduled_local_datetime аудитория разбивается по таймзонам,
+    встречающимся среди подходящих под audience_filter пользователей: на
+    каждую таймзону создается своя отдельная рассылка.
+    """
     try:
         return await mailing_service.create(
             data.template_id,
             data.audience_filter.model_dump(exclude_none=True),
             data.payload,
-            data.scheduled_at,
+            data.scheduled_local_datetime,
             data.created_by,
         )
     except TemplateNotFoundError as e:
@@ -92,9 +94,4 @@ async def create_mailing(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"payload contains keys not allowed by template: {sorted(e.unknown_keys)}",
-        ) from e
-    except InvalidScheduledAtError as e:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"scheduled_at must be in the future: {e}",
         ) from e

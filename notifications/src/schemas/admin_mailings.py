@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from pydantic import AwareDatetime, BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class SubscriptionLevelFilter(BaseModel):
@@ -20,6 +20,12 @@ class AudienceFilter(BaseModel):
 
     subscription_level: SubscriptionLevelFilter | None = Field(
         default=None, description="Без фильтра. Все активные пользователи"
+    )
+    timezone: str | None = Field(
+        default=None,
+        description=(
+            "Заполняется автоматически при scheduled_local_datetime."
+        ),
     )
 
 
@@ -47,16 +53,26 @@ class AdminMailingCreate(BaseModel):
         default_factory=dict,
         description=("Данные для подстановки в шаблон"),
     )
-    scheduled_at: AwareDatetime | None = Field(
+    scheduled_local_datetime: datetime | None = Field(
         default=None,
         description=(
-            "Когда отправить (с таймзоной, например "
-            "2057-07-27T10:00:00+00:00). Если не указывать, то отправить сразу"
+            "Дата и время по таймзоне получателя (например 2057-07-27T10:00:00). "
+            "Если не указывать — отправить сразу."
         ),
     )
     created_by: UUID = Field(
         ..., description="Администратор, создающий рассылку"
     )
+
+    @field_validator("scheduled_local_datetime")
+    @classmethod
+    def validate_naive(cls, v: datetime | None):
+        if v is not None and v.tzinfo is not None:
+            raise ValueError(
+                "scheduled_local_datetime должен быть без таймзоны "
+                "— это местное время получателя"
+            )
+        return v
 
     model_config = {
         "json_schema_extra": {
@@ -65,7 +81,7 @@ class AdminMailingCreate(BaseModel):
                     "template_id": "daee7e9a-d79e-4a1e-9802-0ce1f666f990",
                     "audience_filter": {"subscription_level": {"gte": 1}},
                     "payload": {},
-                    "scheduled_at": None,
+                    "scheduled_local_datetime": None,
                     "created_by": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
                 }
             ]

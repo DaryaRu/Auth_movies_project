@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     KAFKA_RETRY_INTERVAL_SEC: int = 5
     KAFKA_ACKS: str = "all"
 
+    # auth-service (уникальные таймзоны аудитории для рассылок)
+    AUTH_API_URL: str = "http://auth-service:8000/api/v1"
+
     ENVIRONMENT: str = "local"
     DEBUG: bool = False
 
