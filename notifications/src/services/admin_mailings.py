@@ -80,12 +80,9 @@ class AdminMailingService:
         if template is None or not template.is_active:
             raise TemplateNotFoundError(str(template_id))
 
-        if template.allowed_variables:
-            unknown_keys = set(payload.keys()) - set(
-                template.allowed_variables
-            )
-            if unknown_keys:
-                raise InvalidPayloadError(unknown_keys)
+        unknown_keys = set(payload.keys()) - set(template.allowed_variables)
+        if unknown_keys:
+            raise InvalidPayloadError(unknown_keys)
 
         if scheduled_local_datetime is not None:
             return await self._create_bucketed_by_timezone(

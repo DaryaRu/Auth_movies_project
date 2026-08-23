@@ -8,6 +8,7 @@
 - **movies-etl** — синхронизация данных из PostgreSQL в Elasticsearch.
 - **analytics-service** — приём событий пользователей и публикация в Kafka. Верифицирует JWT, отдаёт `202 Accepted` без ожидания подтверждения от брокера.
 - **short-links-service** — генерация и резолвинг коротких ссылок для подтверждения email.
+- **notifications-service** — рассылка уведомлений (email) по шаблонам: персональные события, авто-триггеры по изменению контента, ручные рассылки из админки. Отдельные воркер и шедулер — API и шедулер публикуют события в Kafka, воркер их читает и рассылает.
 - **nginx** — единая точка входа, проксирует запросы к сервисам, добавляет `X-Request-Id`.
 
 **Стек:** FastAPI, Django, PostgreSQL, Redis, Elasticsearch, Kafka, JWT RS256, Argon2, OAuth 2.0, Docker
@@ -107,6 +108,8 @@ http://localhost/admin/              — Django-админка
 `make test-movies` — функциональные тесты movies-сервиса
 
 `make test-short-links` — функциональные тесты short-links-сервиса
+
+`make test-notifications` — функциональные тесты notifications-сервиса
 
 `make test-all` — тесты всех сервисов
 
@@ -349,6 +352,28 @@ ETL → ClickHouse:
    - `PUT /api/v1/settings/redirect-url/` — обновить redirect_url
 
 
+## notifications-service
+
+Сервис рассылки уведомлений по email, с рендером текста из шаблонов (Jinja2-плейсхолдеры).
+
+**Функционал:**
+- **Персональные уведомления** — сервис-источник (например, `user_actions-service`) знает получателя сразу и вызывает API с готовым `payload`
+- **Авто-триггеры по изменению контента** — источник сообщает об изменении (`content_id`, `notification_type`), шедулер периодически проверяет и запускает рассылку по аудитории (например, тем, кто добавил фильм в закладки)
+- **Ручные рассылки из админки** — админ в Django admin выбирает шаблон и сегмент аудитории, отправка сразу или по расписанию в местном времени получателей
+- **Шаблоны** — CRUD и preview с валидацией плейсхолдеров (`allowed_variables`) через API
+
+Доставка идет через Kafka (`notification-ready`, `notification-pending`, `notification-ready-bulk` для fan-out рассылок) — отдельный воркер резолвит аудиторию и отправляет письма, отдельный шедулер публикует авто-триггеры и запланированные рассылки по расписанию.
+
+### Проверка
+
+```bash
+make notifications-up                    # поднимает Kafka, БД, API, воркер, шедулер, auth-service, user-actions-service, Mailpit
+make notifications-register-test-user     # регистрирует пользователя, запускает welcome-письмо
+```
+
+Письмо смотреть в Mailpit: `http://localhost:8025`. Статус в БД — `make notifications-check-status`.
+
+
 ## Трассировка
 
 UI Jaeger доступен на `http://localhost/tracers/` — показывает трейсы всех запросов к auth-service, movies-service, movies-admin и user-actions-service.
@@ -386,7 +411,7 @@ GitHub Actions (`.github/workflows/ci.yml`) на каждый push/PR в `main`:
 
 - **lint** — ruff
 - **mypy** — по всем сервисам, матрица строится автоматически по расположению `requirements.txt` (`.github/scripts/build_mypy_matrix.py`)
-- **функциональные тесты** — auth, movies, analytics, user-actions, каждый на Python 3.10/3.11/3.12
+- **функциональные тесты** — auth, movies, analytics, user-actions, short-links, notifications, каждый на Python 3.10/3.11/3.12
 - **notify** — уведомление о результатах прогона в Telegram
 
 Чтобы проверить локально mypy, использовать `make mypy` (та же матрица, окружения кэшируются в `.mypy-check-venvs/`).

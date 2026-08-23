@@ -37,12 +37,9 @@ class NotificationTriggerService:
         if template is None or not template.is_active:
             raise TemplateNotFoundError(str(template_id))
 
-        if template.allowed_variables:
-            unknown_keys = set(payload.keys()) - set(
-                template.allowed_variables
-            )
-            if unknown_keys:
-                raise InvalidPayloadError(unknown_keys)
+        unknown_keys = set(payload.keys()) - set(template.allowed_variables)
+        if unknown_keys:
+            raise InvalidPayloadError(unknown_keys)
 
         return await self.trigger_repo.upsert(
             content_id, notification_type, template_id, payload

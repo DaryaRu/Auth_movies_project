@@ -174,11 +174,48 @@ jobs:
       - name: Run user-actions functional tests
         run: make test-user-actions PYTHON_VERSION=${{ matrix.python-version }}
 
+  test-short-links:
+    name: Functional short-links tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    needs: [lint]
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Create .env for short-links functional tests
+        run: cp short_links/tests/functional/.env.example short_links/tests/functional/.env
+
+      - name: Run short-links functional tests
+        run: make test-short-links PYTHON_VERSION=${{ matrix.python-version }}
+
+  test-notifications:
+    name: Functional notifications tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    needs: [lint]
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Generate RSA keys for JWT
+        run: make keys
+
+      - name: Create .env for notifications functional tests
+        run: cp notifications/tests/functional/.env.example notifications/tests/functional/.env
+
+      - name: Run notifications functional tests
+        run: make test-notifications PYTHON_VERSION=${{ matrix.python-version }}
+
   # Отправка отчета в Telegram.
   notify:
     name: Telegram notify
     runs-on: ubuntu-latest
-    needs: [lint, build, mypy, test-auth, test-movies, test-analytics, test-user-actions]
+    needs: [lint, build, mypy, test-auth, test-movies, test-analytics, test-user-actions, test-short-links, test-notifications]
     if: always()
     steps:
       - name: Send Telegram notification

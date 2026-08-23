@@ -28,12 +28,9 @@ class TemplateService:
         if template is None:
             raise TemplateNotFoundError(str(template_id))
 
-        if template.allowed_variables:
-            unknown_keys = set(payload.keys()) - set(
-                template.allowed_variables
-            )
-            if unknown_keys:
-                raise InvalidPayloadError(unknown_keys)
+        unknown_keys = set(payload.keys()) - set(template.allowed_variables)
+        if unknown_keys:
+            raise InvalidPayloadError(unknown_keys)
 
         rendered_body = render(template.body, payload)
         assert rendered_body is not None

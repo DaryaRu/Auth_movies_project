@@ -118,8 +118,16 @@ test-short-links:
 		down -v; \
 	exit $$code
 
+# Запускает функциональные тесты notifications-сервиса
+test-notifications:
+	docker compose -f notifications/tests/functional/docker-compose.yml --env-file notifications/tests/functional/.env \
+		up --build --abort-on-container-exit --exit-code-from tests; code=$$?; \
+	docker compose -f notifications/tests/functional/docker-compose.yml --env-file notifications/tests/functional/.env \
+		down -v; \
+	exit $$code
+
 # Запускает тесты всех сервисов
-test-all: test-auth test-movies test-analytics test-user-actions test-short-links
+test-all: test-auth test-movies test-analytics test-user-actions test-short-links test-notifications
 
 # Прогоняет mypy локально по той же матрице, что и CI (build_mypy_matrix.py) —
 # без Docker и без ожидания GitHub Actions. Окружения кэшируются в
@@ -157,8 +165,8 @@ logs-user-actions:
 # письма (Kafka, БД, API, воркер, auth-service, Mailpit).
 notifications-up:
 	docker compose --profile analytics up -d --build \
-		zookeeper kafka-0 kafka-1 kafka-2 kafka-topic-init-notifications \
-		notifications-db notifications-service notifications-worker mailpit auth-service nginx
+		zookeeper kafka-0 kafka-1 kafka-2 kafka-topic-init-notifications kafka-topic-init-notification-pending kafka-topic-init-notification-ready-bulk kafka-topic-init-notification-dlq \
+		notifications-db notifications-service notifications-worker notifications-scheduler mailpit auth-service user-actions-service nginx
 
 # Шаг 2: находит template_id реального шаблона review_liked и отправляет
 # тестовый POST /api/v1/notifications/ изнутри контейнера сервиса.
@@ -172,9 +180,13 @@ notifications-test-request:
 notifications-verify-topic:
 	docker compose exec notifications-service python3 scripts/verify_ready_topic.py
 
+# Сообщения, которые воркер не смог доставить получателю.
+notifications-verify-dlq:
+	docker compose exec notifications-service python3 scripts/verify_dlq_topic.py
+
 # Полный путь от реального события до письма
 # (auth-service -> notify_user -> notifications-service -> Kafka -> notifications-worker -> Mailpit),
-# проверяет и воркер, и auth-service, и реальную отправку.
+# проверяет реальную отправку.
 notifications-register-test-user:
 	@EMAIL="worker-test-$$(date +%s)@example.com"; \
 	echo "email=$$EMAIL"; \
@@ -184,13 +196,16 @@ notifications-register-test-user:
 	echo; \
 	echo "Проверить письмо: http://localhost:8025 (Mailpit), статус: make notifications-check-status"
 
-# Последние 5 строк notifications — status/delivery_address/error_message
+# Последние 5 строк notifications
 notifications-check-status:
 	docker compose exec notifications-db psql -U postgres -d notifications -c "SELECT notification_id, notification_type, status, delivery_address, sent_at, error_message FROM notifications ORDER BY created_at DESC LIMIT 5;"
 
 notifications-worker-logs:
 	docker compose logs -f notifications-worker
 
-# Шаг 4: опускает стек, поднятый notifications-up, вместе с томами
+notifications-scheduler-logs:
+	docker compose logs -f notifications-scheduler
+
+# Шаг 4: опускает стек, поднятый notifications-up
 notifications-down:
 	docker compose --profile analytics down -v

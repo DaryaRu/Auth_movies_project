@@ -36,12 +36,9 @@ class NotificationService:
         if template is None or not template.is_active:
             raise TemplateNotFoundError(str(template_id))
 
-        if template.allowed_variables:
-            unknown_keys = set(payload.keys()) - set(
-                template.allowed_variables
-            )
-            if unknown_keys:
-                raise InvalidPayloadError(unknown_keys)
+        unknown_keys = set(payload.keys()) - set(template.allowed_variables)
+        if unknown_keys:
+            raise InvalidPayloadError(unknown_keys)
 
         message = {
             "user_id": str(user_id),
