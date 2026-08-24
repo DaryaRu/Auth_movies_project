@@ -528,6 +528,8 @@ services:
       POSTGRES_DB: notifications
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
     command: >
       sh -c "python3 src/apply_migrations.py && gunicorn src.main:app
       --workers 2
@@ -553,6 +555,8 @@ services:
       kafka-2:
         condition: service_started
       auth-service:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     logging:
       driver: gelf

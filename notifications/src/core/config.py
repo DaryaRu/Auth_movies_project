@@ -34,8 +34,14 @@ class Settings(BaseSettings):
     KAFKA_RETRY_INTERVAL_SEC: int = 5
     KAFKA_ACKS: str = "all"
 
-    # auth-service (уникальные таймзоны аудитории для рассылок)
+    # auth-service (уникальные таймзоны аудитории для рассылок, публичный ключ JWT)
     AUTH_API_URL: str = "http://auth-service:8000/api/v1"
+    AUTH_API_PUBLIC_KEY_URL: str = "http://auth-service:8000/api/v1/jwt.key/"
+    JWT_ALGORITHM: str = "RS256"
+
+    # Redis (кэш публичного ключа auth-service)
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6379
 
     ENVIRONMENT: str = "local"
     DEBUG: bool = False

@@ -6,7 +6,7 @@ from asyncpg.exceptions import UniqueViolationError
 from fastapi import APIRouter, Depends, HTTPException, status
 from jinja2.exceptions import UndefinedError
 
-from src.api.v1.dependencies import InternalServiceDep
+from src.api.v1.dependencies import InternalServiceDep, StaffUserDep
 from src.repositories.templates import TemplateRepository
 from src.schemas.templates import (
     Template,
@@ -45,6 +45,7 @@ TemplateServiceDep = Depends(get_template_service)
 
 @router.get("/", summary="Список шаблонов")
 async def list_templates(
+    _: StaffUserDep,
     repo: TemplateRepository = TemplateRepositoryDep,
 ) -> list[Template]:
     """Вернуть все шаблоны."""
@@ -69,6 +70,7 @@ async def get_template_by_code(
 @router.get("/{template_id}/", summary="Получить шаблон")
 async def get_template(
     template_id: UUID,
+    _: StaffUserDep,
     repo: TemplateRepository = TemplateRepositoryDep,
 ) -> Template:
     """Вернуть шаблон по ID."""
@@ -85,6 +87,7 @@ async def get_template(
 )
 async def create_template(
     template: TemplateCreate,
+    _: StaffUserDep,
     repo: TemplateRepository = TemplateRepositoryDep,
 ) -> Template:
     """Создать новый шаблон."""
@@ -110,6 +113,7 @@ async def create_template(
 async def update_template(
     template_id: UUID,
     template: TemplateUpdate,
+    _: StaffUserDep,
     repo: TemplateRepository = TemplateRepositoryDep,
 ) -> Template:
     """Отредактировать шаблон."""
@@ -146,6 +150,7 @@ async def update_template(
 async def preview_template(
     template_id: UUID,
     request: TemplatePreviewRequest,
+    _: StaffUserDep,
     template_service: TemplateService = TemplateServiceDep,
 ) -> TemplatePreviewResponse:
     """Отрендерить шаблон для превью в админке."""

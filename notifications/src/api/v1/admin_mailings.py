@@ -4,7 +4,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from src.api.v1.dependencies import InternalServiceDep
+from src.api.v1.dependencies import InternalServiceDep, StaffUserDep
 from src.repositories.admin_mailings import AdminMailingRepository
 from src.repositories.templates import TemplateRepository
 from src.schemas.admin_mailings import AdminMailing, AdminMailingCreate
@@ -37,6 +37,7 @@ AdminMailingServiceDep = Depends(get_admin_mailing_service)
 
 @router.get("/", summary="Список рассылок")
 async def list_mailings(
+    _: StaffUserDep,
     repo: AdminMailingRepository = AdminMailingRepositoryDep,
 ) -> list[AdminMailing]:
     """Получить все рассылки."""
@@ -46,6 +47,7 @@ async def list_mailings(
 @router.get("/{admin_mailing_id}/", summary="Получить рассылку")
 async def get_mailing(
     admin_mailing_id: UUID,
+    _: StaffUserDep,
     repo: AdminMailingRepository = AdminMailingRepositoryDep,
 ) -> AdminMailing:
     """Получить рассылку по ID."""
