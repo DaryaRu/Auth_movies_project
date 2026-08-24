@@ -144,3 +144,9 @@ class SetPasswordRequestScheme(BaseModel):
     """Схема для установки пароля OAuth-пользователем без пароля."""
 
     password: str = Field(..., description="Новый пароль")
+
+
+class ConfirmEmailRequestScheme(BaseModel):
+    """Схема для подтверждения email через внутренний вызов."""
+
+    user_id: UUID = Field(..., description="Идентификатор пользователя")

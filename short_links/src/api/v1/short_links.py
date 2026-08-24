@@ -42,10 +42,14 @@ async def create_short_link(
     Генерирует уникальный short_key и сохраняет ссылку в БД.
     Возвращает полную короткую ссылку, готовую для вставки в email.
     """
-    result = await _service.create_short_link(
-        user_id=request.user_id,
-        redirect_url=request.redirect_url,
-    )
+    try:
+        result = await _service.create_short_link(
+            user_id=request.user_id,
+            expires_at=request.expires_at,
+            redirect_url=request.redirect_url,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
     return result
 
 

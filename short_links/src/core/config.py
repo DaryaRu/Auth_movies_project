@@ -30,8 +30,8 @@ class Settings(BaseSettings):
     # URL для публичного доступа (редирект)
     SHORT_LINK_BASE_URL: str = "http://localhost/c"
 
-    # Срок действия ссылки по умолчанию (в часах)
-    DEFAULT_LINK_TTL_HOURS: int = 24
+    # Максимально допустимый срок действия ссылки (в часах)
+    MAX_LINK_TTL_HOURS: int = 72
 
     # URL auth-сервиса для подтверждения email
     AUTH_API_URL: str = "http://auth-service:8000/api/v1"
