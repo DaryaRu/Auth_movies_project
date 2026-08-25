@@ -39,8 +39,20 @@ class Settings(BaseSettings):
     # Service-to-service
     INTERNAL_SERVICE_SECRET: str = ""
 
+    # Allowlist of hosts for redirect_url (comma-separated, e.g. "example.com,sub.example.com")
+    ALLOWED_REDIRECT_HOSTS: str = "localhost"
+
     ENVIRONMENT: str = "local"
     DEBUG: bool = False
+
+    @property
+    def ALLOWED_REDIRECT_HOSTS_SET(self) -> frozenset[str]:
+        """Разобранный frozenset разрешённых хостов для redirect_url."""
+        return frozenset(
+            host.strip().lower()
+            for host in self.ALLOWED_REDIRECT_HOSTS.split(",")
+            if host.strip()
+        )
 
     @property
     def POSTGRES_DSN(self) -> str:

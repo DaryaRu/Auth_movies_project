@@ -3,7 +3,9 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from src.utils.validators import InvalidRedirectUrlError, validate_redirect_url
 
 
 class ShortLinkBase(BaseModel):
@@ -31,6 +33,14 @@ class ShortLinkCreate(BaseModel):
     user_id: UUID = Field(description="ID пользователя")
     expires_at: datetime = Field(description="Срок действия ссылки")
     redirect_url: str = Field(description="URL для редиректа после подтверждения")
+
+    @field_validator("redirect_url")
+    @classmethod
+    def _validate_redirect_url(cls, v: str) -> str:
+        try:
+            return validate_redirect_url(v)
+        except InvalidRedirectUrlError as e:
+            raise ValueError(e.message) from e
 
     model_config = {
         "json_schema_extra": {

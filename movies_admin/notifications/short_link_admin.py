@@ -4,6 +4,8 @@
 """
 
 import logging
+import os
+from urllib.parse import urlparse
 
 import httpx
 from django.conf import settings
@@ -15,7 +17,76 @@ from django.utils.translation import gettext_lazy as _
 
 logger = logging.getLogger(__name__)
 
+SHORT_LINKS_SETTINGS_REDIRECT_URL = "/settings/redirect-url/"
 SHORT_LINKS_API_URL = "http://short-links-service:8000/api/v1"
+
+
+class InvalidRedirectUrlError(ValueError):
+    """Бросается при валидации недопустимого redirect_url."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+        self.message = message
+
+
+def validate_redirect_url(url: str) -> str:
+    """Валидирует redirect_url: абсолютный, схема http/https, хост в allowlist.
+
+    Args:
+        url: URL для валидации.
+
+    Returns:
+        Валидированный URL (без изменений).
+
+    Raises:
+        InvalidRedirectUrlError: Если URL не соответствует требованиям.
+    """
+    if not url:
+        raise InvalidRedirectUrlError("redirect_url не может быть пустым")
+
+    parsed = urlparse(url)
+
+    if not parsed.scheme or not parsed.netloc:
+        raise InvalidRedirectUrlError(
+            "redirect_url должен быть абсолютным URL (https://...)"
+        )
+
+    if parsed.scheme not in ("http", "https"):
+        raise InvalidRedirectUrlError(
+            f"Недопустимая схема '{parsed.scheme}'. Разрешены: http, https"
+        )
+
+    host = parsed.hostname
+    if not host:
+        raise InvalidRedirectUrlError("redirect_url должен содержать хост")
+
+    allowed_hosts = set()
+    allowed_redirect_hosts = os.environ.get("ALLOWED_REDIRECT_HOSTS", "")
+    if allowed_redirect_hosts:
+        allowed_hosts = {h.strip() for h in allowed_redirect_hosts.split(",") if h.strip()}
+    
+    if not allowed_hosts:
+        allowed_hosts = {os.environ.get("DEFAULT_REDIRECT_HOST", "localhost")}
+    
+    try:
+        with httpx.Client(timeout=5.0) as client:
+            response = client.get(
+                f"{SHORT_LINKS_API_URL}{SHORT_LINKS_SETTINGS_REDIRECT_URL}",
+                headers={"X-Internal-Secret": settings.INTERNAL_SERVICE_SECRET},
+                timeout=5,
+            )
+            if response.status_code == 200:
+                allowed_hosts.add(host)
+    except httpx.HTTPError:
+        pass
+
+    if host.lower() not in allowed_hosts:
+        raise InvalidRedirectUrlError(
+            f"Хост '{host}' не входит в разрешённый список. "
+            f"Разрешены: {', '.join(sorted(allowed_hosts))}"
+        )
+
+    return url
 
 
 class ShortLinkSettingsAdmin(admin.ModelAdmin):
@@ -55,14 +126,18 @@ class ShortLinkSettingsAdmin(admin.ModelAdmin):
         try:
             with httpx.Client(timeout=10.0) as client:
                 response = client.get(
-                    f"{SHORT_LINKS_API_URL}/settings/redirect-url/"
+                    f"{SHORT_LINKS_API_URL}{SHORT_LINKS_SETTINGS_REDIRECT_URL}",
+                    headers={"X-Internal-Secret": settings.INTERNAL_SERVICE_SECRET},
                 )
                 if response.status_code == 200:
                     redirect_url = response.json().get("redirect_url", "")
+                    logger.info(f"Получен redirect_url из API: {redirect_url}")
                 else:
                     error_message = f"Ошибка API: {response.status_code}"
+                    logger.error(f"Ошибка при получении redirect_url: {error_message}")
         except httpx.HTTPError as e:
             error_message = f"Не удалось подключиться к short-links-service: {e}"
+            logger.error(f"Ошибка подключения к short-links-service: {e}")
 
         if request.method == "POST":
             new_url = request.POST.get("redirect_url", "").strip()
@@ -70,25 +145,30 @@ class ShortLinkSettingsAdmin(admin.ModelAdmin):
                 error_message = "URL не может быть пустым"
             else:
                 try:
-                    with httpx.Client(timeout=10.0) as client:
-                        response = client.put(
-                            f"{SHORT_LINKS_API_URL}/settings/redirect-url/",
-                            json={"redirect_url": new_url},
-                            headers={
-                                "X-Internal-Secret": settings.INTERNAL_SERVICE_SECRET
-                            },
-                        )
-                        if response.status_code == 200:
-                            redirect_url = new_url
-                            self.message_user(
-                                request,
-                                _("Redirect URL обновлён"),
-                                messages.SUCCESS,
+                    validate_redirect_url(new_url)
+                except InvalidRedirectUrlError as e:
+                    error_message = f"Недопустимый URL: {e.message}"
+                else:
+                    try:
+                        with httpx.Client(timeout=10.0) as client:
+                            response = client.put(
+                                f"{SHORT_LINKS_API_URL}{SHORT_LINKS_SETTINGS_REDIRECT_URL}",
+                                json={"redirect_url": new_url},
+                                headers={
+                                    "X-Internal-Secret": settings.INTERNAL_SERVICE_SECRET
+                                },
                             )
-                        else:
-                            error_message = f"Ошибка API: {response.status_code}"
-                except httpx.HTTPError as e:
-                    error_message = f"Не удалось обновить: {e}"
+                            if response.status_code == 200:
+                                redirect_url = new_url
+                                self.message_user(
+                                    request,
+                                    _("Redirect URL обновлён"),
+                                    messages.SUCCESS,
+                                )
+                            else:
+                                error_message = f"Ошибка API: {response.status_code}"
+                    except httpx.HTTPError as e:
+                        error_message = f"Не удалось обновить: {e}"
 
         context = {
             "title": _("Настройки коротких ссылок"),

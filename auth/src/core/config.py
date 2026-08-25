@@ -59,6 +59,8 @@ class Settings(BaseSettings):
     NOTIFICATIONS_TEMPLATE_ID_CACHE_TTL: int = 3600
     SHORT_LINKS_API_URL: str = "http://localhost:8000"
     INTERNAL_SERVICE_SECRET: str = ""
+    DEFAULT_REDIRECT_HOST: str = "localhost"
+    ALLOWED_REDIRECT_HOSTS: str = ""
 
     @property
     def EMAIL_CONFIRMATION_URL(self) -> str:
