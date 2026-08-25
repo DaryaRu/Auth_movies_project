@@ -34,19 +34,30 @@ class ShortLinkService:
     async def create_short_link(
         self,
         user_id: UUID,
+        expires_at: datetime,
         redirect_url: str | None = None,
     ) -> ShortLinkResponse:
         """Создать короткую ссылку.
 
         Args:
             user_id: ID пользователя.
+            expires_at: Срок действия ссылки (datetime, UTC).
             redirect_url: URL для редиректа после подтверждения.
 
         Returns:
             ShortLinkResponse с данными созданной ссылки.
+
+        Raises:
+            ValueError: если expires_at в прошлом или превышает MAX_LINK_TTL_HOURS.
         """
-        ttl = settings.DEFAULT_LINK_TTL_HOURS
-        expires_at = datetime.now(timezone.utc) + timedelta(hours=ttl)
+        now = datetime.now(timezone.utc)
+        if expires_at <= now:
+            raise ValueError("expires_at должен быть в будущем")
+        max_allowed = now + timedelta(hours=settings.MAX_LINK_TTL_HOURS)
+        if expires_at > max_allowed:
+            raise ValueError(
+                f"Срок действия не может превышать {settings.MAX_LINK_TTL_HOURS} часов"
+            )
 
         # Генерируем ключ, проверяем уникальность
         for _ in range(10):
@@ -90,9 +101,9 @@ class ShortLinkService:
         """
         try:
             assert HTTPClient.client is not None
-            response = await HTTPClient.client.get(
+            response = await HTTPClient.client.post(
                 f"{settings.AUTH_API_URL}/confirm-email/",
-                params={"user_id": str(user_id)},
+                json={"user_id": str(user_id)},
                 headers={"X-Internal-Secret": settings.INTERNAL_SERVICE_SECRET},
                 timeout=10,
             )
@@ -110,41 +121,40 @@ class ShortLinkService:
             raise
 
     async def resolve_short_link(self, short_key: str) -> tuple[UUID, str]:
-        """Найти и проверить короткую ссылку, подтвердить email.
+        """Найти и атомарно подтвердить короткую ссылку.
 
-        При успешном подтверждении email пользователь будет
-        перенаправлен на redirect_url (главную страницу кинотеатра).
+        Атомарный UPDATE ... WHERE NOT is_used AND expires_at > NOW()
+        исключает повторное использование и race condition при параллельных кликах.
 
         Returns:
             Кортеж (user_id, redirect_url) если ссылка валидна.
 
         Raises:
-            ValueError: если ссылка не найдена или просрочена.
+            ValueError: если ссылка не найдена, просрочена или уже использована.
         """
-        link = await self._repository.get_by_short_key(short_key)
+        result = await self._repository.consume_short_link(short_key)
 
-        if link is None:
-            logger.warning("Короткая ссылка не найдена: short_key=%s", short_key)
-            raise ValueError("Ссылка не найдена")
+        if result is None:
+            reason = await self._repository.get_invalid_reason(short_key)
+            if reason == "not_found":
+                logger.warning("Короткая ссылка не найдена: short_key=%s", short_key)
+                raise ValueError("Ссылка не найдена")
+            elif reason == "already_used":
+                logger.info("Ссылка уже использована: short_key=%s", short_key)
+                raise ValueError("Ссылка уже использована")
+            else:
+                logger.warning("Просроченная короткая ссылка: short_key=%s", short_key)
+                raise ValueError("Ссылка просрочена")
 
-        if link.expires_at < datetime.now(timezone.utc):
-            logger.warning(
-                "Просроченная короткая ссылка: short_key=%s, expires_at=%s",
-                short_key,
-                link.expires_at,
-            )
-            raise ValueError("Ссылка просрочена")
+        user_id, redirect_url = result
 
         # Подтверждаем email через auth-сервис
-        await self._confirm_email(link.user_id)
-
-        # Отмечаем как использованную
-        await self._repository.mark_as_used(short_key)
+        await self._confirm_email(user_id)
 
         logger.info(
             "Ссылка успешно активирована: short_key=%s, user_id=%s",
             short_key,
-            link.user_id,
+            user_id,
         )
 
-        return link.user_id, link.redirect_url
+        return user_id, redirect_url

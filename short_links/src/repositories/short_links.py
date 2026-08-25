@@ -1,6 +1,6 @@
 """Репозиторий для коротких ссылок."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID
 
 from asyncpg import Record
@@ -44,9 +44,41 @@ class ShortLinkRepository:
             row = await conn.fetchrow(query, short_key)
         return _row_to_short_link(row) if row else None
 
-    async def mark_as_used(self, short_key: str) -> None:
-        """Отметить ссылку как использованную."""
-        query = "UPDATE short_links SET is_used = TRUE WHERE short_key = $1"
+    async def consume_short_link(self, short_key: str) -> tuple[UUID, str] | None:
+        """Атомарно отметить ссылку как использованную и вернуть данные.
+
+        Возвращает (user_id, redirect_url), если ссылка валидна (не использована
+        и не просрочена). В противном случае — None.
+        """
+        query = """
+            UPDATE short_links
+            SET is_used = TRUE
+            WHERE short_key = $1
+              AND NOT is_used
+              AND expires_at > NOW()
+            RETURNING user_id, redirect_url
+        """
         assert PostgreSQL.pool is not None
         async with PostgreSQL.pool.acquire() as conn:
-            await conn.execute(query, short_key)
+            row = await conn.fetchrow(query, short_key)
+        if row is None:
+            return None
+        return row["user_id"], row["redirect_url"]
+
+    async def get_invalid_reason(self, short_key: str) -> str | None:
+        """Определить причину невалидности ссылки (для логирования).
+
+        Returns:
+            "not_found" | "expired" | "already_used" | None (если валидна)
+        """
+        query = "SELECT is_used, expires_at FROM short_links WHERE short_key = $1"
+        assert PostgreSQL.pool is not None
+        async with PostgreSQL.pool.acquire() as conn:
+            row = await conn.fetchrow(query, short_key)
+        if row is None:
+            return "not_found"
+        if row["is_used"]:
+            return "already_used"
+        if row["expires_at"] < datetime.now(timezone.utc):
+            return "expired"
+        return None

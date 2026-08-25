@@ -162,11 +162,12 @@ logs-user-actions:
 
 # notifications-service
 # Шаг 1: поднимает все, что нужно для проверки полного пути от события до отправки
-# письма (Kafka, БД, API, воркер, auth-service, Mailpit).
+# письма (Kafka, БД, API, воркер, auth-service, Mailpit), включая подтверждение
+# email по короткой ссылке (short-links-service).
 notifications-up:
 	docker compose --profile analytics up -d --build \
 		zookeeper kafka-0 kafka-1 kafka-2 kafka-topic-init-notifications kafka-topic-init-notification-pending kafka-topic-init-notification-ready-bulk kafka-topic-init-notification-dlq \
-		notifications-db notifications-service notifications-worker notifications-scheduler ws-gateway mailpit auth-service user-actions-service nginx
+		notifications-db notifications-service notifications-worker notifications-scheduler ws-gateway mailpit auth-service user-actions-service short-links-service short-links-db nginx
 
 # Шаг 2: находит template_id реального шаблона review_liked и отправляет
 # тестовый POST /api/v1/notifications/ изнутри контейнера сервиса.

@@ -39,6 +39,7 @@ from src.schemas.tokens import JWTAccessToken
 from src.schemas.users import (
     ChangeEmailRequestScheme,
     ChangePasswordRequestScheme,
+    ConfirmEmailRequestScheme,
     SetPasswordRequestScheme,
     UserContactScheme,
     UserRequestScheme,
@@ -49,19 +50,19 @@ from src.schemas.users import (
 router = APIRouter(tags=["Auth"])
 
 
-@router.get(
+@router.post(
     "/confirm-email/",
     summary="Подтверждение email через короткую ссылку",
     response_model=UserResponseScheme,
 )
 async def confirm_email(
-    user_id: UUID,
+    data: ConfirmEmailRequestScheme,
     auth_service: AuthServiceDep,
     _: InternalServiceDep,
 ):
     """Подтверждает email пользователя после перехода по короткой ссылке."""
     try:
-        confirmed_user = await auth_service.confirm_email(user_id)
+        confirmed_user = await auth_service.confirm_email(data.user_id)
     except UserNotFoundException as exc:
         raise UserNotFoundHTTPException(detail=exc.detail) from exc
     return confirmed_user
