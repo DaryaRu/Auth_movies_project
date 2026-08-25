@@ -13,5 +13,5 @@ RUN pip install --upgrade pip \
     && pip install -r /app/requirements.txt
 
 COPY src/ /app/src/
-COPY migrations/ /app/migrations/
+COPY alembic.ini /app/alembic.ini
 COPY scripts/ /app/scripts/
