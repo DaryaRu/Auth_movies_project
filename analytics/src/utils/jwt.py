@@ -1,12 +1,11 @@
 import logging
 from typing import Any
 
-import httpx
 from jose import ExpiredSignatureError, JWTError, jwt
 from redis.exceptions import RedisError
 
 from src.core.config import settings
-from src.db import redis
+from src.db import http_client, redis
 
 logger = logging.getLogger(__name__)
 
@@ -15,12 +14,12 @@ _PUBLIC_KEY_REDIS_KEY = "analytics:public_key"
 
 async def _fetch_public_key() -> str | None:
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(settings.AUTH_API_PUBLIC_KEY_URL, timeout=5)
-            if response.status_code != 200:
-                logger.error("Failed to fetch public key: status %s", response.status_code)
-                return None
-            return response.json().get("public_key")
+        assert http_client.client is not None
+        response = await http_client.client.get(settings.AUTH_API_PUBLIC_KEY_URL, timeout=5)
+        if response.status_code != 200:
+            logger.error("Failed to fetch public key: status %s", response.status_code)
+            return None
+        return response.json().get("public_key")
     except Exception as e:
         logger.error("Failed to fetch public key: %s", e)
         return None

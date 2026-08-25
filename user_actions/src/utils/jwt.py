@@ -3,10 +3,10 @@
 import logging
 from typing import Any
 
-import httpx
 from jose import ExpiredSignatureError, JWTError, jwt
 
 from src.core.config import settings
+from src.db.http_client import HTTPClient
 from src.db.redis import Redis
 
 logger = logging.getLogger(__name__)
@@ -17,12 +17,12 @@ _PUBLIC_KEY_REDIS_KEY = "user_actions:public_key"
 async def _fetch_public_key() -> str | None:
     """Получить публичный ключ из auth-сервиса."""
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(settings.AUTH_API_PUBLIC_KEY_URL, timeout=5)
-            if response.status_code != 200:
-                logger.error("Failed to fetch public key: status %s", response.status_code)
-                return None
-            return response.json().get("public_key")
+        assert HTTPClient.client is not None
+        response = await HTTPClient.client.get(settings.AUTH_API_PUBLIC_KEY_URL, timeout=5)
+        if response.status_code != 200:
+            logger.error("Failed to fetch public key: status %s", response.status_code)
+            return None
+        return response.json().get("public_key")
     except Exception as e:
         logger.error("Failed to fetch public key: %s", e)
         return None
