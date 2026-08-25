@@ -31,6 +31,19 @@ services:
       retries: 5
       start_period: 10s
 
+  short-links-db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: short_links
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d short_links"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   auth-service:
     build:
       context: ../../../auth
@@ -52,6 +65,8 @@ services:
       REFRESH_TOKEN_EXPIRE_DAYS: 7
       DEBUG: 1
       ENVIRONMENT: test
+      SHORT_LINKS_API_URL: http://short-links-service:8000/api/v1
+      INTERNAL_SERVICE_SECRET: service-secret
 
     command: >
       sh -c "alembic upgrade head && gunicorn src.main:app
@@ -75,6 +90,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      short-links-service:
+        condition: service_healthy
 
   # чтобы notifications-service мог подключить producer при старте
   kafka:
@@ -90,6 +107,39 @@ services:
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       CLUSTER_ID: functest0notif00000001
+
+  short-links-service:
+    build:
+      context: ../../../short_links
+      dockerfile: Dockerfile
+      args:
+        PYTHON_VERSION: ${PYTHON_VERSION:-3.12}
+    image: short-links-service-image
+    env_file: .env
+    environment:
+      POSTGRES_HOST: short-links-db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: short_links
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      INTERNAL_SERVICE_SECRET: service-secret
+      ALLOWED_REDIRECT_HOSTS: localhost,127.0.0.1,auth-service
+    command: >
+      sh -c "alembic upgrade head && gunicorn src.main:app
+      --workers 2
+      --worker-class uvicorn.workers.UvicornWorker
+      --bind 0.0.0.0:8000
+      --forwarded-allow-ips=*
+      --timeout 120"
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      short-links-db:
+        condition: service_healthy
 
   test-notifications-service:
     build:
