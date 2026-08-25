@@ -32,10 +32,11 @@ class TemplateService:
         if unknown_keys:
             raise InvalidPayloadError(unknown_keys)
 
-        rendered_body = render(template.body, payload)
+        escape_html = template.channel == "push"
+        rendered_body = render(template.body, payload, escape_html=escape_html)
         assert rendered_body is not None
 
         return TemplatePreviewResponse(
-            subject=render(template.subject, payload),
+            subject=render(template.subject, payload, escape_html=escape_html),
             body=rendered_body,
         )
