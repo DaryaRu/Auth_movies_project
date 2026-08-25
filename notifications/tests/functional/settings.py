@@ -30,6 +30,26 @@ class TestSettings(BaseSettings):
         default="http://auth-service:8000/api/v1", alias="AUTH_API_URL"
     )
 
+    auth_postgres_host: str = Field(
+        default="auth-db", alias="AUTH_POSTGRES_HOST"
+    )
+    auth_postgres_port: int = Field(
+        default=5432, alias="AUTH_POSTGRES_PORT"
+    )
+    auth_postgres_db: str = Field(
+        default="auth_db", alias="AUTH_POSTGRES_DB"
+    )
+    auth_postgres_user: str = Field(
+        default="postgres", alias="AUTH_POSTGRES_USER"
+    )
+    auth_postgres_password: str = Field(
+        default="postgres", alias="AUTH_POSTGRES_PASSWORD"
+    )
+
+    hash_time_cost: int = Field(default=2, alias="HASH_TIME_COST")
+    hash_memory_cost: int = Field(default=65536, alias="HASH_MEMORY_COST")
+    hash_parallelism: int = Field(default=1, alias="HASH_PARALLELISM")
+
     internal_service_secret: str = Field(
         default="service-secret", alias="INTERNAL_SERVICE_SECRET"
     )
