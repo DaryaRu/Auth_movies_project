@@ -1,9 +1,10 @@
 import logging
 from contextlib import asynccontextmanager
 
+import httpx
 from core import config
 from core.cache import key_builder
-from db import elastic, redis
+from db import elastic, http_client, redis
 from db.redis import FaultTolerantRedisBackend
 from elasticsearch import AsyncElasticsearch
 from fastapi import FastAPI
@@ -23,6 +24,8 @@ async def lifespan(app: FastAPI):
     elastic.es = AsyncElasticsearch(
         hosts=[f"http://{config.ELASTIC_HOST}:{config.ELASTIC_PORT}"]
     )
+    http_client.client = httpx.AsyncClient()
     yield
+    await http_client.client.aclose()
     await redis.redis.close()
     await elastic.es.close()

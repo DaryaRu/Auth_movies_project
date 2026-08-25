@@ -19,6 +19,7 @@ from src.core.middlewares import register_middlewares
 from src.core.routers import register_routers
 from src.core.sentry import sentry_init
 from src.core.tracers import configure_tracer
+from src.databases import http_client
 from src.databases.pg import engine
 
 
@@ -26,7 +27,9 @@ from src.databases.pg import engine
 async def lifespan(app: FastAPI):
     """Управлять жизненным циклом приложения и подключениями к кешу."""
     await init_cache()
+    await http_client.connect()
     yield
+    await http_client.disconnect()
     await close_cache()
 
 

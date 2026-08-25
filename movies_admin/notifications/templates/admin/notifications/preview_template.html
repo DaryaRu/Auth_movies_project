@@ -126,9 +126,9 @@
         <h3>{% trans 'Subject' %}:</h3>
         <div class="preview-content">
             {% if preview_data and preview_data.subject %}
-                {{ preview_data.subject|safe }}
+                {{ preview_data.subject }}
             {% elif template and template.subject %}
-                {{ template.subject|safe }}
+                {{ template.subject }}
             {% else %}
                 <em>{% trans 'No subject' %}</em>
             {% endif %}
@@ -139,9 +139,9 @@
         <h3>{% trans 'Content' %}:</h3>
         <div class="preview-content html-content">
             {% if preview_data and preview_data.body %}
-                {{ preview_data.body|safe }}
+                {{ preview_data.body }}
             {% elif template and template.body %}
-                {{ template.body|safe }}
+                {{ template.body }}
             {% else %}
                 <em>{% trans 'No content' %}</em>
             {% endif %}

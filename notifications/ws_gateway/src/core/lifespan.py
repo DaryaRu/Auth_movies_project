@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from src.core import redis
+from src.core import http_client, redis
 from src.core.logger import TokenRedactionFilter
 from src.core.pubsub_listener import start, stop
 from src.ws_registry import _connections
@@ -35,6 +35,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     await redis.redis.ping()
     logger.info("Connected to Redis")
 
+    http_client.init()
+
     pubsub_task = start()
 
     yield
@@ -48,6 +50,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     logger.info("All WebSocket connections closed")
 
     await stop(pubsub_task)
+
+    await http_client.close()
 
     await redis.close()
     logger.info("Redis connection closed")

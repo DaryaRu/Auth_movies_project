@@ -7,6 +7,7 @@ from uuid import UUID
 import httpx
 
 from src.core.config import settings
+from src.databases import http_client
 
 logger = logging.getLogger(__name__)
 
@@ -18,13 +19,13 @@ async def _get_redirect_url() -> str:
     По умолчанию — главная страница онлайн-кинотеатра.
     """
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f"{settings.SHORT_LINKS_API_URL}/settings/redirect-url/",
-                timeout=5,
-            )
-            response.raise_for_status()
-            return response.json()["redirect_url"]
+        assert http_client.client is not None
+        response = await http_client.client.get(
+            f"{settings.SHORT_LINKS_API_URL}/settings/redirect-url/",
+            timeout=5,
+        )
+        response.raise_for_status()
+        return response.json()["redirect_url"]
     except httpx.HTTPError:
         logger.warning(
             "Не удалось получить redirect_url из short-links-service, "
@@ -57,16 +58,16 @@ async def create_short_link(
     }
 
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{settings.SHORT_LINKS_API_URL}/short-links/",
-                json=payload,
-                headers={"X-Internal-Secret": settings.INTERNAL_SERVICE_SECRET},
-                timeout=10,
-            )
-            response.raise_for_status()
-            data = response.json()
-            return data["short_link"]
+        assert http_client.client is not None
+        response = await http_client.client.post(
+            f"{settings.SHORT_LINKS_API_URL}/short-links/",
+            json=payload,
+            headers={"X-Internal-Secret": settings.INTERNAL_SERVICE_SECRET},
+            timeout=10,
+        )
+        response.raise_for_status()
+        data = response.json()
+        return data["short_link"]
     except httpx.HTTPError as e:
         logger.error("Failed to create short link for user %s: %s", user_id, e)
         raise

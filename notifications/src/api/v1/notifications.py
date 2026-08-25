@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from src.api.v1.dependencies import InternalServiceDep
 from src.repositories.templates import TemplateRepository
 from src.schemas.notifications import NotificationCreate
 from src.services.notifications import (
@@ -33,6 +34,7 @@ NotificationServiceDep = Depends(get_notification_service)
 )
 async def create_notification(
     notification: NotificationCreate,
+    _: InternalServiceDep,
     notification_service: NotificationService = NotificationServiceDep,
 ) -> None:
     """Принять персональное уведомление и опубликовать его в Kafka."""

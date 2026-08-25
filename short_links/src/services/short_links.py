@@ -9,6 +9,7 @@ from uuid import UUID
 import httpx
 
 from src.core.config import settings
+from src.db.http_client import HTTPClient
 from src.repositories.short_links import ShortLinkRepository
 from src.schemas.short_links import ShortLinkResponse
 
@@ -88,18 +89,18 @@ class ShortLinkService:
             httpx.HTTPError: Если запрос к auth-сервису не удался.
         """
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    f"{settings.AUTH_API_URL}/confirm-email/",
-                    params={"user_id": str(user_id)},
-                    headers={"X-Internal-Secret": settings.INTERNAL_SERVICE_SECRET},
-                    timeout=10,
-                )
-                response.raise_for_status()
-                logger.info(
-                    "Email подтверждён для пользователя: user_id=%s",
-                    user_id,
-                )
+            assert HTTPClient.client is not None
+            response = await HTTPClient.client.get(
+                f"{settings.AUTH_API_URL}/confirm-email/",
+                params={"user_id": str(user_id)},
+                headers={"X-Internal-Secret": settings.INTERNAL_SERVICE_SECRET},
+                timeout=10,
+            )
+            response.raise_for_status()
+            logger.info(
+                "Email подтверждён для пользователя: user_id=%s",
+                user_id,
+            )
         except httpx.HTTPError as e:
             logger.error(
                 "Не удалось подтвердить email для user_id=%s: %s",

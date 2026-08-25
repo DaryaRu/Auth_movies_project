@@ -141,8 +141,11 @@ async def _render_and_send(
     не пробрасывает исключение дальше.
     """
     try:
-        subject = render(template["subject"], message.payload)
-        body = render(template["body"], message.payload)
+        escape_html = message.channel == "push"
+        subject = render(
+            template["subject"], message.payload, escape_html=escape_html
+        )
+        body = render(template["body"], message.payload, escape_html=escape_html)
 
         if message.channel == "push":
             delivery_address = str(message.user_id)

@@ -4,9 +4,8 @@ import logging
 from typing import Any
 from uuid import UUID
 
-import httpx
-
 from src.core.config import settings
+from src.databases import http_client
 from src.databases import redis as redis_module
 
 logger = logging.getLogger(__name__)
@@ -17,20 +16,20 @@ _TEMPLATE_ID_REDIS_KEY_PREFIX = "auth:notification_template_id:"
 async def _fetch_template_id(code: str) -> str | None:
     """Получить template_id из notifications-service по code."""
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f"{settings.NOTIFICATIONS_API_URL}/templates/by-code/{code}/",
-                headers={"X-Internal-Secret": settings.INTERNAL_SERVICE_SECRET},
-                timeout=5,
+        assert http_client.client is not None
+        response = await http_client.client.get(
+            f"{settings.NOTIFICATIONS_API_URL}/templates/by-code/{code}/",
+            headers={"X-Internal-Secret": settings.INTERNAL_SERVICE_SECRET},
+            timeout=5,
+        )
+        if response.status_code != 200:
+            logger.warning(
+                "Failed to resolve template_id for code=%s: status %s",
+                code,
+                response.status_code,
             )
-            if response.status_code != 200:
-                logger.warning(
-                    "Failed to resolve template_id for code=%s: status %s",
-                    code,
-                    response.status_code,
-                )
-                return None
-            return response.json().get("template_id")
+            return None
+        return response.json().get("template_id")
     except Exception as e:
         logger.warning(
             "Failed to resolve template_id for code=%s: %s", code, e
@@ -77,23 +76,24 @@ async def notify_user(
         return
 
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{settings.NOTIFICATIONS_API_URL}/",
-                json={
-                    "user_id": str(user_id),
-                    "template_id": template_id,
-                    "payload": payload or {},
-                },
-                timeout=5,
+        assert http_client.client is not None
+        response = await http_client.client.post(
+            f"{settings.NOTIFICATIONS_API_URL}/",
+            json={
+                "user_id": str(user_id),
+                "template_id": template_id,
+                "payload": payload or {},
+            },
+            headers={"X-Internal-Secret": settings.INTERNAL_SERVICE_SECRET},
+            timeout=5,
+        )
+        if response.status_code != 202:
+            logger.warning(
+                "Failed to send notification code=%s to user=%s: status %s",
+                code,
+                user_id,
+                response.status_code,
             )
-            if response.status_code != 202:
-                logger.warning(
-                    "Failed to send notification code=%s to user=%s: status %s",
-                    code,
-                    user_id,
-                    response.status_code,
-                )
     except Exception as e:
         logger.warning(
             "Failed to send notification code=%s to user=%s: %s",
