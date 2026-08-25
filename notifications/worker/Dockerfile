@@ -8,7 +8,7 @@ ENV PYTHONUNBUFFERED=1
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY main.py render.py consumer.py contacts.py audience.py ./
+COPY main.py render.py consumer.py contacts.py audience.py http_client.py ./
 COPY core ./core
 COPY db ./db
 COPY repositories ./repositories
