@@ -15,4 +15,4 @@ RUN pip install --upgrade pip \
     && pip install -r /app/tests/functional/requirements.txt
 
 COPY src/ /app/src/
-COPY migrations/ /app/migrations/
+COPY alembic.ini /app/alembic.ini

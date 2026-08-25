@@ -88,7 +88,7 @@ services:
     env_file: .env
     working_dir: /app
     command: >
-      sh -c "python3 src/apply_migrations.py && gunicorn src.main:app --workers 1 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:6001 --forwarded-allow-ips='*' --timeout 120"
+      sh -c "alembic upgrade head && gunicorn src.main:app --workers 1 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:6001 --forwarded-allow-ips='*' --timeout 120"
     healthcheck:
       test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:6001/health')\""]
       interval: 5s
