@@ -132,7 +132,6 @@ services:
       POSTGRES_PASSWORD: postgres
     volumes:
       - user_actions_pg_data:/var/lib/postgresql/data
-      - ./user_actions/migrations/001_initial.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d user_actions"]
       interval: 15s
@@ -411,7 +410,7 @@ services:
       POSTGRES_PASSWORD: postgres
       NOTIFICATIONS_API_URL: http://notifications-service:8000/api/v1/notifications
     command: >
-      sh -c "gunicorn src.main:app
+      sh -c "alembic upgrade head && gunicorn src.main:app
       --workers 2
       --worker-class uvicorn.workers.UvicornWorker
       --bind 0.0.0.0:5000
@@ -449,7 +448,6 @@ services:
         POSTGRES_PASSWORD: postgres
       volumes:
         - short_links_pg_data:/var/lib/postgresql/data
-        - ./short_links/migrations/001_initial.sql:/docker-entrypoint-initdb.d/init.sql:ro
       healthcheck:
         test: ["CMD-SHELL", "pg_isready -U postgres -d short_links"]
         interval: 15s
@@ -471,7 +469,7 @@ services:
       POSTGRES_PASSWORD: postgres
       SHORT_LINK_BASE_URL: ${SHORT_LINK_BASE_URL}
     command: >
-      sh -c "python3 src/apply_migrations.py && gunicorn src.main:app
+      sh -c "alembic upgrade head && gunicorn src.main:app
       --workers 2
       --worker-class uvicorn.workers.UvicornWorker
       --bind 0.0.0.0:8000
@@ -531,7 +529,7 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
     command: >
-      sh -c "python3 src/apply_migrations.py && gunicorn src.main:app
+      sh -c "alembic upgrade head && gunicorn src.main:app
       --workers 2
       --worker-class uvicorn.workers.UvicornWorker
       --bind 0.0.0.0:8000
