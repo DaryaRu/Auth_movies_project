@@ -92,6 +92,32 @@ class UsersAbstractRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def update_user_timezone(
+        self, user_id: UUID, timezone: str | None
+    ) -> UserORM:
+        """
+        Обновляет таймзону пользователя.
+        Args:
+            user_id (UUID): Идентификатор пользователя.
+            timezone (str): IANA-имя таймзоны.
+        Returns:
+            UserORM: Обновленный пользователь.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def update_user_timezone(
+        self, user_id: UUID, timezone: str | None
+    ) -> UserORM:
+        query = (
+            update(self.model)
+            .where(self.model.id == user_id)
+            .values(timezone=timezone)
+            .returning(self.model)
+        )
+        result = await self._session.execute(query)
+        return result.scalar_one()
+
     async def get_by_id_for_update(self, user_id: UUID) -> UserORM | None:
         """Блокирует строку пользователя для UPDATE."""
         raise NotImplementedError
@@ -169,6 +195,18 @@ class UsersPostgreSQLRepository(
             update(self.model)
             .where(self.model.id == user_id)
             .values(**kwargs)
+            .returning(self.model)
+        )
+        result = await self._session.execute(query)
+        return result.scalar_one()
+
+    async def update_user_timezone(
+        self, user_id: UUID, timezone: str | None
+    ) -> UserORM:
+        query = (
+            update(self.model)
+            .where(self.model.id == user_id)
+            .values(timezone=timezone)
             .returning(self.model)
         )
         result = await self._session.execute(query)

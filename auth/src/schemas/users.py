@@ -150,3 +150,15 @@ class ConfirmEmailRequestScheme(BaseModel):
     """Схема для подтверждения email через внутренний вызов."""
 
     user_id: UUID = Field(..., description="Идентификатор пользователя")
+
+class ChangeTimezoneRequestScheme(BaseModel):
+    """Схема для смены таймзоны."""
+    
+    timezone: str = Field(..., description='IANA-имя таймзоны (например, Europe/Moscow)')
+
+    @field_validator('timezone')
+    @classmethod
+    def validate_timezone(cls, v: str) -> str:
+        if v not in _VALID_TIMEZONES:
+            raise ValueError(f'Неизвестная таймзона: {v}')
+        return v

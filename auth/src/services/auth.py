@@ -23,6 +23,7 @@ from src.schemas.oauth import OAuthUserInfoScheme
 from src.schemas.users import (
     ChangeEmailRequestScheme,
     ChangePasswordRequestScheme,
+    ChangeTimezoneRequestScheme,
     SetPasswordRequestScheme,
     UserRequestScheme,
 )
@@ -339,6 +340,34 @@ class AuthService(BaseService):
 
         await self._session_service.delete_all_sessions(str(user_id))
         asyncio.create_task(notify_user(user_id, "password_changed"))
+
+    async def change_user_timezone(
+        self, user_id: UUID, timezone: str
+    ) -> UserORM:
+        """
+        Смена таймзоны пользователя.
+        Применяется только к будущим рассылкам.
+
+        Args:
+            user_id (UUID): Уникальный идентификатор пользователя.
+            timezone (str): IANA-имя новой таймзоны.
+
+        Raises:
+            UserNotFoundException: Если пользователь не найден.
+            InvalidTimezoneException: Если таймзона некорректна.
+
+        Returns:
+            UserORM: Обновленный объект пользователя.
+        """
+        user = await self._db.users.get_one_or_none_by_id(id=user_id)
+        if not user:
+            raise UserNotFoundException()
+
+        await self._db.users.update_user_timezone(
+            user_id=user_id, timezone=timezone
+        )
+
+        return user
 
     async def authenticate_user(
         self, auth_user: UserRequestScheme, ip_address: str, user_agent: str
