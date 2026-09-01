@@ -31,6 +31,7 @@ class UserORM(Base, BaseORM):
 
     email: Mapped[str | None] = mapped_column(String(255))
     phone: Mapped[str | None] = mapped_column(String(20))
+    full_name: Mapped[str | None] = mapped_column(String(255))
     hashed_password: Mapped[str | None] = mapped_column(String(255))
     is_superuser: Mapped[bool] = mapped_column(default=False)
     is_active: Mapped[bool] = mapped_column(default=True)
