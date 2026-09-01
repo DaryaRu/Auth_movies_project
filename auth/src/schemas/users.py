@@ -71,6 +71,7 @@ class UserResponseScheme(BaseModel):
     id: UUID
     email: EmailStr | None
     phone: str | None
+    full_name: str | None = None
     is_superuser: bool
     is_active: bool
     email_verified: bool = False

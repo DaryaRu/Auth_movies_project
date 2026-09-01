@@ -310,6 +310,17 @@ async def search_user_timezones(data: UserSearchScheme, db: DBDep):
     )
 
 
+@router.get(
+    "/users/me/",
+    response_model=UserResponseScheme,
+    summary="Получить данные профиля",
+)
+@limiter.limit(settings.LIMIT_VALUE)
+async def get_me_profile(user: CurrentUserDep, request: Request):
+    """Данные текущего пользователя: email, телефон, ФИО, таймзона, статус верификации email."""
+    return user
+
+
 @router.patch(
     "/change-email/",
     response_model=UserResponseScheme,
