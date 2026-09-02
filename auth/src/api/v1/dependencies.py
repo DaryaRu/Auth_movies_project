@@ -30,6 +30,7 @@ from src.services.permissions import PermissionService
 from src.services.roles import RoleService
 from src.services.sessions import SessionService
 from src.services.subscriptions import SubscriptionService
+from src.services.two_factor import TwoFactorService
 from src.services.user_subscriptions import UserSubscriptionService
 from src.utils.db_manager import DBManager
 from src.utils.hashes import HashArgon2Service
@@ -156,6 +157,7 @@ def get_oauth_provider_factory() -> OAuthProviderFactory:
 
 
 def get_sms_provider() -> SMSProviderBase:
+    """Провайдер для отправки СМС-кодов подтверждения."""
     return SMSCProvider()
 
 
@@ -167,6 +169,14 @@ def get_oauth_service(
 ) -> OAuthService:
     assert redis.redis is not None
     return OAuthService(oauth_provider_factory, auth_service, redis.redis)
+
+
+def get_two_factor_service(
+    sms_provider: "SMSProviderDep",
+) -> TwoFactorService:
+    """Сервис генерации, отправки, проверки кода двухфакторной аутентификации."""
+    assert redis.redis is not None
+    return TwoFactorService(sms_provider, redis.redis)
 
 
 CurrentUserDep = Annotated[UserORM, Depends(get_current_user)]
@@ -182,6 +192,9 @@ DBDep = Annotated[DBManager, Depends(get_db)]
 SessionServiceDep = Annotated[SessionService, Depends(get_session_service)]
 OAuthServiceDep = Annotated[OAuthService, Depends(get_oauth_service)]
 SMSProviderDep = Annotated[SMSProviderBase, Depends(get_sms_provider)]
+TwoFactorServiceDep = Annotated[
+    TwoFactorService, Depends(get_two_factor_service)
+]
 SubscriptionServiceDep = Annotated[
     SubscriptionService, Depends(get_subscription_service)
 ]

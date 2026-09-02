@@ -7,7 +7,7 @@ from src.integrations.sms.base_provider import SMSProviderBase
 
 
 class SMSCProvider(SMSProviderBase):
-    """SMS-провайдер SMSC.ru. В тестовом режиме (SMSC_TEST_MODE) сообщения
+    """СМС-провайдер SMSC.ru. В тестовом режиме (SMSC_TEST_MODE) сообщения
     проходят все стадии обработки, но не отправляются абоненту, оплата не списывается."""
 
     async def send_code(self, phone: str, code: str) -> None:
@@ -28,7 +28,7 @@ class SMSCProvider(SMSProviderBase):
                 data = await response.json()
                 if response.status >= 400 or "error" in data:
                     logging.error(
-                        "Не удалось отправить SMS через SMSC: "
+                        "Не удалось отправить СМС через SMSC: "
                         f"status_code={response.status}, {data=}"
                     )
                     raise ProviderException()
