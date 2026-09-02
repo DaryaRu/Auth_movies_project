@@ -6,6 +6,7 @@ from uuid import UUID, uuid4
 
 from src.exceptions import (
     DecodeTokenException,
+    InvalidTwoFactorCodeException,
     LastAuthMethodRestrictionException,
     OAuthAccountNotLinkedException,
     PasswordAlreadySetException,
@@ -14,6 +15,7 @@ from src.exceptions import (
     TokenExeption,
     TokenKeysException,
     TokenTypeExeption,
+    TwoFactorRequiredException,
     UserAlreadyexistsException,
     UserNotFoundException,
     VerifyPasswordException,
@@ -29,6 +31,7 @@ from src.schemas.users import (
 )
 from src.services.base import BaseService
 from src.services.sessions import SessionService
+from src.services.two_factor import TwoFactorService
 from src.utils.db_manager import DBManager
 from src.utils.hashes import BaseHashService
 from src.utils.notifications import notify_user
@@ -51,11 +54,13 @@ class AuthService(BaseService):
         token_service: JWTTokenService,
         session_service: SessionService,
         db: DBManager,
+        two_factor_service: TwoFactorService,
     ) -> None:
         super().__init__(db)
         self._hash_service: BaseHashService = hash_service
         self._token_service: JWTTokenService = token_service
         self._session_service: SessionService = session_service
+        self._two_factor_service: TwoFactorService = two_factor_service
 
     async def register_user(self, user: UserRequestScheme) -> UserORM:
         is_exsist_user = (
@@ -379,6 +384,8 @@ class AuthService(BaseService):
         Raises:
             UserNotFoundException: Если пользователь с указанным email не найден.
             VerifyPasswordException: Если пароль введён неверно.
+            TwoFactorRequiredException: Если у пользователя указан телефон и пароль верный,
+                но вход завершится только после подтверждения кода.
         """
         user = await self._db.users.get_one_or_none_by_email_or_phone(
             email=auth_user.email, phone=auth_user.phone
@@ -393,8 +400,49 @@ class AuthService(BaseService):
             auth_user.password, user.hashed_password
         ):
             raise VerifyPasswordException()
+
+        if user.phone:
+            await self._two_factor_service.send_code(user.id, user.phone)
+            raise TwoFactorRequiredException()
+
         return await self._create_user_session(
             user, ip_address, user_agent, auth_method="password"
+        )
+
+    async def verify_two_factor_login(
+        self,
+        email: str | None,
+        phone: str | None,
+        code: str,
+        ip_address: str,
+        user_agent: str,
+    ) -> tuple[str, str]:
+        """
+        Завершает вход после подтверждения кода из authenticate_user.
+
+        Args:
+            email (str | None): Email, использованный на первом шаге логина.
+            phone (str | None): Телефон, использованный на первом шаге логина.
+            code (str): Код подтверждения из SMS.
+            ip_address (str): IP-адрес клиента.
+            user_agent (str): Строка User-Agent клиентского устройства.
+
+        Raises:
+            UserNotFoundException: Если пользователь не найден.
+            InvalidTwoFactorCodeException: Если код неверный или истек.
+            TooManyAttemptsException: Если исчерпан лимит попыток для текущего кода.
+        """
+        user = await self._db.users.get_one_or_none_by_email_or_phone(
+            email=email, phone=phone
+        )
+        if user is None:
+            raise UserNotFoundException()
+
+        if not await self._two_factor_service.verify_code(user.id, code):
+            raise InvalidTwoFactorCodeException()
+
+        return await self._create_user_session(
+            user, ip_address, user_agent, auth_method="password+sms"
         )
 
     async def _create_user_session(

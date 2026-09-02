@@ -15,3 +15,9 @@ class JWTAccessToken(BaseModel):
     access_token: str
     access_token_expire: datetime
     token_type: str = "bearer"
+
+
+class TwoFactorRequiredScheme(BaseModel):
+    """Ответ /login/, когда пароль верный, но еще нужен код из СМС."""
+
+    two_fa_required: bool = True

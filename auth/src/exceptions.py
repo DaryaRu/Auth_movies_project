@@ -1,4 +1,3 @@
-
 from fastapi import HTTPException
 
 
@@ -7,88 +6,103 @@ class AuthServiceException(Exception):
 
     def __init__(self, *args, **kwargs):
         super().__init__(self.detail, *args, **kwargs)
-        
+
+
 class ObjectNotFoundException(AuthServiceException):
     detail = "Объект не найден"
-    
-    
+
+
 class ObjectAlreadyexistsException(AuthServiceException):
     detail = "Объект уже существует"
 
 
 class UserAlreadyexistsException(AuthServiceException):
     detail = "Пользователь уже зарегестрирован в системе"
-    
-    
+
+
 class UserNotFoundException(AuthServiceException):
     detail = "Пользователь не найден"
 
 
 class VerifyPasswordException(AuthServiceException):
     detail = "Неверный пароль"
-    
-    
+
+
 class PasswordNotSetException(AuthServiceException):
     detail = "Пароль не установлен"
-    
-    
+
+
 class DecodeTokenException(AuthServiceException):
     detail = "Ошибка декодирования токена"
 
 
 class TokenKeysException(AuthServiceException):
     detail = "Несоответствие данных токена"
-    
-    
+
+
 class TokenTypeExeption(AuthServiceException):
     detail = "Несоответствие типа токена"
-    
-    
+
+
 class TokenExeption(AuthServiceException):
     detail = "Невалидный токен"
-    
-    
+
+
 class TokenNotFoundExeption(AuthServiceException):
     detail = "Токен не обнаружен"
-    
-    
+
+
 class ProviderException(AuthServiceException):
     detail = "Ошибка авторизации с помощью провайдера"
-    
-    
+
+
 class OAuthStateException(AuthServiceException):
     detail = "Ошибка проверки state переданного провайдером"
 
 
 class TooManyAttemptsException(AuthServiceException):
     detail = "Слишком много попыток. Запросите новый код."
-    
-    
+
+
+class TwoFactorRequiredException(AuthServiceException):
+    detail = "Требуется код подтверждения"
+
+
+class InvalidTwoFactorCodeException(AuthServiceException):
+    detail = "Неверный или истекший код подтверждения"
+
+
 class AuthServiceHTTPException(HTTPException):
     status_code = 500
 
     def __init__(self, detail: str | None = None):
         if detail is None:
             detail = getattr(self, "detail", None)
-        super().__init__(status_code=self.status_code, detail={"error": detail})
-    
-    
+        super().__init__(
+            status_code=self.status_code, detail={"error": detail}
+        )
+
+
 class UserAlreadyexistsHTTPException(AuthServiceHTTPException):
     status_code = 400
-    
-    
+
+
 class UserNotFoundHTTPException(AuthServiceHTTPException):
     status_code = 404
-    
-    
+
+
 class VerifyPasswordHTTPException(AuthServiceHTTPException):
     status_code = 401
-    
-    
+
+
 class PasswordNotSetHTTPException(AuthServiceHTTPException):
     status_code = 401
-    
-    
+
+
+class InvalidTwoFactorCodeHTTPException(AuthServiceHTTPException):
+    status_code = 401
+
+
 class DecodeTokenHTTPException(AuthServiceHTTPException):
     status_code = 403
 
@@ -103,12 +117,12 @@ class InvalidTokenHTTPException(AuthServiceHTTPException):
 
 class TokenExpiredError(AuthServiceHTTPException):
     status_code = 401
-    
-    
+
+
 class ProviderHTTPException(AuthServiceHTTPException):
     status_code = 502
-    
-    
+
+
 class OAuthStateHTTPException(AuthServiceHTTPException):
     status_code = 400
 
@@ -195,8 +209,8 @@ class RolePermissionNotFoundHTTPException(AuthServiceHTTPException):
 
 class SystemRoleCannotBeDeletedHTTPException(AuthServiceHTTPException):
     status_code = 409
-    
-    
+
+
 class PasswordAlreadySetException(AuthServiceException):
     detail = "Пароль уже установлен. Используйте смену пароля."
 
@@ -210,8 +224,10 @@ class OAuthAccountNotLinkedException(AuthServiceException):
 
 
 class LastAuthMethodRestrictionException(AuthServiceException):
-    detail = "Нельзя отвязать единственный способ входа. " \
-             "Установите пароль или привяжите другой сервис."
+    detail = (
+        "Нельзя отвязать единственный способ входа. "
+        "Установите пароль или привяжите другой сервис."
+    )
 
 
 class OAuthAccountNotLinkedHTTPException(AuthServiceHTTPException):

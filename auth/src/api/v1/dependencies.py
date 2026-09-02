@@ -85,10 +85,16 @@ def get_session_service() -> SessionService:
 
 
 def get_auth_service(
-    db: "DBDep", session_service: "SessionServiceDep"
+    db: "DBDep",
+    session_service: "SessionServiceDep",
+    two_factor_service: "TwoFactorServiceDep",
 ) -> AuthService:
     return AuthService(
-        HashArgon2Service(), JWTTokenService(), session_service, db
+        HashArgon2Service(),
+        JWTTokenService(),
+        session_service,
+        db,
+        two_factor_service,
     )
 
 

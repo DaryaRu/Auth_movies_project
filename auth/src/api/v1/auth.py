@@ -19,6 +19,8 @@ from src.core.limiter import limiter
 from src.exceptions import (
     DecodeTokenException,
     InvalidTokenHTTPException,
+    InvalidTwoFactorCodeException,
+    InvalidTwoFactorCodeHTTPException,
     PasswordAlreadySetException,
     PasswordAlreadySetHTTPException,
     PasswordNotSetException,
@@ -26,6 +28,9 @@ from src.exceptions import (
     TokenExeption,
     TokenKeysException,
     TokenTypeExeption,
+    TooManyAttemptsException,
+    TooManyAttemptsHTTPException,
+    TwoFactorRequiredException,
     UserAlreadyexistsException,
     UserAlreadyexistsHTTPException,
     UserNotFoundException,
@@ -35,7 +40,7 @@ from src.exceptions import (
 )
 from src.schemas.permissions import PermissionResponseScheme
 from src.schemas.sessions import UserSessionResponse
-from src.schemas.tokens import JWTAccessToken
+from src.schemas.tokens import JWTAccessToken, TwoFactorRequiredScheme
 from src.schemas.users import (
     ChangeEmailRequestScheme,
     ChangePasswordRequestScheme,
@@ -46,6 +51,7 @@ from src.schemas.users import (
     UserRequestScheme,
     UserResponseScheme,
     UserSearchScheme,
+    VerifyTwoFactorRequestScheme,
 )
 
 router = APIRouter(tags=["Auth"])
@@ -90,7 +96,9 @@ async def create_user(
 
 
 @router.post(
-    "/login/", summary="Вход в аккаунт", response_model=JWTAccessToken
+    "/login/",
+    summary="Вход в аккаунт",
+    response_model=JWTAccessToken | TwoFactorRequiredScheme,
 )
 @limiter.limit(settings.LIMIT_VALUE)
 async def login(
@@ -99,7 +107,10 @@ async def login(
     user: UserRequestScheme,
     auth_service: AuthServiceDep,
 ):
-    """Аутентификация по email и паролю. Возвращает access-токен, refresh-токен сохраняется в cookie."""
+    """Аутентификация по email и паролю. Если у пользователя есть телефон,
+    вместо токенов возвращает {"two_fa_required": true}, код уходит в СМС,
+    вход завершается через /login/verify-phone/. Если не указан номер, возвращает
+    access-токен, refresh-токен сохраняется в cookie."""
     ip_address = request.client.host if request.client else "unknown"
     user_agent = request.headers.get("user-agent", "unknown")
 
@@ -113,6 +124,60 @@ async def login(
         raise VerifyPasswordHTTPException(detail=exc.detail) from exc
     except PasswordNotSetException as exc:
         raise PasswordNotSetHTTPException(detail=exc.detail) from exc
+    except TwoFactorRequiredException:
+        return TwoFactorRequiredScheme()
+
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+        secure=settings.COOKIE_SECURE,
+        samesite="lax",
+        path="/",
+    )
+
+    return JWTAccessToken(
+        access_token=access_token,
+        access_token_expire=datetime.now(timezone.utc)
+        + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
+    )
+
+
+@router.post(
+    "/login/verify-phone/",
+    summary="Подтверждение кода из СМС при входе",
+    response_model=JWTAccessToken,
+)
+@limiter.limit(settings.LIMIT_VALUE)
+async def verify_phone_login(
+    response: Response,
+    request: Request,
+    data: VerifyTwoFactorRequestScheme,
+    auth_service: AuthServiceDep,
+):
+    """Второй шаг входа для пользователей с указанным телефоном.
+    Проверяет код из СМС, выданный после /login/, завершает вход тем же способом, что и обычный логин."""
+    ip_address = request.client.host if request.client else "unknown"
+    user_agent = request.headers.get("user-agent", "unknown")
+
+    try:
+        (
+            access_token,
+            refresh_token,
+        ) = await auth_service.verify_two_factor_login(
+            email=data.email,
+            phone=data.phone,
+            code=data.code,
+            ip_address=ip_address,
+            user_agent=user_agent,
+        )
+    except UserNotFoundException as exc:
+        raise UserNotFoundHTTPException(detail=exc.detail) from exc
+    except InvalidTwoFactorCodeException as exc:
+        raise InvalidTwoFactorCodeHTTPException(detail=exc.detail) from exc
+    except TooManyAttemptsException as exc:
+        raise TooManyAttemptsHTTPException(detail=exc.detail) from exc
 
     response.set_cookie(
         key="refresh_token",
