@@ -21,6 +21,7 @@ from src.exceptions import (
     DecodeTokenException,
     InvalidPhoneChangeCodeException,
     InvalidPhoneChangeCodeHTTPException,
+    InvalidTimezoneException,
     InvalidTimezoneHTTPException,
     InvalidTokenHTTPException,
     InvalidTwoFactorCodeException,
