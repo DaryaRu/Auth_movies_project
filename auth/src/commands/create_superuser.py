@@ -7,10 +7,12 @@ from pydantic import ValidationError
 from src.databases import redis
 from src.databases.pg import async_session_maker
 from src.exceptions import UserAlreadyexistsException
+from src.integrations.sms.smsc_provider import SMSCProvider
 from src.repositories.sessions import SessionRedisRepository
 from src.schemas.users import UserRequestScheme
 from src.services.auth import AuthService
 from src.services.sessions import SessionService
+from src.services.two_factor import TwoFactorService
 from src.utils.db_manager import DBManager
 from src.utils.hashes import HashArgon2Service
 from src.utils.tokens import JWTTokenService
@@ -32,6 +34,7 @@ async def _create_superuser(
             JWTTokenService(),
             SessionService(SessionRedisRepository(redis.redis)),  # type: ignore[arg-type]
             db,
+            TwoFactorService(SMSCProvider(), redis.redis),  # type: ignore[arg-type]
         ).create_admin(admin)
 
 
@@ -59,21 +62,13 @@ def create(
         raise typer.Exit(code=1)
     try:
         asyncio.run(_create_superuser(email, password))
-        rich.print(
-            f"[green]Администратор {email} успешно создан[/green]"
-        )
+        rich.print(f"[green]Администратор {email} успешно создан[/green]")
     except ValidationError:
-        rich.print(
-            "[red]Невалидный адрес электронной почты[/red]"
-        )
+        rich.print("[red]Невалидный адрес электронной почты[/red]")
     except UserAlreadyexistsException as exc:
-        rich.print(
-            f"[red]{exc.detail}[/red]"
-        )
+        rich.print(f"[red]{exc.detail}[/red]")
     except Exception:
-        rich.print(
-            "[red]Не удалось создать администратора[/red]"
-        )
+        rich.print("[red]Не удалось создать администратора[/red]")
         raise typer.Exit(code=1) from None
 
 

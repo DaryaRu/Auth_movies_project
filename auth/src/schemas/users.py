@@ -164,6 +164,21 @@ class UpdateFullNameRequestScheme(BaseModel):
         return _validate_full_name(v)
 
 
+class VerifyTwoFactorRequestScheme(BaseModel):
+    """Схема для подтверждения кода из СМС на втором шаге логина."""
+
+    email: EmailStr | None = None
+    phone: str | None = None
+    code: str = Field(..., description="Код подтверждения из СМС")
+
+    @model_validator(mode="after")
+    def validate_login_method(self):
+        if not self.email and not self.phone:
+            raise ValueError("Необходимо указать email или телефон")
+
+        return self
+
+
 class ChangeEmailRequestScheme(BaseModel):
     """Схема для смены email."""
 
