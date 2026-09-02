@@ -58,6 +58,10 @@ class ProviderException(AuthServiceException):
     
 class OAuthStateException(AuthServiceException):
     detail = "Ошибка проверки state переданного провайдером"
+
+
+class TooManyAttemptsException(AuthServiceException):
+    detail = "Слишком много попыток. Запросите новый код."
     
     
 class AuthServiceHTTPException(HTTPException):
@@ -107,6 +111,10 @@ class ProviderHTTPException(AuthServiceHTTPException):
     
 class OAuthStateHTTPException(AuthServiceHTTPException):
     status_code = 400
+
+
+class TooManyAttemptsHTTPException(AuthServiceHTTPException):
+    status_code = 429
 
 
 class RoleAlreadyExistsException(AuthServiceException):

@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     COOKIE_SECURE: bool = False
     OAUTH_REDIRECT_BASE_URL: str = "http://localhost"
     OAUTH_STATE_EXPIRE_SECONDS: int = 300
+    CODE_2FA_EXPIRE_SECONDS: int = 300
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
     OTEL_EXPORTER_OTLP_ENDPOINT: str
