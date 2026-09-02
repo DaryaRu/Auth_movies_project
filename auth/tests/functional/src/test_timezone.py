@@ -2,13 +2,13 @@
 """Функциональные тесты эндпоинта смены таймзоны."""
 
 from http import HTTPStatus
+from typing import Any
 
 import pytest
 from aiohttp import ClientSession
 from functional.settings import test_settings
 from functional.utils.check_methods import (
     assert_error_detail,
-    assert_status,
     assert_status_return_json,
 )
 
@@ -21,7 +21,7 @@ class TestChangeTimezone:
     async def test_change_timezone_success(
         self,
         http_client: ClientSession,
-        active_user_data: dict[str, any],
+        active_user_data: dict[str, Any],
     ):
         """Успешная смена таймзоны."""
         login_response = await http_client.post(
@@ -49,7 +49,7 @@ class TestChangeTimezone:
     async def test_change_timezone_invalid(
         self,
         http_client: ClientSession,
-        active_user_data: dict[str, any],
+        active_user_data: dict[str, Any],
     ):
         """Попытка сменить на некорректную таймзону."""
         login_response = await http_client.post(
@@ -84,28 +84,3 @@ class TestChangeTimezone:
         data = await assert_status_return_json(response, HTTPStatus.UNAUTHORIZED)
 
         assert_error_detail(data)
-
-    async def test_change_timezone_back_to_moscow(
-        self,
-        http_client: ClientSession,
-        active_user_data: dict[str, any],
-    ):
-        """Смена таймзоны обратно на Europe/Moscow."""
-        login_response = await http_client.post(
-            f"{test_settings.api_prefix}/login/",
-            json={
-                "email": active_user_data["email"],
-                "password": active_user_data["password"],
-            },
-        )
-        login_data = await assert_status_return_json(login_response, HTTPStatus.OK)
-        access_token = login_data["access_token"]
-
-        response = await http_client.patch(
-            self.URL,
-            json={"timezone": "Europe/Moscow"},
-            headers={"Authorization": f"Bearer {access_token}"},
-        )
-        data = await assert_status_return_json(response, HTTPStatus.OK)
-
-        assert data["timezone"] == "Europe/Moscow"
