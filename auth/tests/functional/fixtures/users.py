@@ -26,6 +26,7 @@ def active_user_data() -> dict[str, Any]:
         "password": "testpassword123",
         "is_superuser": False,
         "is_active": True,
+        "timezone": "Europe/Moscow",
         "created_at": datetime.now(timezone.utc),
         "updated_at": datetime.now(timezone.utc),
     }
@@ -41,6 +42,7 @@ async def create_user(pg_write_data: WriteData, active_user_data: dict[str, Any]
         "hashed_password": hash_password(active_user_data["password"]),
         "is_superuser": active_user_data["is_superuser"],
         "is_active": active_user_data["is_active"],
+        "timezone": active_user_data["timezone"],
         "created_at": active_user_data["created_at"],
         "updated_at": active_user_data["updated_at"],
     }

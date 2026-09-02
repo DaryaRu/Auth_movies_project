@@ -214,16 +214,6 @@ class LastAuthMethodRestrictionHTTPException(AuthServiceHTTPException):
     status_code = 400
 
 
-
-
-class InvalidTimezoneException(AuthServiceException):
-    detail = "Некорректная таймзона"
-
-
-class InvalidTimezoneHTTPException(AuthServiceHTTPException):
-    status_code = 400
-
-
 class InvalidProviderException(AuthServiceException):
     detail = "Некорректный провайдер"
 
@@ -278,3 +268,11 @@ class SubscriptionInUseException(AuthServiceException):
 
 class SubscriptionInUseHTTPException(AuthServiceHTTPException):
     status_code = 409
+
+
+class InvalidTimezoneException(AuthServiceException):
+    detail = "Некорректная таймзона"
+
+
+class InvalidTimezoneHTTPException(AuthServiceHTTPException):
+    status_code = 400

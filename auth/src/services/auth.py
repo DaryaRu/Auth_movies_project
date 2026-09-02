@@ -23,7 +23,6 @@ from src.schemas.oauth import OAuthUserInfoScheme
 from src.schemas.users import (
     ChangeEmailRequestScheme,
     ChangePasswordRequestScheme,
-    ChangeTimezoneRequestScheme,
     SetPasswordRequestScheme,
     UserRequestScheme,
 )
