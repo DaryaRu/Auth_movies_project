@@ -24,6 +24,7 @@ from src.schemas.users import (
     ChangeEmailRequestScheme,
     ChangePasswordRequestScheme,
     SetPasswordRequestScheme,
+    UpdateFullNameRequestScheme,
     UserRequestScheme,
 )
 from src.services.base import BaseService
@@ -66,9 +67,7 @@ class AuthService(BaseService):
             raise UserAlreadyexistsException()
         new_user = await self.add_one(user)
 
-        asyncio.create_task(
-            self._send_confirmation_email(new_user.id)
-        )
+        asyncio.create_task(self._send_confirmation_email(new_user.id))
         return new_user
 
     async def _send_confirmation_email(self, user_id: UUID) -> None:
@@ -77,11 +76,15 @@ class AuthService(BaseService):
             confirmation_link = await create_short_link(user_id=user_id)
         except Exception as e:
             logging.warning(
-                "Failed to create confirmation link for user %s: %s", user_id, e
+                "Failed to create confirmation link for user %s: %s",
+                user_id,
+                e,
             )
             return
         await notify_user(
-            user_id, "user_registered", payload={"confirmation_link": confirmation_link}
+            user_id,
+            "user_registered",
+            payload={"confirmation_link": confirmation_link},
         )
 
     async def confirm_email(self, user_id: UUID) -> UserORM:
@@ -137,6 +140,7 @@ class AuthService(BaseService):
             hashed_password=hash_password,
             is_superuser=is_superuser,
             timezone=user.timezone,
+            full_name=user.full_name,
         )
         await self._assign_free_subscription(new_user.id)
         return new_user
@@ -171,7 +175,9 @@ class AuthService(BaseService):
         active = await self._db.user_subscriptions.get_active(user_id)
         if active is None:
             return {"subscription_code": "free", "subscription_level": 0}
-        if active.expires_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
+        if active.expires_at.replace(tzinfo=timezone.utc) < datetime.now(
+            timezone.utc
+        ):
             await self._db.user_subscriptions.deactivate(active.id)
             return {"subscription_code": "free", "subscription_level": 0}
         return {
@@ -305,6 +311,23 @@ class AuthService(BaseService):
             user_id=user_id, email=data.new_email
         )
         return updated_user
+
+    async def update_user_full_name(
+        self, user_id: UUID, data: UpdateFullNameRequestScheme
+    ) -> UserORM:
+        """
+        Обновление ФИО пользователя.
+
+        Args:
+            user_id (UUID): Уникальный идентификатор пользователя.
+            data (UpdateFullNameRequestScheme): Новые данные профиля.
+
+        Returns:
+            UserORM: Обновленный объект пользователя из базы данных.
+        """
+        return await self._db.users.update_user_credentials(
+            user_id=user_id, full_name=data.full_name
+        )
 
     async def change_user_password(
         self, user_id: UUID, data: ChangePasswordRequestScheme

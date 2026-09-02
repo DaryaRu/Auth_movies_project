@@ -41,6 +41,7 @@ from src.schemas.users import (
     ChangePasswordRequestScheme,
     ConfirmEmailRequestScheme,
     SetPasswordRequestScheme,
+    UpdateFullNameRequestScheme,
     UserContactScheme,
     UserRequestScheme,
     UserResponseScheme,
@@ -278,7 +279,9 @@ async def get_user_contact(user_id: UUID, db: DBDep, _: InternalServiceDep):
     summary="Поиск пользователей по audience_filter (для рассылок)",
     response_model=list[UUID],
 )
-async def search_users(data: UserSearchScheme, db: DBDep, _: InternalServiceDep):
+async def search_users(
+    data: UserSearchScheme, db: DBDep, _: InternalServiceDep
+):
     """Используется notifications-service (воркер). Возвращает id активных пользователей,
     подходящих под фильтр."""
     min_level = (
@@ -319,6 +322,22 @@ async def search_user_timezones(data: UserSearchScheme, db: DBDep):
 async def get_me_profile(user: CurrentUserDep, request: Request):
     """Данные текущего пользователя: email, телефон, ФИО, таймзона, статус верификации email."""
     return user
+
+
+@router.patch(
+    "/users/me/full-name/",
+    response_model=UserResponseScheme,
+    summary="Обновить ФИО",
+)
+@limiter.limit(settings.LIMIT_VALUE)
+async def update_full_name(
+    data: UpdateFullNameRequestScheme,
+    auth_service: AuthServiceDep,
+    user: CurrentUserDep,
+    request: Request,
+):
+    """Обновление ФИО текущего пользователя."""
+    return await auth_service.update_user_full_name(user_id=user.id, data=data)
 
 
 @router.patch(
