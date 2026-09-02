@@ -28,6 +28,7 @@ class UsersAbstractRepository(ABC):
         hashed_password: str,
         is_superuser: bool = False,
         timezone: str | None = None,
+        full_name: str | None = None,
     ) -> UserORM:
         """
         Добавляет нового пользователя.
@@ -36,6 +37,7 @@ class UsersAbstractRepository(ABC):
             hashed_password (str): Хэшированный пароль
             is_staff (bool): Есть ли права суперпользователя
             timezone (str): IANA-имя таймзоны пользователя.
+            full_name (str): ФИО пользователя.
         Returns:
             User: Созданный пользователь.
         """
@@ -134,6 +136,7 @@ class UsersPostgreSQLRepository(
         hashed_password: str | None,
         is_superuser: bool = False,
         timezone: str | None = None,
+        full_name: str | None = None,
     ) -> UserORM:
         return await self.add_one(
             email=email,
@@ -141,6 +144,7 @@ class UsersPostgreSQLRepository(
             is_superuser=is_superuser,
             phone=phone,
             timezone=timezone,
+            full_name=full_name,
         )
 
     async def get_one_or_none_by_email_or_phone(

@@ -13,7 +13,27 @@ from pydantic import (
 )
 
 PHONE_REGEX = re.compile(r"^\+[1-9]\d{7,14}$")
+FULL_NAME_REGEX = re.compile(r"^[А-ЯЁа-яёA-Za-z'\- ]+$")
 _VALID_TIMEZONES = available_timezones()
+
+
+def _validate_full_name(v: str | None) -> str | None:
+    if v is None:
+        return v
+
+    v = " ".join(v.split())
+    if not v:
+        return None
+
+    if not (4 <= len(v) <= 255):
+        raise ValueError("ФИО должно быть от 4 до 255 символов")
+
+    if not FULL_NAME_REGEX.match(v):
+        raise ValueError(
+            "ФИО может содержать только буквы, пробел, дефис и апостроф"
+        )
+
+    return v
 
 
 class UserRequestScheme(BaseModel):
@@ -29,6 +49,7 @@ class UserRequestScheme(BaseModel):
     phone: str | None = None
     password: str
     timezone: str | None = None
+    full_name: str | None = None
 
     @field_validator("phone")
     @classmethod
@@ -40,6 +61,11 @@ class UserRequestScheme(BaseModel):
             raise ValueError("Некорректный формат телефона")
 
         return v
+
+    @field_validator("full_name")
+    @classmethod
+    def validate_full_name(cls, v: str | None):
+        return _validate_full_name(v)
 
     @field_validator("timezone")
     @classmethod
@@ -125,6 +151,17 @@ class RefreshTokenCreate(BaseModel):
     expires_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class UpdateFullNameRequestScheme(BaseModel):
+    """Схема для обновления ФИО."""
+
+    full_name: str | None = None
+
+    @field_validator("full_name")
+    @classmethod
+    def validate_full_name(cls, v: str | None):
+        return _validate_full_name(v)
 
 
 class ChangeEmailRequestScheme(BaseModel):
