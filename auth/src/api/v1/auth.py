@@ -18,6 +18,7 @@ from src.core.config import settings
 from src.core.limiter import limiter
 from src.exceptions import (
     DecodeTokenException,
+    InvalidTimezoneException,
     InvalidTimezoneHTTPException,
     InvalidTokenHTTPException,
     PasswordAlreadySetException,
