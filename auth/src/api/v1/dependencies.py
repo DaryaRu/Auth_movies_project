@@ -20,6 +20,8 @@ from src.integrations.oauth.google_provider import GoogleOAuthProvider
 from src.integrations.oauth.providers_factory import OAuthProviderFactory
 from src.integrations.oauth.vk_provider import VkOAuthProvider
 from src.integrations.oauth.yandex_provider import YandexOAuthProvider
+from src.integrations.sms.base_provider import SMSProviderBase
+from src.integrations.sms.smsc_provider import SMSCProvider
 from src.models.users import UserORM
 from src.repositories.sessions import SessionRedisRepository
 from src.services.auth import AuthService
@@ -153,6 +155,10 @@ def get_oauth_provider_factory() -> OAuthProviderFactory:
     )
 
 
+def get_sms_provider() -> SMSProviderBase:
+    return SMSCProvider()
+
+
 def get_oauth_service(
     auth_service: "AuthServiceDep",
     oauth_provider_factory: OAuthProviderFactory = Depends(
@@ -175,6 +181,7 @@ TokenPayloadDep = Annotated[dict[str, Any], Depends(get_token_payload)]
 DBDep = Annotated[DBManager, Depends(get_db)]
 SessionServiceDep = Annotated[SessionService, Depends(get_session_service)]
 OAuthServiceDep = Annotated[OAuthService, Depends(get_oauth_service)]
+SMSProviderDep = Annotated[SMSProviderBase, Depends(get_sms_provider)]
 SubscriptionServiceDep = Annotated[
     SubscriptionService, Depends(get_subscription_service)
 ]

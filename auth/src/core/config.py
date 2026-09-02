@@ -54,6 +54,10 @@ class Settings(BaseSettings):
     DEFAULT_LIMIT_VALUE: int = 100
     VK_CLIENT_ID: str = ""
     VK_CLIENT_SECRET: str = ""
+    SMSC_LOGIN: str = ""
+    SMSC_PASSWORD: str = ""
+    # Для реальной отправки: указать SMSC_LOGIN/SMSC_PASSWORD и выставить SMSC_TEST_MODE=False.
+    SMSC_TEST_MODE: bool = True
     LIMIT_VALUE: str = "5/minute"
     NOTIFICATIONS_API_URL: str = ""
     NOTIFICATIONS_TEMPLATE_ID_CACHE_TTL: int = 3600
