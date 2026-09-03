@@ -26,6 +26,7 @@ from src.exceptions import (
     PasswordAlreadySetHTTPException,
     PasswordNotSetException,
     PasswordNotSetHTTPException,
+    SendCooldownException,
     TokenExeption,
     TokenKeysException,
     TokenTypeExeption,
@@ -126,6 +127,10 @@ async def login(
         raise VerifyPasswordHTTPException(detail=exc.detail) from exc
     except PasswordNotSetException as exc:
         raise PasswordNotSetHTTPException(detail=exc.detail) from exc
+    except TooManyAttemptsException as exc:
+        raise TooManyAttemptsHTTPException(detail=exc.detail) from exc
+    except SendCooldownException as exc:
+        raise TooManyAttemptsHTTPException(detail=exc.detail) from exc
     except TwoFactorRequiredException:
         return TwoFactorRequiredScheme()
 
