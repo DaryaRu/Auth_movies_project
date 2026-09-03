@@ -41,8 +41,10 @@ class UserRequestScheme(BaseModel):
     Схема запроса для создания или аутентификации пользователя.
     Атрибуты:
         email (EmailStr): Электронная почта пользователя.
+        phone (str): Номер телефона пользователя.
         password (str): Пароль пользователя.
         timezone (str): IANA-имя таймзоны (например Europe/Moscow).
+        full_name (str): ФИО пользователя.
     """
 
     email: EmailStr | None = None
@@ -50,6 +52,18 @@ class UserRequestScheme(BaseModel):
     password: str
     timezone: str | None = None
     full_name: str | None = None
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "email": "test@example.com",
+                "phone": "+79123456789",
+                "password": "12345TestPassword",
+                "timezone": "Europe/Moscow",
+                "full_name": "Иванов Иван Иванович",
+            }
+        }
+    )
 
     @field_validator("phone")
     @classmethod
@@ -158,6 +172,10 @@ class UpdateFullNameRequestScheme(BaseModel):
 
     full_name: str | None = None
 
+    model_config = ConfigDict(
+        json_schema_extra={"example": {"full_name": "Иванов Иван Иванович"}}
+    )
+
     @field_validator("full_name")
     @classmethod
     def validate_full_name(cls, v: str | None):
@@ -170,6 +188,12 @@ class VerifyTwoFactorRequestScheme(BaseModel):
     email: EmailStr | None = None
     phone: str | None = None
     code: str = Field(..., description="Код подтверждения из СМС")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {"email": "test@example.com", "code": "482913"}
+        }
+    )
 
     @model_validator(mode="after")
     def validate_login_method(self):
@@ -185,6 +209,15 @@ class ChangeEmailRequestScheme(BaseModel):
     new_email: EmailStr
     password: str = Field(..., description="Текущий пароль для подтверждения")
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "new_email": "newtest@example.com",
+                "password": "12345TestPassword",
+            }
+        }
+    )
+
 
 class ChangePasswordRequestScheme(BaseModel):
     """Схема для смены пароля."""
@@ -192,11 +225,24 @@ class ChangePasswordRequestScheme(BaseModel):
     current_password: str = Field(..., description="Текущий пароль")
     new_password: str = Field(..., description="Новый пароль")
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "current_password": "12345TestPassword",
+                "new_password": "NewTestPassword12345",
+            }
+        }
+    )
+
 
 class SetPasswordRequestScheme(BaseModel):
     """Схема для установки пароля OAuth-пользователем без пароля."""
 
     password: str = Field(..., description="Новый пароль")
+
+    model_config = ConfigDict(
+        json_schema_extra={"example": {"password": "12345TestPassword"}}
+    )
 
 
 class ConfirmEmailRequestScheme(BaseModel):
