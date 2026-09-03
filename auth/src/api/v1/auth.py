@@ -47,7 +47,6 @@ from src.schemas.users import (
     ChangePasswordRequestScheme,
     ConfirmEmailRequestScheme,
     SetPasswordRequestScheme,
-    UpdateFullNameRequestScheme,
     UserContactScheme,
     UserRequestScheme,
     UserResponseScheme,
@@ -381,33 +380,6 @@ async def search_user_timezones(data: UserSearchScheme, db: DBDep):
     return await db.users.search_distinct_timezones(
         min_level, timezone_filter=data.timezone
     )
-
-
-@router.get(
-    "/users/me/",
-    response_model=UserResponseScheme,
-    summary="Получить данные профиля",
-)
-@limiter.limit(settings.LIMIT_VALUE)
-async def get_me_profile(user: CurrentUserDep, request: Request):
-    """Данные текущего пользователя: email, телефон, ФИО, таймзона, статус верификации email."""
-    return user
-
-
-@router.patch(
-    "/users/me/full-name/",
-    response_model=UserResponseScheme,
-    summary="Обновить ФИО",
-)
-@limiter.limit(settings.LIMIT_VALUE)
-async def update_full_name(
-    data: UpdateFullNameRequestScheme,
-    auth_service: AuthServiceDep,
-    user: CurrentUserDep,
-    request: Request,
-):
-    """Обновление ФИО текущего пользователя."""
-    return await auth_service.update_user_full_name(user_id=user.id, data=data)
 
 
 @router.patch(

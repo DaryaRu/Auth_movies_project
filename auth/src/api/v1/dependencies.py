@@ -27,6 +27,7 @@ from src.repositories.sessions import SessionRedisRepository
 from src.services.auth import AuthService
 from src.services.oauth import OAuthService
 from src.services.permissions import PermissionService
+from src.services.profile import ProfileService
 from src.services.roles import RoleService
 from src.services.sessions import SessionService
 from src.services.subscriptions import SubscriptionService
@@ -100,6 +101,10 @@ def get_auth_service(
 
 def get_role_service(db: "DBDep") -> RoleService:
     return RoleService(db)
+
+
+def get_profile_service(db: "DBDep") -> ProfileService:
+    return ProfileService(db)
 
 
 def get_permission_service(db: "DBDep") -> PermissionService:
@@ -189,6 +194,7 @@ CurrentUserDep = Annotated[UserORM, Depends(get_current_user)]
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
 RefreshTokenDep = Annotated[str, Depends(get_refresh_token)]
 RoleServiceDep = Annotated[RoleService, Depends(get_role_service)]
+ProfileServiceDep = Annotated[ProfileService, Depends(get_profile_service)]
 PermissionServiceDep = Annotated[
     PermissionService, Depends(get_permission_service)
 ]

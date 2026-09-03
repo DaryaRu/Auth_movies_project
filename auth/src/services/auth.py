@@ -26,7 +26,6 @@ from src.schemas.users import (
     ChangeEmailRequestScheme,
     ChangePasswordRequestScheme,
     SetPasswordRequestScheme,
-    UpdateFullNameRequestScheme,
     UserRequestScheme,
 )
 from src.services.base import BaseService
@@ -316,23 +315,6 @@ class AuthService(BaseService):
             user_id=user_id, email=data.new_email
         )
         return updated_user
-
-    async def update_user_full_name(
-        self, user_id: UUID, data: UpdateFullNameRequestScheme
-    ) -> UserORM:
-        """
-        Обновление ФИО пользователя.
-
-        Args:
-            user_id (UUID): Уникальный идентификатор пользователя.
-            data (UpdateFullNameRequestScheme): Новые данные профиля.
-
-        Returns:
-            UserORM: Обновленный объект пользователя из базы данных.
-        """
-        return await self._db.users.update_user_credentials(
-            user_id=user_id, full_name=data.full_name
-        )
 
     async def change_user_password(
         self, user_id: UUID, data: ChangePasswordRequestScheme
