@@ -42,6 +42,15 @@ class Settings(BaseSettings):
     OAUTH_REDIRECT_BASE_URL: str = "http://localhost"
     OAUTH_STATE_EXPIRE_SECONDS: int = 300
     CODE_2FA_EXPIRE_SECONDS: int = 300
+    # Сколько раз можно ошибиться при вводе кода, прежде чем он станет недействителен
+    # (TooManyAttemptsException) и понадобится запросить новый код.
+    TWO_FA_MAX_ATTEMPTS: int = 5
+    # Сколько раз можно запросить код на один номер телефона за TWO_FA_SEND_RATE_WINDOW_SECONDS.
+    TWO_FA_MAX_SENDS_PER_WINDOW: int = 5
+    # Окно (в секундах), за которое считается TWO_FA_MAX_SENDS_PER_WINDOW.
+    TWO_FA_SEND_RATE_WINDOW_SECONDS: int = 3600
+    # Минимальный интервал (в секундах) между двумя отправками кода на один номер.
+    TWO_FA_SEND_COOLDOWN_SECONDS: int = 60
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
     OTEL_EXPORTER_OTLP_ENDPOINT: str

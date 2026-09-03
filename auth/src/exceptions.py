@@ -64,6 +64,14 @@ class TooManyAttemptsException(AuthServiceException):
     detail = "Слишком много попыток. Запросите новый код."
 
 
+class SendCooldownException(AuthServiceException):
+    def __init__(self, retry_after_seconds: int) -> None:
+        self.detail = (
+            f"Слишком частый запрос кода. Попробуйте через {retry_after_seconds} сек."
+        )
+        super().__init__()
+
+
 class TwoFactorRequiredException(AuthServiceException):
     detail = "Требуется код подтверждения"
 
