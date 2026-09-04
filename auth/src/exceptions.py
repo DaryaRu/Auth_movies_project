@@ -55,6 +55,11 @@ class TokenNotFoundExeption(AuthServiceException):
 class ProviderException(AuthServiceException):
     detail = "Ошибка авторизации с помощью провайдера"
 
+    def __init__(self, detail: str | None = None) -> None:
+        if detail is not None:
+            self.detail = detail
+        super().__init__()
+
 
 class OAuthStateException(AuthServiceException):
     detail = "Ошибка проверки state переданного провайдером"
@@ -77,6 +82,18 @@ class TwoFactorRequiredException(AuthServiceException):
 
 
 class InvalidTwoFactorCodeException(AuthServiceException):
+    detail = "Неверный или истекший код подтверждения"
+
+
+class PhoneAlreadyTakenException(AuthServiceException):
+    detail = "Номер телефона уже используется другим аккаунтом"
+
+
+class NoPendingPhoneChangeException(AuthServiceException):
+    detail = "Нет активного запроса на смену номера"
+
+
+class InvalidPhoneChangeCodeException(AuthServiceException):
     detail = "Неверный или истекший код подтверждения"
 
 
@@ -108,6 +125,18 @@ class PasswordNotSetHTTPException(AuthServiceHTTPException):
 
 
 class InvalidTwoFactorCodeHTTPException(AuthServiceHTTPException):
+    status_code = 401
+
+
+class PhoneAlreadyTakenHTTPException(AuthServiceHTTPException):
+    status_code = 409
+
+
+class NoPendingPhoneChangeHTTPException(AuthServiceHTTPException):
+    status_code = 400
+
+
+class InvalidPhoneChangeCodeHTTPException(AuthServiceHTTPException):
     status_code = 401
 
 
