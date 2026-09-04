@@ -6,11 +6,13 @@ from uuid import UUID, uuid4
 
 from src.exceptions import (
     DecodeTokenException,
+    InvalidPhoneChangeCodeException,
     InvalidTwoFactorCodeException,
     LastAuthMethodRestrictionException,
     OAuthAccountNotLinkedException,
     PasswordAlreadySetException,
     PasswordNotSetException,
+    PhoneAlreadyTakenException,
     ProviderException,
     TokenExeption,
     TokenKeysException,
@@ -25,10 +27,13 @@ from src.schemas.oauth import OAuthUserInfoScheme
 from src.schemas.users import (
     ChangeEmailRequestScheme,
     ChangePasswordRequestScheme,
+    PhoneChangeConfirmScheme,
+    PhoneChangeRequestScheme,
     SetPasswordRequestScheme,
     UserRequestScheme,
 )
 from src.services.base import BaseService
+from src.services.phone_change import PhoneChangeService
 from src.services.sessions import SessionService
 from src.services.two_factor import TwoFactorService
 from src.utils.db_manager import DBManager
@@ -54,12 +59,14 @@ class AuthService(BaseService):
         session_service: SessionService,
         db: DBManager,
         two_factor_service: TwoFactorService,
+        phone_change_service: PhoneChangeService,
     ) -> None:
         super().__init__(db)
         self._hash_service: BaseHashService = hash_service
         self._token_service: JWTTokenService = token_service
         self._session_service: SessionService = session_service
         self._two_factor_service: TwoFactorService = two_factor_service
+        self._phone_change_service: PhoneChangeService = phone_change_service
 
     async def register_user(self, user: UserRequestScheme) -> UserORM:
         is_exsist_user = (
@@ -316,6 +323,65 @@ class AuthService(BaseService):
         )
         return updated_user
 
+    async def request_phone_change(
+        self, user_id: UUID, data: PhoneChangeRequestScheme
+    ) -> None:
+        """
+        Запрашивает смену телефона: проверяет пароль и уникальность нового
+        номера, отправляет код подтверждения на новый номер.
+
+        Args:
+            user_id (UUID): Уникальный идентификатор пользователя.
+            data (PhoneChangeRequestScheme): Новый номер и текущий пароль.
+
+        Raises:
+            UserNotFoundException: Если пользователь не найден.
+            VerifyPasswordException: Если пароль введен неверно.
+            PhoneAlreadyTakenException: Если номер уже занят другим аккаунтом.
+        """
+        user = await self._db.users.get_one_or_none_by_id(id=user_id)
+        if user is None:
+            raise UserNotFoundException()
+
+        if not self._hash_service.verify_password(
+            data.password, user.hashed_password
+        ):
+            raise VerifyPasswordException()
+
+        phone_taken = await self._db.users.get_one_or_none_by_email_or_phone(
+            email=None, phone=data.new_phone
+        )
+        if phone_taken is not None:
+            raise PhoneAlreadyTakenException()
+
+        await self._phone_change_service.request_change(
+            user_id, data.new_phone
+        )
+
+    async def confirm_phone_change(
+        self, user_id: UUID, data: PhoneChangeConfirmScheme
+    ) -> UserORM:
+        """
+        Подтверждает смену телефона кодом из СМС: обновляет phone, отзывает
+        все сессии (как change_user_password) и уведомляет на email.
+
+        Args:
+            user_id (UUID): Уникальный идентификатор пользователя.
+            data (PhoneChangeConfirmScheme): Код подтверждения.
+        """
+        new_phone = await self._phone_change_service.confirm_change(
+            user_id, data.code
+        )
+        if new_phone is None:
+            raise InvalidPhoneChangeCodeException()
+
+        updated_user = await self._db.users.update_user_credentials(
+            user_id=user_id, phone=new_phone
+        )
+        await self._session_service.delete_all_sessions(str(user_id))
+        asyncio.create_task(notify_user(user_id, "phone_changed"))
+        return updated_user
+
     async def change_user_password(
         self, user_id: UUID, data: ChangePasswordRequestScheme
     ) -> None:
@@ -405,7 +471,7 @@ class AuthService(BaseService):
         Args:
             email (str | None): Email, использованный на первом шаге логина.
             phone (str | None): Телефон, использованный на первом шаге логина.
-            code (str): Код подтверждения из SMS.
+            code (str): Код подтверждения из СМС.
             ip_address (str): IP-адрес клиента.
             user_agent (str): Строка User-Agent клиентского устройства.
 
