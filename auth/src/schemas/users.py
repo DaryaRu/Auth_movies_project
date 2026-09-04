@@ -17,6 +17,16 @@ FULL_NAME_REGEX = re.compile(r"^[А-ЯЁа-яёA-Za-z'\- ]+$")
 _VALID_TIMEZONES = available_timezones()
 
 
+def _validate_phone(v: str | None) -> str | None:
+    if v is None:
+        return v
+
+    if not PHONE_REGEX.match(v):
+        raise ValueError("Некорректный формат телефона")
+
+    return v
+
+
 def _validate_full_name(v: str | None) -> str | None:
     if v is None:
         return v
@@ -57,7 +67,7 @@ class UserRequestScheme(BaseModel):
         json_schema_extra={
             "example": {
                 "email": "test@example.com",
-                "phone": "+79123456789",
+                "phone": "+79621234567",
                 "password": "12345TestPassword",
                 "timezone": "Europe/Moscow",
                 "full_name": "Иванов Иван Иванович",
@@ -68,13 +78,7 @@ class UserRequestScheme(BaseModel):
     @field_validator("phone")
     @classmethod
     def validate_phone(cls, v: str | None):
-        if v is None:
-            return v
-
-        if not PHONE_REGEX.match(v):
-            raise ValueError("Некорректный формат телефона")
-
-        return v
+        return _validate_phone(v)
 
     @field_validator("full_name")
     @classmethod
@@ -180,6 +184,38 @@ class UpdateFullNameRequestScheme(BaseModel):
     @classmethod
     def validate_full_name(cls, v: str | None):
         return _validate_full_name(v)
+
+
+class PhoneChangeRequestScheme(BaseModel):
+    """Схема для запроса смены номера телефона."""
+
+    new_phone: str = Field(..., description="Новый номер телефона")
+    password: str = Field(..., description="Текущий пароль для подтверждения")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "new_phone": "+79621234568",
+                "password": "12345TestPassword",
+            }
+        }
+    )
+
+    @field_validator("new_phone")
+    @classmethod
+    def validate_new_phone(cls, v: str):
+        validated = _validate_phone(v)
+        if validated is None:
+            raise ValueError("Некорректный формат телефона")
+        return validated
+
+
+class PhoneChangeConfirmScheme(BaseModel):
+    """Схема для подтверждения смены номера телефона кодом из СМС."""
+
+    code: str = Field(..., description="Код подтверждения из СМС")
+
+    model_config = ConfigDict(json_schema_extra={"example": {"code": "482913"}})
 
 
 class VerifyTwoFactorRequestScheme(BaseModel):
