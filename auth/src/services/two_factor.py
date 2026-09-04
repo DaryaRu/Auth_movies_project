@@ -42,6 +42,12 @@ class TwoFactorService:
         pipe = self._redis.pipeline()
         pipe.setex(code_key, settings.CODE_2FA_EXPIRE_SECONDS, code)
         pipe.delete(attempts_key)
+        await pipe.execute()
+
+        # Кулдаун/лимит отправок за фиксированный интервал фиксируются только при успешной отправке.
+        await self._sms_provider.send_code(phone, code)
+
+        pipe = self._redis.pipeline()
         pipe.incr(rate_key)
         pipe.setex(cooldown_key, settings.TWO_FA_SEND_COOLDOWN_SECONDS, "1")
         await pipe.execute()
@@ -50,7 +56,6 @@ class TwoFactorService:
                 rate_key, settings.TWO_FA_SEND_RATE_WINDOW_SECONDS
             )
 
-        await self._sms_provider.send_code(phone, code)
         logging.info(f"2FA-код отправлен пользователю {user_id}")
 
     async def verify_code(self, user_id: UUID, code: str) -> bool:
