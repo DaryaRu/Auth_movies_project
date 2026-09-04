@@ -73,6 +73,12 @@ revision:
 shell:
 	docker compose exec auth-db psql -U movies -d movies
 
+# Показывает код 2FA из Redis по user_id (нужно для тестового режима, когда
+# реальная SMS не доставляется).
+# Пример: make show-2fa-code user_id=aad61edd-ba14-4848-8815-6b147515d91a
+show-2fa-code:
+	docker compose exec -T redis redis-cli GET "2fa_code:$(user_id)"
+
 # Генерирует RSA-ключи для подписи JWT (пропускает, если файлы уже существуют)
 keys:
 	test -f private.pem || openssl genrsa -out private.pem 2048
