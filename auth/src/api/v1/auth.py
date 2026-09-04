@@ -18,13 +18,21 @@ from src.core.config import settings
 from src.core.limiter import limiter
 from src.exceptions import (
     DecodeTokenException,
+    InvalidPhoneChangeCodeException,
+    InvalidPhoneChangeCodeHTTPException,
     InvalidTokenHTTPException,
     InvalidTwoFactorCodeException,
     InvalidTwoFactorCodeHTTPException,
+    NoPendingPhoneChangeException,
+    NoPendingPhoneChangeHTTPException,
     PasswordAlreadySetException,
     PasswordAlreadySetHTTPException,
     PasswordNotSetException,
     PasswordNotSetHTTPException,
+    PhoneAlreadyTakenException,
+    PhoneAlreadyTakenHTTPException,
+    ProviderException,
+    ProviderHTTPException,
     SendCooldownException,
     TokenExeption,
     TokenKeysException,
@@ -46,6 +54,8 @@ from src.schemas.users import (
     ChangeEmailRequestScheme,
     ChangePasswordRequestScheme,
     ConfirmEmailRequestScheme,
+    PhoneChangeConfirmScheme,
+    PhoneChangeRequestScheme,
     SetPasswordRequestScheme,
     UserContactScheme,
     UserRequestScheme,
@@ -128,6 +138,8 @@ async def login(
         raise TooManyAttemptsHTTPException(detail=exc.detail) from exc
     except SendCooldownException as exc:
         raise TooManyAttemptsHTTPException(detail=exc.detail) from exc
+    except ProviderException as exc:
+        raise ProviderHTTPException(detail=exc.detail) from exc
     except TwoFactorRequiredException:
         return TwoFactorRequiredScheme()
 
@@ -406,6 +418,59 @@ async def change_email(
         raise UserNotFoundHTTPException(detail=exc.detail) from exc
     except VerifyPasswordException as exc:
         raise VerifyPasswordHTTPException(detail=exc.detail) from exc
+
+
+@router.post(
+    "/change-phone-request/",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Запрос смены номера телефона",
+)
+@limiter.limit(settings.LIMIT_VALUE)
+async def request_phone_change(
+    data: PhoneChangeRequestScheme,
+    auth_service: AuthServiceDep,
+    user: CurrentUserDep,
+    request: Request,
+):
+    """Проверяет пароль и уникальность нового номера, отправляет код
+    подтверждения на новый номер. Телефон меняется только после
+    /confirm-phone/."""
+    try:
+        await auth_service.request_phone_change(user_id=user.id, data=data)
+    except VerifyPasswordException as exc:
+        raise VerifyPasswordHTTPException(detail=exc.detail) from exc
+    except PhoneAlreadyTakenException as exc:
+        raise PhoneAlreadyTakenHTTPException(detail=exc.detail) from exc
+    except TooManyAttemptsException as exc:
+        raise TooManyAttemptsHTTPException(detail=exc.detail) from exc
+    except SendCooldownException as exc:
+        raise TooManyAttemptsHTTPException(detail=exc.detail) from exc
+    except ProviderException as exc:
+        raise ProviderHTTPException(detail=exc.detail) from exc
+
+
+@router.post(
+    "/confirm-phone/",
+    response_model=UserResponseScheme,
+    summary="Подтверждение смены номера телефона",
+)
+@limiter.limit(settings.LIMIT_VALUE)
+async def confirm_phone_change(
+    data: PhoneChangeConfirmScheme,
+    auth_service: AuthServiceDep,
+    user: CurrentUserDep,
+    request: Request,
+):
+    """Проверяет код из СМС, при совпадении обновляет телефон и отзывает
+    все сессии (как при смене пароля)."""
+    try:
+        return await auth_service.confirm_phone_change(user_id=user.id, data=data)
+    except InvalidPhoneChangeCodeException as exc:
+        raise InvalidPhoneChangeCodeHTTPException(detail=exc.detail) from exc
+    except NoPendingPhoneChangeException as exc:
+        raise NoPendingPhoneChangeHTTPException(detail=exc.detail) from exc
+    except TooManyAttemptsException as exc:
+        raise TooManyAttemptsHTTPException(detail=exc.detail) from exc
 
 
 @router.patch(

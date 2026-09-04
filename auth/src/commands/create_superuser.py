@@ -11,6 +11,7 @@ from src.integrations.sms.smsc_provider import SMSCProvider
 from src.repositories.sessions import SessionRedisRepository
 from src.schemas.users import UserRequestScheme
 from src.services.auth import AuthService
+from src.services.phone_change import PhoneChangeService
 from src.services.sessions import SessionService
 from src.services.two_factor import TwoFactorService
 from src.utils.db_manager import DBManager
@@ -35,6 +36,7 @@ async def _create_superuser(
             SessionService(SessionRedisRepository(redis.redis)),  # type: ignore[arg-type]
             db,
             TwoFactorService(SMSCProvider(), redis.redis),  # type: ignore[arg-type]
+            PhoneChangeService(SMSCProvider(), redis.redis),  # type: ignore[arg-type]
         ).create_admin(admin)
 
 
