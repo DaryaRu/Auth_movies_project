@@ -83,7 +83,7 @@ class PhoneChangeService:
             raise TooManyAttemptsException()
 
         key = f"phone_change:{user_id}"
-        data = await self._redis.hgetall(key)
+        data = await self._redis.hgetall(key)  # type: ignore[misc]
         if not data:
             logging.warning(
                 f"Нет активного запроса смены телефона для {user_id}"
