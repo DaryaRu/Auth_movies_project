@@ -4,6 +4,7 @@ import aiohttp
 from src.core.config import settings
 from src.exceptions import ProviderException
 from src.integrations.sms.base_provider import SMSProviderBase
+from src.utils.backoff import async_backoff
 
 
 class SMSCProvider(SMSProviderBase):
@@ -30,26 +31,30 @@ class SMSCProvider(SMSProviderBase):
             params["test"] = 1
 
         try:
-            async with aiohttp.ClientSession(
-                timeout=aiohttp.ClientTimeout(total=10)
-            ) as session:
-                async with session.get(
-                    "https://smsc.ru/sys/send.php", params=params
-                ) as response:
-                    data = await response.json()
+            data, status = await self._request(params)
         except (aiohttp.ClientError, TimeoutError) as exc:
             logging.error(f"Ошибка соединения с SMSC: {exc!r}")
             raise ProviderException(
                 f"Ошибка соединения с СМС-провайдером: {exc}"
             ) from exc
 
-        if response.status >= 400 or "error" in data:
+        if status >= 400 or "error" in data:
             logging.error(
                 "Не удалось отправить СМС через SMSC: "
-                f"status_code={response.status}, {data=}"
+                f"status_code={status}, {data=}"
             )
             error_text = data.get("error", "неизвестная ошибка")
             error_code = data.get("error_code")
             raise ProviderException(
                 f"Ошибка СМС-провайдера: {error_text} (код {error_code})"
             )
+
+    @async_backoff(exceptions=(aiohttp.ClientError, TimeoutError))
+    async def _request(self, params: dict) -> tuple[dict, int]:
+        async with aiohttp.ClientSession(
+            timeout=aiohttp.ClientTimeout(total=10)
+        ) as session:
+            async with session.get(
+                "https://smsc.ru/sys/send.php", params=params
+            ) as response:
+                return await response.json(), response.status
