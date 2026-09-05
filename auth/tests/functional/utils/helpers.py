@@ -51,4 +51,4 @@ async def get_phone_change_code(
     """Читает код смены телефона напрямую из Redis.
 
     PhoneChangeService хранит его хешем phone_change:{user_id}, поле sms_code."""
-    return await redis_client.hget(f"phone_change:{user_id}", "sms_code")
+    return await redis_client.hget(f"phone_change:{user_id}", "sms_code")  # type: ignore[misc]
