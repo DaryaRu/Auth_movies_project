@@ -18,11 +18,15 @@ WriteData = Callable[
 
 @pytest.fixture(scope="session")
 def active_user_data() -> dict[str, Any]:
-    """Данные обычного пользователя для тестов аутентификации."""
+    """Данные обычного пользователя для тестов аутентификации.
+
+    Пользователь без номера телефона, так как наличие телефона включает обязательную
+    2FA при логине, а большинство тестов с этой фикстурой (логин, сессии, refresh, logout),
+    рассчитаны на однoшаговый логин с токенами сразу в ответе.
+    """
     return {
         "id": uuid.uuid4(),
         "email": "test_user@example.com",
-        "phone": "+79000000000",
         "password": "testpassword123",
         "is_superuser": False,
         "is_active": True,
@@ -32,17 +36,51 @@ def active_user_data() -> dict[str, Any]:
 
 
 @pytest_asyncio.fixture(scope="session", autouse=True)
-async def create_user(pg_write_data: WriteData, active_user_data: dict[str, Any]) -> None:
+async def create_user(
+    pg_write_data: WriteData, active_user_data: dict[str, Any]
+) -> None:
     """Создаёт обычного пользователя в БД перед запуском тестов."""
     data = {
         "id": active_user_data["id"],
         "email": active_user_data["email"],
-        "phone": active_user_data["phone"],
         "hashed_password": hash_password(active_user_data["password"]),
         "is_superuser": active_user_data["is_superuser"],
         "is_active": active_user_data["is_active"],
         "created_at": active_user_data["created_at"],
         "updated_at": active_user_data["updated_at"],
+    }
+    await pg_write_data("users", tuple(data.keys()), tuple(data.values()))
+
+
+@pytest.fixture(scope="session")
+def phone_user_data() -> dict[str, Any]:
+    """Данные пользователя с телефоном из TEST_PHONE_NUMBER (.env) для тестов 2FA и смены номера."""
+    return {
+        "id": uuid.uuid4(),
+        "email": "phone_user@example.com",
+        "phone": test_settings.test_phone_number,
+        "password": "testpassword123",
+        "is_superuser": False,
+        "is_active": True,
+        "created_at": datetime.now(timezone.utc),
+        "updated_at": datetime.now(timezone.utc),
+    }
+
+
+@pytest_asyncio.fixture(scope="session")
+async def create_phone_user(
+    pg_write_data: WriteData, phone_user_data: dict[str, Any]
+) -> None:
+    """Создает пользователя с телефоном в БД перед запуском 2FA-тестов."""
+    data = {
+        "id": phone_user_data["id"],
+        "email": phone_user_data["email"],
+        "phone": phone_user_data["phone"],
+        "hashed_password": hash_password(phone_user_data["password"]),
+        "is_superuser": phone_user_data["is_superuser"],
+        "is_active": phone_user_data["is_active"],
+        "created_at": phone_user_data["created_at"],
+        "updated_at": phone_user_data["updated_at"],
     }
     await pg_write_data("users", tuple(data.keys()), tuple(data.values()))
 
@@ -62,7 +100,9 @@ def superuser_data() -> dict[str, Any]:
 
 
 @pytest_asyncio.fixture(scope="session")
-async def create_superuser(pg_write_data: WriteData, superuser_data: dict[str, Any]) -> None:
+async def create_superuser(
+    pg_write_data: WriteData, superuser_data: dict[str, Any]
+) -> None:
     """Создаёт суперпользователя в БД."""
     data = {
         "id": superuser_data["id"],
@@ -85,7 +125,10 @@ async def superuser_token(
     """Логинится как суперпользователь и возвращает access_token."""
     response = await session_http_client.post(
         f"{test_settings.api_prefix}/login/",
-        json={"email": superuser_data["email"], "password": superuser_data["password"]},
+        json={
+            "email": superuser_data["email"],
+            "password": superuser_data["password"],
+        },
     )
     data = await response.json()
     return data["access_token"]
@@ -114,7 +157,9 @@ async def create_regular_user_for_roles(
     data = {
         "id": regular_user_for_roles_data["id"],
         "email": regular_user_for_roles_data["email"],
-        "hashed_password": hash_password(regular_user_for_roles_data["password"]),
+        "hashed_password": hash_password(
+            regular_user_for_roles_data["password"]
+        ),
         "is_superuser": regular_user_for_roles_data["is_superuser"],
         "is_active": regular_user_for_roles_data["is_active"],
         "created_at": regular_user_for_roles_data["created_at"],

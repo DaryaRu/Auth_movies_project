@@ -13,9 +13,11 @@ class TestSettings(BaseSettings):
     postgres_port: int = Field(default=5432, alias="POSTGRES_PORT")
     postgres_db: str = Field(default="postgres", alias="POSTGRES_DB")
     postgres_user: str = Field(default="postgres", alias="POSTGRES_USER")
-    postgres_password: str = Field(default="postgres", alias="POSTGRES_PASSWORD")
+    postgres_password: str = Field(
+        default="postgres", alias="POSTGRES_PASSWORD"
+    )
     postgres_host: str = Field(default="postgres", alias="POSTGRES_HOST")
-    
+
     hash_time_cost: int = Field(default=3, alias="HASH_TIME_COST")
     hash_memory_cost: int = Field(default=65536, alias="HASH_MEMORY_COST")
     hash_parallelism: int = Field(default=2, alias="HASH_PARALLELISM")
@@ -26,9 +28,12 @@ class TestSettings(BaseSettings):
     service_wait_max_attempts: int = Field(
         default=30, alias="SERVICE_WAIT_MAX_ATTEMPTS"
     )
-    service_wait_delay: float = Field(
-        default=1.0, alias="SERVICE_WAIT_DELAY"
-    )
+    service_wait_delay: float = Field(default=1.0, alias="SERVICE_WAIT_DELAY")
+
+    # Любой реальный номер телефона для тестов 2FA/смены телефона,
+    # так как SMSC отклоняет синтетические номера (error_code=6) даже в виртуальном режиме,
+    # нужен существующий у оператора номер.
+    test_phone_number: str = Field(alias="TEST_PHONE_NUMBER")
 
 
 test_settings = TestSettings()
