@@ -28,9 +28,7 @@ class TestRegistration:
         ],
     )
     async def test_registration_success(
-        self,
-        http_client: ClientSession,
-        payload: dict[str, str]
+        self, http_client: ClientSession, payload: dict[str, str]
     ):
 
         response = await http_client.post(
@@ -86,7 +84,7 @@ class TestRegistration:
 
 class TestLogin:
     URL = f"{test_settings.api_prefix}/login/"
-    
+
     async def test_login_success_with_email(
         self,
         http_client: ClientSession,
@@ -108,28 +106,26 @@ class TestLogin:
         cookies = response.cookies
 
         assert "refresh_token" in cookies
-        
-    async def test_login_success_with_phone(
+
+    async def test_login_with_phone_requires_2fa(
         self,
         http_client: ClientSession,
-        active_user_data: dict[str, Any],
+        phone_user_data: dict[str, Any],
+        create_phone_user: None,
     ):
+        """Логин для пользователя с указанным номером телефона не выдает токен сразу,
+        требуется второй шаг."""
         response = await http_client.post(
             self.URL,
             json={
-                "phone": active_user_data["phone"],
-                "password": active_user_data["password"],
+                "phone": phone_user_data["phone"],
+                "password": phone_user_data["password"],
             },
         )
         data = await assert_status_return_json(response, HTTPStatus.OK)
 
-        assert "access_token" in data
-        assert data["token_type"] == "bearer"
-        assert "access_token_expire" in data
-
-        cookies = response.cookies
-
-        assert "refresh_token" in cookies
+        assert data == {"two_fa_required": True}
+        assert "access_token" not in data
 
     async def test_login_token_contains_permissions(
         self,
@@ -486,7 +482,9 @@ class TestActiveSession:
         access_token_2 = login_data_2["access_token"]
         active_session_response = await cookie_http_client.get(
             self.ACTIVE_SESSION_URL,
-            headers={"Authorization": f"Bearer {access_token_2}",},
+            headers={
+                "Authorization": f"Bearer {access_token_2}",
+            },
         )
         data = await assert_status_return_json(
             active_session_response, HTTPStatus.OK
