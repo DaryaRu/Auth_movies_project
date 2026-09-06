@@ -418,7 +418,7 @@ class AuthService(BaseService):
         asyncio.create_task(notify_user(user_id, "password_changed"))
 
     async def change_user_timezone(
-        self, user_id: UUID, timezone: str
+        self, user_id: UUID, timezone_name: str
     ) -> UserORM:
         """
         Смена таймзоны пользователя.
@@ -426,11 +426,10 @@ class AuthService(BaseService):
 
         Args:
             user_id (UUID): Уникальный идентификатор пользователя.
-            timezone (str): IANA-имя новой таймзоны.
+            timezone_name (str): IANA-имя новой таймзоны.
 
         Raises:
             UserNotFoundException: Если пользователь не найден.
-            InvalidTimezoneException: Если таймзона некорректна.
 
         Returns:
             UserORM: Обновленный объект пользователя.
@@ -440,7 +439,7 @@ class AuthService(BaseService):
             raise UserNotFoundException()
 
         await self._db.users.update_user_timezone(
-            user_id=user_id, timezone=timezone
+            user_id=user_id, timezone=timezone_name
         )
 
         return user

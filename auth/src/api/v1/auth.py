@@ -578,10 +578,8 @@ async def change_user_timezone(
     """Смена таймзоны пользователя."""
     try:
         updated_user = await auth_service.change_user_timezone(
-            user_id=user.id, timezone=data.timezone
+            user_id=user.id, timezone_name=data.timezone
         )
         return updated_user
     except UserNotFoundException as exc:
         raise UserNotFoundHTTPException(detail=exc.detail) from exc
-    except InvalidTimezoneException as exc:
-        raise InvalidTimezoneHTTPException(detail=exc.detail) from exc
