@@ -28,6 +28,9 @@ from src.services.permissions import PermissionService
 from src.services.roles import RoleService
 from src.services.sessions import SessionService
 from src.services.subscriptions import SubscriptionService
+from src.services.user_notification_settings import (
+    UserNotificationSettingsService,
+)
 from src.services.user_subscriptions import UserSubscriptionService
 from src.utils.db_manager import DBManager
 from src.utils.hashes import HashArgon2Service
@@ -105,6 +108,10 @@ def get_user_subscription_service(db: "DBDep") -> UserSubscriptionService:
     return UserSubscriptionService(db)
 
 
+def get_user_notification_settings_service(db: "DBDep") -> UserNotificationSettingsService:
+    return UserNotificationSettingsService(db)
+
+
 async def get_token_payload(
     session_service: "SessionServiceDep",
     token: str = Depends(get_token),
@@ -177,6 +184,9 @@ SessionServiceDep = Annotated[SessionService, Depends(get_session_service)]
 OAuthServiceDep = Annotated[OAuthService, Depends(get_oauth_service)]
 SubscriptionServiceDep = Annotated[
     SubscriptionService, Depends(get_subscription_service)
+]
+UserNotificationSettingsServiceDep = Annotated[
+    UserNotificationSettingsService, Depends(get_user_notification_settings_service)
 ]
 UserSubscriptionServiceDep = Annotated[
     UserSubscriptionService, Depends(get_user_subscription_service)

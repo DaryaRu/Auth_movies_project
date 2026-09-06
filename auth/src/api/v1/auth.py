@@ -16,6 +16,7 @@ from src.api.v1.dependencies import (
 )
 from src.core.config import settings
 from src.core.limiter import limiter
+from src.core.notification_defaults import notification_defaults
 from src.exceptions import (
     DecodeTokenException,
     InvalidTokenHTTPException,
@@ -36,6 +37,7 @@ from src.exceptions import (
 from src.schemas.permissions import PermissionResponseScheme
 from src.schemas.sessions import UserSessionResponse
 from src.schemas.tokens import JWTAccessToken
+from src.schemas.user_notification_settings import UserNotificationSettings
 from src.schemas.users import (
     ChangeEmailRequestScheme,
     ChangePasswordRequestScheme,
@@ -271,6 +273,37 @@ async def get_user_contact(user_id: UUID, db: DBDep, _: InternalServiceDep):
     if user is None:
         raise UserNotFoundHTTPException()
     return UserContactScheme(user_id=user.id, email=user.email)
+
+
+@router.get(
+    "/internal/users/{user_id}/notification-settings",
+    summary="Настройки уведомлений пользователя по ID",
+    response_model=UserNotificationSettings,
+)
+async def get_user_notification_settings(
+    user_id: UUID,
+    db: DBDep,
+    _: InternalServiceDep,
+):
+    """Получение настроек уведомлений пользователя между сервисами.
+
+    Если у пользователя нет записи в user_notification_settings,
+    возвращается объект с дефолтными значениями из notification_defaults."""
+    user = await db.users.get_one_or_none_by_id(id=user_id)
+    if user is None:
+        raise UserNotFoundHTTPException()
+
+    notif_settings = await db.user_notification_settings.get_by_user_id(user_id)
+    if notif_settings is None:
+        # Нет записи в БД — возвращаем дефолты
+        return UserNotificationSettings(
+            user_id=user_id,
+            notifications_enabled=notification_defaults.NOTIFICATIONS_ENABLED,
+            email_enabled=notification_defaults.EMAIL_ENABLED,
+            sms_enabled=notification_defaults.SMS_ENABLED,
+            push_enabled=notification_defaults.PUSH_ENABLED,
+        )
+    return UserNotificationSettings.model_validate(notif_settings)
 
 
 @router.post(

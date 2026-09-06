@@ -5,6 +5,7 @@ from uuid import UUID
 from sqlalchemy import func, or_, select, update
 
 from src.models.subscriptions import SubscriptionORM
+from src.models.user_notification_settings import UserNotificationSettingsORM
 from src.models.user_subscriptions import UserSubscriptionORM
 from src.models.users import UserORM
 from src.repositories.base import BasePostgreSQLRepository
@@ -213,6 +214,19 @@ class UsersPostgreSQLRepository(
                 )
             else:
                 query = query.where(self.model.timezone == timezone_filter)
+        # Exclude users with notifications disabled
+        query = (
+            query.outerjoin(
+                UserNotificationSettingsORM,
+                UserNotificationSettingsORM.user_id == self.model.id,
+            )
+            .where(
+                or_(
+                    UserNotificationSettingsORM.user_id.is_(None),
+                    UserNotificationSettingsORM.notifications_enabled.is_(True),
+                )
+            )
+        )
         result = await self._session.execute(query)
         return list(result.scalars().all())
 
@@ -248,5 +262,18 @@ class UsersPostgreSQLRepository(
                 )
             else:
                 query = query.where(self.model.timezone == timezone_filter)
+        # Exclude users with notifications disabled
+        query = (
+            query.outerjoin(
+                UserNotificationSettingsORM,
+                UserNotificationSettingsORM.user_id == self.model.id,
+            )
+            .where(
+                or_(
+                    UserNotificationSettingsORM.user_id.is_(None),
+                    UserNotificationSettingsORM.notifications_enabled.is_(True),
+                )
+            )
+        )
         result = await self._session.execute(query)
         return list(result.scalars().all())

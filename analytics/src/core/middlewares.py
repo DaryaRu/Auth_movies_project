@@ -59,6 +59,6 @@ def register_middlewares(app: FastAPI) -> None:
         allow_headers=["*"],
     )
     app.add_middleware(
-        ProxyHeadersMiddleware,
+        ProxyHeadersMiddleware,  # type: ignore[arg-type]
         trusted_hosts=settings.ALLOWED_HOSTS.split(","),
     )

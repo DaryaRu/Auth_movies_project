@@ -76,6 +76,49 @@ def _create_mailing_payload(template_id: str, **overrides) -> dict:
     return payload
 
 
+async def _login_user(
+    auth_client: ClientSession,
+    *,
+    email: str,
+    password: str,
+) -> str:
+    """Войти и вернуть JWT."""
+    response = await auth_client.post(
+        f"{test_settings.auth_api_url}/login/",
+        json={"email": email, "password": password},
+    )
+    data = await assert_status_return_json(response, HTTPStatus.OK)
+    return data["access_token"]
+
+
+async def _disable_user_notifications(
+    auth_client: ClientSession,
+    *,
+    token: str,
+) -> dict:
+    """Отключить все уведомления пользователя через auth-service."""
+    response = await auth_client.patch(
+        f"{test_settings.auth_api_url}/users/me/notification-settings/",
+        json={"notifications_enabled": False},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    return await assert_status_return_json(response, HTTPStatus.OK)
+
+
+async def _get_user_notifications_settings(
+    auth_client: ClientSession,
+    *,
+    token: str,
+) -> dict:
+    """Получить настройки уведомлений пользователя."""
+    response = await auth_client.get(
+        f"{test_settings.auth_api_url}/users/me/notification-settings/",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    return await assert_status_return_json(response, HTTPStatus.OK)
+
+
+
 class TestAdminMailingImmediate:
     """Рассылка без scheduled_local_datetime, отправка сразу (Immediate group)."""
 
@@ -241,3 +284,73 @@ class TestAdminMailingTimezoneBucketing:
         )
         data = await assert_status_return_json(response, HTTPStatus.CREATED)
         assert data == []
+
+
+class TestAdminMailingNotificationSettings:
+    """Рассылка исключает пользователей, отключивших уведомления."""
+
+    async def test_user_with_disabled_notifications_excluded_from_mailing(
+        self, http_client: ClientSession, auth_client: ClientSession
+    ):
+        """Пользователь 1 (уведомления включены) + пользователь 2
+        (уведомления отключены). Рассылка создаёт бакет только для
+        таймзоны пользователя 1."""
+        suffix = uuid4().hex[:8]
+
+        await _register_user(
+            auth_client,
+            email=f"mailing-user1-{suffix}@example.com",
+            timezone="Europe/Moscow",
+        )
+
+        await _register_user(
+            auth_client,
+            email=f"mailing-user2-{suffix}@example.com",
+            timezone="America/Chicago",
+        )
+
+        # Пользователь 1 по умолчанию имеет уведомления
+        token1 = await _login_user(
+            auth_client,
+            email=f"mailing-user1-{suffix}@example.com",
+            password="TestPass123!",
+        )
+        settings1 = await _get_user_notifications_settings(
+            auth_client, token=token1
+        )
+        assert settings1["notifications_enabled"] is True
+        
+        # Пользователь 2 отключил уведомления
+        token2 = await _login_user(
+            auth_client,
+            email=f"mailing-user2-{suffix}@example.com",
+            password="TestPass123!",
+        )
+        settings2 = await _disable_user_notifications(auth_client, token=token2)
+        assert settings2["notifications_enabled"] is False
+
+        # Создание рассылки
+        template = await _create_template(http_client)
+        local_datetime = "2099-06-15T09:30:00"
+
+        response = await http_client.post(
+            MAILINGS_URL,
+            json=_create_mailing_payload(
+                template["template_id"],
+                scheduled_local_datetime=local_datetime,
+            ),
+        )
+        mailings = await assert_status_return_json(
+            response, HTTPStatus.CREATED
+        )
+
+        # В рассылке должен быть только бакет для пользователь 1
+        # (пользователь 2) должен отсутствовать
+        tz_in_mailings = {m["audience_filter"]["timezone"] for m in mailings}
+        assert "Europe/Moscow" in tz_in_mailings, (
+            "Бакет для Europe/Moscow (пользователь 1) должен присутствовать"
+        )
+        assert "America/Chicago" not in tz_in_mailings, (
+            "Бакет для America/Chicago (пользователь 2 с отключёнными "
+            "уведомлениями) должен отсутствовать"
+        )
