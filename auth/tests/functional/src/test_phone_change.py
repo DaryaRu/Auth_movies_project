@@ -250,6 +250,8 @@ class TestPhoneChangeFullFlow:
     """Настоящий флоу. Реально шлет СМС через SMSC, код читается из реального ответа.
 
     Использует отдельного пользователя. Тест доходит до успешного confirm и отзыва сессий.
+    Заводим отдельный NEW_PHONE, так как номер из phone_user_data занят к моменту этого теста и
+    request отвечает 409 вместо 204.
 
     Если тест вдруг начнет падать с ProviderException/502 с синтетическим номером,
     нужно попробовать подобрать другой номер либо заменить реальным (связано с самим SMSC).
@@ -257,7 +259,7 @@ class TestPhoneChangeFullFlow:
 
     REQUEST_URL = f"{test_settings.api_prefix}/change-phone-request/"
     CONFIRM_URL = f"{test_settings.api_prefix}/confirm-phone/"
-    NEW_PHONE = "+79621234567"
+    NEW_PHONE = "+79621234568"
 
     async def test_request_and_confirm_real_send(
         self,
