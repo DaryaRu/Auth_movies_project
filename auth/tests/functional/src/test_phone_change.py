@@ -107,7 +107,7 @@ class TestConfirmPhoneChange:
 
         PhoneChangeService.confirm_change() читает только Redis и не обращается к SMSC.
         """
-        await redis_client.hset(
+        await redis_client.hset(  # type: ignore[misc]
             f"phone_change:{user_id}",
             mapping={"new_phone": new_phone, "sms_code": code},
         )

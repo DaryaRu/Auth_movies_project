@@ -94,6 +94,7 @@ class TestVerifyPhoneLogin:
         create_phone_user: None,
         redis_client: Redis,
     ):
+        """Верный код подтверждения выдает токены и refresh_token в cookie."""
         await _reset_2fa_state(redis_client, phone_user_data)
         await _seed_2fa_code(redis_client, phone_user_data["id"], "482913")
 
@@ -114,6 +115,7 @@ class TestVerifyPhoneLogin:
         create_phone_user: None,
         redis_client: Redis,
     ):
+        """Неверный код на верификации 2FA-логина. 401."""
         await _reset_2fa_state(redis_client, phone_user_data)
         await _seed_2fa_code(redis_client, phone_user_data["id"], "482913")
 
@@ -131,6 +133,7 @@ class TestVerifyPhoneLogin:
         self,
         http_client: ClientSession,
     ):
+        """Верификация для несуществующего email. 404."""
         response = await http_client.post(
             VERIFY_URL,
             json={"email": "unknown-2fa@example.com", "code": "123456"},
