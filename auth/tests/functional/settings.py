@@ -30,10 +30,12 @@ class TestSettings(BaseSettings):
     )
     service_wait_delay: float = Field(default=1.0, alias="SERVICE_WAIT_DELAY")
 
-    # Любой реальный номер телефона для тестов 2FA/смены телефона,
-    # так как SMSC отклоняет синтетические номера (error_code=6) даже в виртуальном режиме,
-    # нужен существующий у оператора номер.
-    test_phone_number: str = Field(alias="TEST_PHONE_NUMBER")
+    # Номер телефона для тестов 2FA/смены телефона.
+    # Если тесты начнут падать с error_code=6 без видимой причины,
+    # попробовать указать любой реальный номер.
+    test_phone_number: str = Field(
+        default="+79621234567", alias="TEST_PHONE_NUMBER"
+    )
 
 
 test_settings = TestSettings()

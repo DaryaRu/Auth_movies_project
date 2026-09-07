@@ -53,39 +53,6 @@ async def create_user(
 
 
 @pytest.fixture(scope="session")
-def phone_user_data() -> dict[str, Any]:
-    """Данные пользователя с телефоном из TEST_PHONE_NUMBER (.env) для тестов 2FA и смены номера."""
-    return {
-        "id": uuid.uuid4(),
-        "email": "phone_user@example.com",
-        "phone": test_settings.test_phone_number,
-        "password": "testpassword123",
-        "is_superuser": False,
-        "is_active": True,
-        "created_at": datetime.now(timezone.utc),
-        "updated_at": datetime.now(timezone.utc),
-    }
-
-
-@pytest_asyncio.fixture(scope="session")
-async def create_phone_user(
-    pg_write_data: WriteData, phone_user_data: dict[str, Any]
-) -> None:
-    """Создает пользователя с телефоном в БД перед запуском 2FA-тестов."""
-    data = {
-        "id": phone_user_data["id"],
-        "email": phone_user_data["email"],
-        "phone": phone_user_data["phone"],
-        "hashed_password": hash_password(phone_user_data["password"]),
-        "is_superuser": phone_user_data["is_superuser"],
-        "is_active": phone_user_data["is_active"],
-        "created_at": phone_user_data["created_at"],
-        "updated_at": phone_user_data["updated_at"],
-    }
-    await pg_write_data("users", tuple(data.keys()), tuple(data.values()))
-
-
-@pytest.fixture(scope="session")
 def superuser_data() -> dict[str, Any]:
     """Данные суперпользователя для тестов ролей."""
     return {

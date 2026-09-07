@@ -21,6 +21,7 @@ from redis.asyncio import Redis
 
 pytest_plugins = [
     "functional.fixtures.users",
+    "functional.fixtures.phone_users",
     "functional.fixtures.roles",
     "functional.fixtures.permissions",
 ]
