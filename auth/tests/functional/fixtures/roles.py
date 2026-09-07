@@ -24,6 +24,12 @@ async def created_role(
     response = await session_http_client.post(
         f"{ROLES_URL}/", json=payload, headers=superuser_headers
     )
+    # TODO: временная диагностика нестабильного 404 в CI (permissions/roles).
+    if response.status != 201:
+        raise AssertionError(
+            f"created_role: POST вернул {response.status}, "
+            f"ожидался 201. Тело ответа: {await response.text()}"
+        )
     role = await response.json()
     yield role
     await session_http_client.delete(
