@@ -31,6 +31,7 @@ class TestGetProfile:
         http_client: ClientSession,
         active_user_data: dict[str, Any],
     ):
+        """Успешное получение своих данных профиля."""
         token = await _login(
             http_client,
             active_user_data["email"],
@@ -54,6 +55,7 @@ class TestGetProfile:
         self,
         http_client: ClientSession,
     ):
+        """Получение профиля без токена авторизации. 401."""
         response = await http_client.get(self.URL)
         data = await assert_status_return_json(
             response, HTTPStatus.UNAUTHORIZED
@@ -70,6 +72,7 @@ class TestUpdateFullName:
         http_client: ClientSession,
         active_user_data: dict[str, Any],
     ):
+        """Успешное обновление ФИО."""
         token = await _login(
             http_client,
             active_user_data["email"],
@@ -98,6 +101,7 @@ class TestUpdateFullName:
         active_user_data: dict[str, Any],
         full_name: str,
     ):
+        """Невалидное ФИО (короче 4 символов или недопустимые символы). 422."""
         token = await _login(
             http_client,
             active_user_data["email"],
