@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     REDIS_PORT: int = 6379
     REDIS_DB: int = 0
 
+    # Кэширование настроек уведомлений (TTL в секундах, 15 минут по умолчанию)
+    NOTIFICATION_SETTINGS_CACHE_TTL: int = 900
+
     # auth-service (для получения email перед отправкой)
     AUTH_API_URL: str = "http://auth-service:8000/api/v1"
 

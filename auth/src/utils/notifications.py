@@ -101,3 +101,30 @@ async def notify_user(
             user_id,
             e,
         )
+
+
+# Ключ кэша воркера: ntf:settings:{user_id}
+_NOTIFICATION_SETTINGS_REDIS_KEY_PREFIX = "ntf:settings:"
+
+
+async def invalidate_notification_settings_cache(user_id: UUID) -> None:
+    """Удалить кэш настроек уведомлений пользователя из Redis.
+
+    Вызывается из auth-сервиса после PATCH настроек, чтобы воркер
+    перезапросил свежие данные из auth-service при следующей обработке.
+    """
+    redis_conn = redis_module.redis
+    if redis_conn is None:
+        logger.warning("Redis unavailable, skipping notification cache invalidation")
+        return
+
+    redis_key = f"{_NOTIFICATION_SETTINGS_REDIS_KEY_PREFIX}{user_id}"
+    try:
+        await redis_conn.delete(redis_key)
+        logger.debug("Notification settings cache invalidated for user=%s", user_id)
+    except Exception as e:
+        logger.warning(
+            "Failed to invalidate notification settings cache for user=%s: %s",
+            user_id,
+            e,
+        )

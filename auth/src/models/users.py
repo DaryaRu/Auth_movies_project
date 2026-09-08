@@ -9,6 +9,9 @@ from src.models.associations import user_roles_table
 if TYPE_CHECKING:
     from src.models.oauth_accounts import OAuthAccountORM
     from src.models.roles import RoleORM
+    from src.models.user_notification_settings import (
+        UserNotificationSettingsORM,
+    )
     from src.models.user_subscriptions import UserSubscriptionORM
 
 
@@ -45,6 +48,10 @@ class UserORM(Base, BaseORM):
         cascade="all, delete-orphan",
     )
     subscriptions: Mapped[list["UserSubscriptionORM"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    notification_settings: Mapped["UserNotificationSettingsORM"] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
     )

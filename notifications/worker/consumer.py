@@ -16,15 +16,17 @@ from contacts import get_email
 from core.settings import settings
 from faststream import AckPolicy, Logger
 from faststream.kafka import KafkaBroker
+from notification_settings import (
+    AuthUnavailableError,
+    NotificationSettingsResponse,
+    get_notification_settings,
+)
 from pydantic import BaseModel, ValidationError
 from render import render
 from repositories.admin_mailings import AdminMailingsRepository
 from repositories.notification_triggers import NotificationTriggersRepository
 from repositories.notifications import NotificationsRepository
 from repositories.templates import TemplateRepository
-from repositories.user_notification_settings import (
-    UserNotificationSettingsRepository,
-)
 from senders import SENDERS
 
 broker = KafkaBroker(settings.kafka_brokers_list)
@@ -32,7 +34,6 @@ dlq_publisher = broker.publisher(settings.KAFKA_DLQ_TOPIC)
 ready_bulk_publisher = broker.publisher(settings.KAFKA_READY_BULK_TOPIC)
 
 templates_repo = TemplateRepository()
-settings_repo = UserNotificationSettingsRepository()
 notifications_repo = NotificationsRepository()
 admin_mailings_repo = AdminMailingsRepository()
 notification_triggers_repo = NotificationTriggersRepository()
@@ -53,18 +54,21 @@ class ReadyMessage(BaseModel):
     deduplication_key: str
 
 
-def _channel_enabled(
-    settings_row: dict[str, Any] | None, channel: str
+def _is_channel_allowed(
+    settings: NotificationSettingsResponse | None, channel: str
 ) -> bool:
-    """Проверка, разрешен ли канал получателю. Отсутствие записи трактуется как email/push включены, sms — нет."""
-    defaults = {"email": True, "sms": False, "push": True}
-    if settings_row is None:
-        return defaults.get(channel, False)
-    if not settings_row["notifications_enabled"]:
+    """Проверка, разрешен ли канал получателю.
+
+    Настройки получены от auth-service через HTTP — auth является
+    единственным источником правды для дефолтных значений.
+    Если пользователь не найден (None), уведомления запрещены.
+    """
+    if settings is None:
         return False
-    return bool(
-        settings_row.get(f"{channel}_enabled", defaults.get(channel, False))
-    )
+    if not settings.notifications_enabled:
+        return False
+    field_name = f"{channel}_enabled"
+    return getattr(settings, field_name, False)
 
 
 def _parse_message(
@@ -101,7 +105,9 @@ async def _check_deliverable(
 ) -> bool:
     """Проверяет, что можно рендерить и слать дальше сообщение, если шаблон активен,
     отправитель зарегистрирован и уведомления по каналу разрешены.
-    Если нет, notification помечается как failed/skipped, ретраить его нет смысла."""
+    Если нет, notification помечается как failed/skipped, ретраить его нет смысла.
+    Если auth-service недоступен, пробрасывает AuthUnavailableError для ретрая.
+    """
     if template is None or not template["is_active"]:
         error = f"template {message.template_id} not found or inactive"
         await notifications_repo.mark_notification_failed(
@@ -118,8 +124,8 @@ async def _check_deliverable(
         logger.error(f"{notification_id}: {error}")
         return False
 
-    settings_row = await settings_repo.get_by_user_id(message.user_id)
-    if not _channel_enabled(settings_row, message.channel):
+    settings = await get_notification_settings(message.user_id)
+    if not _is_channel_allowed(settings, message.channel):
         await notifications_repo.mark_notification_skipped(notification_id)
         logger.info(
             f"Канал {message.channel} отключён для {message.user_id}, пропускаю"
@@ -160,6 +166,9 @@ async def _render_and_send(
             delivery_address = email
 
         await SENDERS[message.channel].send(delivery_address, subject, body)
+    except AuthUnavailableError:
+        # Auth-service недоступен — нужно ретраить, не шлём в DLQ
+        raise
     except Exception as exc:
         await notifications_repo.mark_notification_failed(
             notification_id, str(exc)
