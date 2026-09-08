@@ -137,7 +137,7 @@ async def get_notification_settings(user_id: UUID) -> NotificationSettingsRespon
     redis_conn = None
     redis_read_failed = False
     try:
-        redis_conn = aioredis.Redis.from_pool(_get_redis_pool())
+        redis_conn = aioredis.Redis(connection_pool=_get_redis_pool())
         cached = await redis_conn.get(cache_key)
         if cached:
             return NotificationSettingsResponse.from_dict(json.loads(cached))
