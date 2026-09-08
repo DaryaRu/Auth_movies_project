@@ -63,6 +63,11 @@ class CustomBackend(BaseBackend):
             },
         )
 
+        # Сохраняем токен в сессию для последующих API вызовов
+        if request:
+            request.session['access_token'] = access_token
+            request.session.modified = True
+
         return user
 
     def get_user(self, user_id):

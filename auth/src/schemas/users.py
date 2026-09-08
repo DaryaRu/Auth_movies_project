@@ -16,6 +16,14 @@ PHONE_REGEX = re.compile(r"^\+[1-9]\d{7,14}$")
 FULL_NAME_REGEX = re.compile(r"^[А-ЯЁа-яёA-Za-z'\- ]+$")
 _VALID_TIMEZONES = available_timezones()
 
+def validate_timezone_value(v: str | None) -> str | None:
+    """Проверяет, что таймзона входит в список IANA."""
+    if v is None:
+        return v
+    if v not in _VALID_TIMEZONES:
+        raise ValueError(f"Неизвестная таймзона: {v}")
+    return v
+
 
 def _validate_phone(v: str | None) -> str | None:
     if v is None:
@@ -88,13 +96,7 @@ class UserRequestScheme(BaseModel):
     @field_validator("timezone")
     @classmethod
     def validate_timezone(cls, v: str | None):
-        if v is None:
-            return v
-
-        if v not in _VALID_TIMEZONES:
-            raise ValueError(f"Неизвестная таймзона: {v}")
-
-        return v
+        return validate_timezone_value(v)
 
     @model_validator(mode="after")
     def validate_login_method(self):
@@ -285,3 +287,16 @@ class ConfirmEmailRequestScheme(BaseModel):
     """Схема для подтверждения email через внутренний вызов."""
 
     user_id: UUID = Field(..., description="Идентификатор пользователя")
+
+class ChangeTimezoneRequestScheme(BaseModel):
+    """Схема для смены таймзоны."""
+    
+    timezone: str = Field(..., description='IANA-имя таймзоны (например, Europe/Moscow)')
+
+    @field_validator('timezone')
+    @classmethod
+    def validate_timezone(cls, v: str) -> str:
+        res = validate_timezone_value(v)
+        if res is None:
+            raise ValueError("Таймзона не может быть пустой")
+        return res

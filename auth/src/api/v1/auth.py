@@ -55,6 +55,7 @@ from src.schemas.user_notification_settings import UserNotificationSettings
 from src.schemas.users import (
     ChangeEmailRequestScheme,
     ChangePasswordRequestScheme,
+    ChangeTimezoneRequestScheme,
     ConfirmEmailRequestScheme,
     PhoneChangeConfirmScheme,
     PhoneChangeRequestScheme,
@@ -558,3 +559,25 @@ async def set_password(
         raise UserNotFoundHTTPException(detail=exc.detail) from exc
     except PasswordAlreadySetException as exc:
         raise PasswordAlreadySetHTTPException(detail=exc.detail) from exc
+
+
+@router.patch(
+    "/users/me/timezone/",
+    response_model=UserResponseScheme,
+    summary="Смена таймзоны пользователя",
+)
+@limiter.limit(settings.LIMIT_VALUE)
+async def change_user_timezone(
+    data: ChangeTimezoneRequestScheme,
+    auth_service: AuthServiceDep,
+    user: CurrentUserDep,
+    request: Request,
+):
+    """Смена таймзоны пользователя."""
+    try:
+        updated_user = await auth_service.change_user_timezone(
+            user_id=user.id, timezone_name=data.timezone
+        )
+        return updated_user
+    except UserNotFoundException as exc:
+        raise UserNotFoundHTTPException(detail=exc.detail) from exc
