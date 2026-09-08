@@ -24,6 +24,12 @@ async def created_permission(
     response = await session_http_client.post(
         f"{PERMISSIONS_URL}/", json=payload, headers=superuser_headers
     )
+    # TODO: временная диагностика нестабильного 404 в CI (permissions/roles).
+    if response.status != 201:
+        raise AssertionError(
+            f"created_permission: POST вернул {response.status}, "
+            f"ожидался 201. Тело ответа: {await response.text()}"
+        )
     permission = await response.json()
     yield permission
     await session_http_client.delete(

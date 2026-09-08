@@ -41,6 +41,26 @@ class Settings(BaseSettings):
     COOKIE_SECURE: bool = False
     OAUTH_REDIRECT_BASE_URL: str = "http://localhost"
     OAUTH_STATE_EXPIRE_SECONDS: int = 300
+    CODE_2FA_EXPIRE_SECONDS: int = 300
+    # Сколько раз можно ошибиться при вводе кода, прежде чем он станет недействителен
+    # (TooManyAttemptsException) и понадобится запросить новый код.
+    TWO_FA_MAX_ATTEMPTS: int = 5
+    # Сколько раз можно запросить код на один номер телефона за TWO_FA_SEND_RATE_WINDOW_SECONDS.
+    TWO_FA_MAX_SENDS_PER_WINDOW: int = 5
+    # Окно (в секундах), за которое считается TWO_FA_MAX_SENDS_PER_WINDOW.
+    TWO_FA_SEND_RATE_WINDOW_SECONDS: int = 3600
+    # Минимальный интервал (в секундах) между двумя отправками кода на один номер.
+    TWO_FA_SEND_COOLDOWN_SECONDS: int = 60
+    PHONE_CHANGE_CODE_EXPIRE_SECONDS: int = 300
+    # Сколько раз можно ошибиться при вводе кода подтверждения смены номера, прежде
+    # чем он станет недействителен (TooManyAttemptsException) и понадобится новый запрос.
+    PHONE_CHANGE_MAX_ATTEMPTS: int = 5
+    # Сколько раз можно запросить код смены на один номер за PHONE_CHANGE_SEND_RATE_WINDOW_SECONDS.
+    PHONE_CHANGE_MAX_SENDS_PER_WINDOW: int = 5
+    # Окно (в секундах), за которое считается PHONE_CHANGE_MAX_SENDS_PER_WINDOW.
+    PHONE_CHANGE_SEND_RATE_WINDOW_SECONDS: int = 3600
+    # Минимальный интервал (в секундах) между двумя запросами кода смены на один номер.
+    PHONE_CHANGE_SEND_COOLDOWN_SECONDS: int = 60
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
     OTEL_EXPORTER_OTLP_ENDPOINT: str
@@ -54,6 +74,12 @@ class Settings(BaseSettings):
     DEFAULT_LIMIT_VALUE: int = 100
     VK_CLIENT_ID: str = ""
     VK_CLIENT_SECRET: str = ""
+    SMSC_LOGIN: str = ""
+    SMSC_PASSWORD: str = ""
+    # Для реальной отправки: указать SMSC_LOGIN/SMSC_PASSWORD и выставить SMSC_TEST_MODE=False.
+    SMSC_TEST_MODE: bool = True
+    # Согласованное имя отправителя (Sender ID) из личного кабинета SMSC.
+    SMSC_SENDER_NAME: str = ""
     LIMIT_VALUE: str = "5/minute"
     NOTIFICATIONS_API_URL: str = ""
     NOTIFICATIONS_TEMPLATE_ID_CACHE_TTL: int = 3600

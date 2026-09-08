@@ -6,14 +6,18 @@ from uuid import UUID, uuid4
 
 from src.exceptions import (
     DecodeTokenException,
+    InvalidPhoneChangeCodeException,
+    InvalidTwoFactorCodeException,
     LastAuthMethodRestrictionException,
     OAuthAccountNotLinkedException,
     PasswordAlreadySetException,
     PasswordNotSetException,
+    PhoneAlreadyTakenException,
     ProviderException,
     TokenExeption,
     TokenKeysException,
     TokenTypeExeption,
+    TwoFactorRequiredException,
     UserAlreadyexistsException,
     UserNotFoundException,
     VerifyPasswordException,
@@ -23,11 +27,15 @@ from src.schemas.oauth import OAuthUserInfoScheme
 from src.schemas.users import (
     ChangeEmailRequestScheme,
     ChangePasswordRequestScheme,
+    PhoneChangeConfirmScheme,
+    PhoneChangeRequestScheme,
     SetPasswordRequestScheme,
     UserRequestScheme,
 )
 from src.services.base import BaseService
+from src.services.phone_change import PhoneChangeService
 from src.services.sessions import SessionService
+from src.services.two_factor import TwoFactorService
 from src.utils.db_manager import DBManager
 from src.utils.hashes import BaseHashService
 from src.utils.notifications import notify_user
@@ -50,11 +58,15 @@ class AuthService(BaseService):
         token_service: JWTTokenService,
         session_service: SessionService,
         db: DBManager,
+        two_factor_service: TwoFactorService,
+        phone_change_service: PhoneChangeService,
     ) -> None:
         super().__init__(db)
         self._hash_service: BaseHashService = hash_service
         self._token_service: JWTTokenService = token_service
         self._session_service: SessionService = session_service
+        self._two_factor_service: TwoFactorService = two_factor_service
+        self._phone_change_service: PhoneChangeService = phone_change_service
 
     async def register_user(self, user: UserRequestScheme) -> UserORM:
         is_exsist_user = (
@@ -66,9 +78,7 @@ class AuthService(BaseService):
             raise UserAlreadyexistsException()
         new_user = await self.add_one(user)
 
-        asyncio.create_task(
-            self._send_confirmation_email(new_user.id)
-        )
+        asyncio.create_task(self._send_confirmation_email(new_user.id))
         return new_user
 
     async def _send_confirmation_email(self, user_id: UUID) -> None:
@@ -77,11 +87,15 @@ class AuthService(BaseService):
             confirmation_link = await create_short_link(user_id=user_id)
         except Exception as e:
             logging.warning(
-                "Failed to create confirmation link for user %s: %s", user_id, e
+                "Failed to create confirmation link for user %s: %s",
+                user_id,
+                e,
             )
             return
         await notify_user(
-            user_id, "user_registered", payload={"confirmation_link": confirmation_link}
+            user_id,
+            "user_registered",
+            payload={"confirmation_link": confirmation_link},
         )
 
     async def confirm_email(self, user_id: UUID) -> UserORM:
@@ -137,6 +151,7 @@ class AuthService(BaseService):
             hashed_password=hash_password,
             is_superuser=is_superuser,
             timezone=user.timezone,
+            full_name=user.full_name,
         )
         await self._assign_free_subscription(new_user.id)
         return new_user
@@ -171,7 +186,9 @@ class AuthService(BaseService):
         active = await self._db.user_subscriptions.get_active(user_id)
         if active is None:
             return {"subscription_code": "free", "subscription_level": 0}
-        if active.expires_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
+        if active.expires_at.replace(tzinfo=timezone.utc) < datetime.now(
+            timezone.utc
+        ):
             await self._db.user_subscriptions.deactivate(active.id)
             return {"subscription_code": "free", "subscription_level": 0}
         return {
@@ -306,6 +323,65 @@ class AuthService(BaseService):
         )
         return updated_user
 
+    async def request_phone_change(
+        self, user_id: UUID, data: PhoneChangeRequestScheme
+    ) -> None:
+        """
+        Запрашивает смену телефона: проверяет пароль и уникальность нового
+        номера, отправляет код подтверждения на новый номер.
+
+        Args:
+            user_id (UUID): Уникальный идентификатор пользователя.
+            data (PhoneChangeRequestScheme): Новый номер и текущий пароль.
+
+        Raises:
+            UserNotFoundException: Если пользователь не найден.
+            VerifyPasswordException: Если пароль введен неверно.
+            PhoneAlreadyTakenException: Если номер уже занят другим аккаунтом.
+        """
+        user = await self._db.users.get_one_or_none_by_id(id=user_id)
+        if user is None:
+            raise UserNotFoundException()
+
+        if not self._hash_service.verify_password(
+            data.password, user.hashed_password
+        ):
+            raise VerifyPasswordException()
+
+        phone_taken = await self._db.users.get_one_or_none_by_email_or_phone(
+            email=None, phone=data.new_phone
+        )
+        if phone_taken is not None:
+            raise PhoneAlreadyTakenException()
+
+        await self._phone_change_service.request_change(
+            user_id, data.new_phone
+        )
+
+    async def confirm_phone_change(
+        self, user_id: UUID, data: PhoneChangeConfirmScheme
+    ) -> UserORM:
+        """
+        Подтверждает смену телефона кодом из СМС: обновляет phone, отзывает
+        все сессии (как change_user_password) и уведомляет на email.
+
+        Args:
+            user_id (UUID): Уникальный идентификатор пользователя.
+            data (PhoneChangeConfirmScheme): Код подтверждения.
+        """
+        new_phone = await self._phone_change_service.confirm_change(
+            user_id, data.code
+        )
+        if new_phone is None:
+            raise InvalidPhoneChangeCodeException()
+
+        updated_user = await self._db.users.update_user_credentials(
+            user_id=user_id, phone=new_phone
+        )
+        await self._session_service.delete_all_sessions(str(user_id))
+        asyncio.create_task(notify_user(user_id, "phone_changed"))
+        return updated_user
+
     async def change_user_password(
         self, user_id: UUID, data: ChangePasswordRequestScheme
     ) -> None:
@@ -356,6 +432,8 @@ class AuthService(BaseService):
         Raises:
             UserNotFoundException: Если пользователь с указанным email не найден.
             VerifyPasswordException: Если пароль введён неверно.
+            TwoFactorRequiredException: Если у пользователя указан телефон и пароль верный,
+                но вход завершится только после подтверждения кода.
         """
         user = await self._db.users.get_one_or_none_by_email_or_phone(
             email=auth_user.email, phone=auth_user.phone
@@ -370,8 +448,49 @@ class AuthService(BaseService):
             auth_user.password, user.hashed_password
         ):
             raise VerifyPasswordException()
+
+        if user.phone:
+            await self._two_factor_service.send_code(user.id, user.phone)
+            raise TwoFactorRequiredException()
+
         return await self._create_user_session(
             user, ip_address, user_agent, auth_method="password"
+        )
+
+    async def verify_two_factor_login(
+        self,
+        email: str | None,
+        phone: str | None,
+        code: str,
+        ip_address: str,
+        user_agent: str,
+    ) -> tuple[str, str]:
+        """
+        Завершает вход после подтверждения кода из authenticate_user.
+
+        Args:
+            email (str | None): Email, использованный на первом шаге логина.
+            phone (str | None): Телефон, использованный на первом шаге логина.
+            code (str): Код подтверждения из СМС.
+            ip_address (str): IP-адрес клиента.
+            user_agent (str): Строка User-Agent клиентского устройства.
+
+        Raises:
+            UserNotFoundException: Если пользователь не найден.
+            InvalidTwoFactorCodeException: Если код неверный или истек.
+            TooManyAttemptsException: Если исчерпан лимит попыток для текущего кода.
+        """
+        user = await self._db.users.get_one_or_none_by_email_or_phone(
+            email=email, phone=phone
+        )
+        if user is None:
+            raise UserNotFoundException()
+
+        if not await self._two_factor_service.verify_code(user.id, code):
+            raise InvalidTwoFactorCodeException()
+
+        return await self._create_user_session(
+            user, ip_address, user_agent, auth_method="password+sms"
         )
 
     async def _create_user_session(

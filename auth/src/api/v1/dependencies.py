@@ -20,14 +20,19 @@ from src.integrations.oauth.google_provider import GoogleOAuthProvider
 from src.integrations.oauth.providers_factory import OAuthProviderFactory
 from src.integrations.oauth.vk_provider import VkOAuthProvider
 from src.integrations.oauth.yandex_provider import YandexOAuthProvider
+from src.integrations.sms.base_provider import SMSProviderBase
+from src.integrations.sms.smsc_provider import SMSCProvider
 from src.models.users import UserORM
 from src.repositories.sessions import SessionRedisRepository
 from src.services.auth import AuthService
 from src.services.oauth import OAuthService
 from src.services.permissions import PermissionService
+from src.services.phone_change import PhoneChangeService
+from src.services.profile import ProfileService
 from src.services.roles import RoleService
 from src.services.sessions import SessionService
 from src.services.subscriptions import SubscriptionService
+from src.services.two_factor import TwoFactorService
 from src.services.user_notification_settings import (
     UserNotificationSettingsService,
 )
@@ -85,15 +90,27 @@ def get_session_service() -> SessionService:
 
 
 def get_auth_service(
-    db: "DBDep", session_service: "SessionServiceDep"
+    db: "DBDep",
+    session_service: "SessionServiceDep",
+    two_factor_service: "TwoFactorServiceDep",
+    phone_change_service: "PhoneChangeServiceDep",
 ) -> AuthService:
     return AuthService(
-        HashArgon2Service(), JWTTokenService(), session_service, db
+        HashArgon2Service(),
+        JWTTokenService(),
+        session_service,
+        db,
+        two_factor_service,
+        phone_change_service,
     )
 
 
 def get_role_service(db: "DBDep") -> RoleService:
     return RoleService(db)
+
+
+def get_profile_service(db: "DBDep") -> ProfileService:
+    return ProfileService(db)
 
 
 def get_permission_service(db: "DBDep") -> PermissionService:
@@ -160,6 +177,11 @@ def get_oauth_provider_factory() -> OAuthProviderFactory:
     )
 
 
+def get_sms_provider() -> SMSProviderBase:
+    """Провайдер для отправки СМС-кодов подтверждения."""
+    return SMSCProvider()
+
+
 def get_oauth_service(
     auth_service: "AuthServiceDep",
     oauth_provider_factory: OAuthProviderFactory = Depends(
@@ -170,10 +192,27 @@ def get_oauth_service(
     return OAuthService(oauth_provider_factory, auth_service, redis.redis)
 
 
+def get_two_factor_service(
+    sms_provider: "SMSProviderDep",
+) -> TwoFactorService:
+    """Сервис генерации, отправки, проверки кода двухфакторной аутентификации."""
+    assert redis.redis is not None
+    return TwoFactorService(sms_provider, redis.redis)
+
+
+def get_phone_change_service(
+    sms_provider: "SMSProviderDep",
+) -> PhoneChangeService:
+    """Сервис смены номера телефона с подтверждением СМС-кодом."""
+    assert redis.redis is not None
+    return PhoneChangeService(sms_provider, redis.redis)
+
+
 CurrentUserDep = Annotated[UserORM, Depends(get_current_user)]
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
 RefreshTokenDep = Annotated[str, Depends(get_refresh_token)]
 RoleServiceDep = Annotated[RoleService, Depends(get_role_service)]
+ProfileServiceDep = Annotated[ProfileService, Depends(get_profile_service)]
 PermissionServiceDep = Annotated[
     PermissionService, Depends(get_permission_service)
 ]
@@ -182,6 +221,13 @@ TokenPayloadDep = Annotated[dict[str, Any], Depends(get_token_payload)]
 DBDep = Annotated[DBManager, Depends(get_db)]
 SessionServiceDep = Annotated[SessionService, Depends(get_session_service)]
 OAuthServiceDep = Annotated[OAuthService, Depends(get_oauth_service)]
+SMSProviderDep = Annotated[SMSProviderBase, Depends(get_sms_provider)]
+TwoFactorServiceDep = Annotated[
+    TwoFactorService, Depends(get_two_factor_service)
+]
+PhoneChangeServiceDep = Annotated[
+    PhoneChangeService, Depends(get_phone_change_service)
+]
 SubscriptionServiceDep = Annotated[
     SubscriptionService, Depends(get_subscription_service)
 ]

@@ -201,6 +201,12 @@ class TestDeletePermission:
         response = await session_http_client.post(
             f"{PERMISSIONS_URL}/", json=payload, headers=superuser_headers
         )
+        # TODO: временная диагностика нестабильного 404 в CI (permissions/roles).
+        if response.status != 201:
+            raise AssertionError(
+                f"permission_to_delete: POST вернул {response.status}, "
+                f"ожидался 201. Тело ответа: {await response.text()}"
+            )
         return await response.json()
 
     async def test_delete_permission_success(
@@ -356,10 +362,16 @@ class TestRemovePermissionFromRole:
         created_permission: dict[str, Any],
     ) -> dict[str, Any]:
         """Назначает право роли через API для использования в тестах снятия."""
-        await session_http_client.post(
+        response = await session_http_client.post(
             f"{ROLES_URL}/{created_role['id']}/permissions/{created_permission['id']}/",
             headers=superuser_headers,
         )
+        # TODO: временная диагностика нестабильного 404 в CI (permissions/roles).
+        if response.status != 201:
+            raise AssertionError(
+                f"assigned_permission: POST вернул {response.status}, "
+                f"ожидался 201. Тело ответа: {await response.text()}"
+            )
         return {
             "role_id": created_role["id"],
             "permission_id": created_permission["id"],

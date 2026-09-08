@@ -112,7 +112,15 @@ jobs:
         run: make keys
 
       - name: Create .env for auth functional tests
-        run: cp auth/tests/functional/.env.example auth/tests/functional/.env
+        env:
+          SMSC_LOGIN: ${{ secrets.SMSC_LOGIN }}
+          SMSC_PASSWORD: ${{ secrets.SMSC_PASSWORD }}
+          SMSC_SENDER_NAME: ${{ secrets.SMSC_SENDER_NAME }}
+        run: |
+          cp auth/tests/functional/.env.example auth/tests/functional/.env
+          sed -i "s/<smsc_login>/$SMSC_LOGIN/" auth/tests/functional/.env
+          sed -i "s/<smsc_password>/$SMSC_PASSWORD/" auth/tests/functional/.env
+          sed -i "s/<smsc_sender_name>/$SMSC_SENDER_NAME/" auth/tests/functional/.env
 
       - name: Run auth functional tests
         run: make test-auth PYTHON_VERSION=${{ matrix.python-version }}

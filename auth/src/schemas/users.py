@@ -13,7 +13,37 @@ from pydantic import (
 )
 
 PHONE_REGEX = re.compile(r"^\+[1-9]\d{7,14}$")
+FULL_NAME_REGEX = re.compile(r"^[А-ЯЁа-яёA-Za-z'\- ]+$")
 _VALID_TIMEZONES = available_timezones()
+
+
+def _validate_phone(v: str | None) -> str | None:
+    if v is None:
+        return v
+
+    if not PHONE_REGEX.match(v):
+        raise ValueError("Некорректный формат телефона")
+
+    return v
+
+
+def _validate_full_name(v: str | None) -> str | None:
+    if v is None:
+        return v
+
+    v = " ".join(v.split())
+    if not v:
+        return None
+
+    if not (4 <= len(v) <= 255):
+        raise ValueError("ФИО должно быть от 4 до 255 символов")
+
+    if not FULL_NAME_REGEX.match(v):
+        raise ValueError(
+            "ФИО может содержать только буквы, пробел, дефис и апостроф"
+        )
+
+    return v
 
 
 class UserRequestScheme(BaseModel):
@@ -21,25 +51,39 @@ class UserRequestScheme(BaseModel):
     Схема запроса для создания или аутентификации пользователя.
     Атрибуты:
         email (EmailStr): Электронная почта пользователя.
+        phone (str): Номер телефона пользователя.
         password (str): Пароль пользователя.
         timezone (str): IANA-имя таймзоны (например Europe/Moscow).
+        full_name (str): ФИО пользователя.
     """
 
     email: EmailStr | None = None
     phone: str | None = None
     password: str
     timezone: str | None = None
+    full_name: str | None = None
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "email": "test@example.com",
+                "phone": "+79621234567",
+                "password": "12345TestPassword",
+                "timezone": "Europe/Moscow",
+                "full_name": "Иванов Иван Иванович",
+            }
+        }
+    )
 
     @field_validator("phone")
     @classmethod
     def validate_phone(cls, v: str | None):
-        if v is None:
-            return v
+        return _validate_phone(v)
 
-        if not PHONE_REGEX.match(v):
-            raise ValueError("Некорректный формат телефона")
-
-        return v
+    @field_validator("full_name")
+    @classmethod
+    def validate_full_name(cls, v: str | None):
+        return _validate_full_name(v)
 
     @field_validator("timezone")
     @classmethod
@@ -71,6 +115,7 @@ class UserResponseScheme(BaseModel):
     id: UUID
     email: EmailStr | None
     phone: str | None
+    full_name: str | None = None
     is_superuser: bool
     is_active: bool
     email_verified: bool = False
@@ -126,11 +171,88 @@ class RefreshTokenCreate(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class UpdateFullNameRequestScheme(BaseModel):
+    """Схема для обновления ФИО."""
+
+    full_name: str | None = None
+
+    model_config = ConfigDict(
+        json_schema_extra={"example": {"full_name": "Иванов Иван Иванович"}}
+    )
+
+    @field_validator("full_name")
+    @classmethod
+    def validate_full_name(cls, v: str | None):
+        return _validate_full_name(v)
+
+
+class PhoneChangeRequestScheme(BaseModel):
+    """Схема для запроса смены номера телефона."""
+
+    new_phone: str = Field(..., description="Новый номер телефона")
+    password: str = Field(..., description="Текущий пароль для подтверждения")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "new_phone": "+79621234568",
+                "password": "12345TestPassword",
+            }
+        }
+    )
+
+    @field_validator("new_phone")
+    @classmethod
+    def validate_new_phone(cls, v: str):
+        validated = _validate_phone(v)
+        if validated is None:
+            raise ValueError("Некорректный формат телефона")
+        return validated
+
+
+class PhoneChangeConfirmScheme(BaseModel):
+    """Схема для подтверждения смены номера телефона кодом из СМС."""
+
+    code: str = Field(..., description="Код подтверждения из СМС")
+
+    model_config = ConfigDict(json_schema_extra={"example": {"code": "482913"}})
+
+
+class VerifyTwoFactorRequestScheme(BaseModel):
+    """Схема для подтверждения кода из СМС на втором шаге логина."""
+
+    email: EmailStr | None = None
+    phone: str | None = None
+    code: str = Field(..., description="Код подтверждения из СМС")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {"email": "test@example.com", "code": "482913"}
+        }
+    )
+
+    @model_validator(mode="after")
+    def validate_login_method(self):
+        if not self.email and not self.phone:
+            raise ValueError("Необходимо указать email или телефон")
+
+        return self
+
+
 class ChangeEmailRequestScheme(BaseModel):
     """Схема для смены email."""
 
     new_email: EmailStr
     password: str = Field(..., description="Текущий пароль для подтверждения")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "new_email": "newtest@example.com",
+                "password": "12345TestPassword",
+            }
+        }
+    )
 
 
 class ChangePasswordRequestScheme(BaseModel):
@@ -139,11 +261,24 @@ class ChangePasswordRequestScheme(BaseModel):
     current_password: str = Field(..., description="Текущий пароль")
     new_password: str = Field(..., description="Новый пароль")
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "current_password": "12345TestPassword",
+                "new_password": "NewTestPassword12345",
+            }
+        }
+    )
+
 
 class SetPasswordRequestScheme(BaseModel):
     """Схема для установки пароля OAuth-пользователем без пароля."""
 
     password: str = Field(..., description="Новый пароль")
+
+    model_config = ConfigDict(
+        json_schema_extra={"example": {"password": "12345TestPassword"}}
+    )
 
 
 class ConfirmEmailRequestScheme(BaseModel):

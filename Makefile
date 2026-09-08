@@ -73,6 +73,34 @@ revision:
 shell:
 	docker compose exec auth-db psql -U movies -d movies
 
+# Показывает код 2FA из Redis по user_id (нужно для тестового режима, когда
+# реальная SMS не доставляется).
+# Пример: make show-2fa-code user_id=aad61edd-ba14-4848-8815-6b147515d91a
+show-2fa-code:
+	docker compose exec -T redis redis-cli GET "2fa_code:$(user_id)"
+
+# Находит user_id через psql, чтобы не копировать user_id вручную.
+# Пример: make show-2fa-code-by-email email=test@example.com
+show-2fa-code-by-email:
+	@USER_ID=$$(docker compose exec -T auth-db psql -U movies -d movies -tAc "SELECT id FROM users WHERE email = '$(email)';"); \
+	if [ -z "$$USER_ID" ]; then echo "Пользователь с email=$(email) не найден"; exit 1; fi; \
+	echo "user_id=$$USER_ID"; \
+	docker compose exec -T redis redis-cli GET "2fa_code:$$USER_ID"
+
+# Показывает код смены номера телефона из Redis по user_id.
+# Он хранится хешем (не строкой, как 2FA-код), поэтому используем HGET, а не GET.
+# Пример: make show-phone-change-code user_id=aad61edd-ba14-4848-8815-6b147515d91a
+show-phone-change-code:
+	docker compose exec -T redis redis-cli HGET "phone_change:$(user_id)" sms_code
+
+# Показывает код смены номера телефона из Redis по email.
+# Пример: make show-phone-change-code-by-email email=test@example.com
+show-phone-change-code-by-email:
+	@USER_ID=$$(docker compose exec -T auth-db psql -U movies -d movies -tAc "SELECT id FROM users WHERE email = '$(email)';"); \
+	if [ -z "$$USER_ID" ]; then echo "Пользователь с email=$(email) не найден"; exit 1; fi; \
+	echo "user_id=$$USER_ID"; \
+	docker compose exec -T redis redis-cli HGET "phone_change:$$USER_ID" sms_code
+
 # Генерирует RSA-ключи для подписи JWT (пропускает, если файлы уже существуют)
 keys:
 	test -f private.pem || openssl genrsa -out private.pem 2048
