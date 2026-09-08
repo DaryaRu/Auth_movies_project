@@ -97,10 +97,6 @@ class InvalidPhoneChangeCodeException(AuthServiceException):
     detail = "Неверный или истекший код подтверждения"
 
 
-class InvalidTimezoneException(AuthServiceException):
-    detail = "Некорректная таймзона"
-
-
 class AuthServiceHTTPException(HTTPException):
     status_code = 500
 
@@ -142,10 +138,6 @@ class NoPendingPhoneChangeHTTPException(AuthServiceHTTPException):
 
 class InvalidPhoneChangeCodeHTTPException(AuthServiceHTTPException):
     status_code = 401
-
-
-class InvalidTimezoneHTTPException(AuthServiceHTTPException):
-    status_code = 400
 
 
 class DecodeTokenHTTPException(AuthServiceHTTPException):
