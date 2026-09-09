@@ -11,7 +11,7 @@ select = [
 ]
 
 [lint.flake8-bugbear]
-extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Path", "fastapi.Security"]
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Path", "fastapi.Security", "src.api.v1.dependencies.require_permission"]
 
 [lint.per-file-ignores]
 "auth/src/migrations/env.py" = ["E402", "F403"]

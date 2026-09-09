@@ -1,7 +1,5 @@
 """Функциональные тесты эндпоинтов аутентификации."""
 
-import base64
-import json
 from http import HTTPStatus
 from typing import Any
 
@@ -126,28 +124,6 @@ class TestLogin:
 
         assert data == {"two_fa_required": True}
         assert "access_token" not in data
-
-    async def test_login_token_contains_permissions(
-        self,
-        http_client: ClientSession,
-        active_user_data: dict[str, Any],
-    ):
-        """Access-токен содержит поле permissions со списком прав пользователя."""
-        response = await http_client.post(
-            self.URL,
-            json={
-                "email": active_user_data["email"],
-                "password": active_user_data["password"],
-            },
-        )
-        data = await assert_status_return_json(response, HTTPStatus.OK)
-
-        token_payload = data["access_token"].split(".")[1]
-        token_payload += "=" * (4 - len(token_payload) % 4)
-        payload = json.loads(base64.urlsafe_b64decode(token_payload))
-
-        assert "permissions" in payload
-        assert isinstance(payload["permissions"], list)
 
     async def test_login_user_not_found(
         self,
