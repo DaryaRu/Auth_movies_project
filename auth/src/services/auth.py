@@ -170,10 +170,6 @@ class AuthService(BaseService):
             expires_at=datetime(2999, 12, 31, tzinfo=timezone.utc),
         )
 
-    async def _get_permission_codes(self, user_id: UUID) -> list[str]:
-        permissions = await self._db.roles.get_user_permissions(user_id)
-        return [p.code for p in permissions]
-
     async def _get_subscription_info(self, user_id: UUID) -> dict:
         """
         Возвращает код и уровень активной подписки пользователя для JWT-токена.
@@ -261,7 +257,6 @@ class AuthService(BaseService):
 
         is_superuser = payload.get("is_superuser", False)
         user_id = UUID(payload["sub"])
-        permission_codes = await self._get_permission_codes(user_id)
         subscription_info = await self._get_subscription_info(user_id)
 
         new_access_token, new_refresh_token = (
@@ -270,7 +265,6 @@ class AuthService(BaseService):
                     "sub": str(payload["sub"]),
                     "is_superuser": is_superuser,
                     "sid": str(payload["sid"]),
-                    "permissions": permission_codes,
                     **subscription_info,
                 }
             )
@@ -529,7 +523,6 @@ class AuthService(BaseService):
     ) -> tuple[str, str]:
         sid = uuid4()
 
-        permission_codes = await self._get_permission_codes(user.id)
         subscription_info = await self._get_subscription_info(user.id)
 
         access_token, refresh_token = (
@@ -538,7 +531,6 @@ class AuthService(BaseService):
                     "sub": str(user.id),
                     "is_superuser": user.is_superuser,
                     "sid": str(sid),
-                    "permissions": permission_codes,
                     **subscription_info,
                 }
             )

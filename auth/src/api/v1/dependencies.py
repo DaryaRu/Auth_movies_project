@@ -106,7 +106,8 @@ def get_auth_service(
 
 
 def get_role_service(db: "DBDep") -> RoleService:
-    return RoleService(db)
+    assert redis.redis is not None
+    return RoleService(db, redis.redis)
 
 
 def get_profile_service(db: "DBDep") -> ProfileService:
@@ -125,7 +126,9 @@ def get_user_subscription_service(db: "DBDep") -> UserSubscriptionService:
     return UserSubscriptionService(db)
 
 
-def get_user_notification_settings_service(db: "DBDep") -> UserNotificationSettingsService:
+def get_user_notification_settings_service(
+    db: "DBDep",
+) -> UserNotificationSettingsService:
     return UserNotificationSettingsService(db)
 
 
@@ -167,6 +170,28 @@ async def get_current_staff_user(
     if not user.is_superuser:
         raise NotEnoughPermissionsHTTPException()
     return user
+
+
+def require_permission(code: str):
+    """Аналог StaffUserDep, но по конкретному коду права, а не по статусу суперпользователя.
+
+    is_superuser читается прямо из JWT payload (без похода в Redis/БД) и дает
+    универсальный обход. Для остальных пользователей код проверяется по кэшу в Redis.
+    """
+
+    async def dependency(
+        token_payload: "TokenPayloadDep",
+        user: "CurrentUserDep",
+        role_service: "RoleServiceDep",
+    ) -> UserORM:
+        if token_payload.get("is_superuser"):
+            return user
+        codes = await role_service.get_user_permissions_cached(user.id)
+        if code not in codes:
+            raise NotEnoughPermissionsHTTPException()
+        return user
+
+    return dependency
 
 
 def get_oauth_provider_factory() -> OAuthProviderFactory:
@@ -232,7 +257,8 @@ SubscriptionServiceDep = Annotated[
     SubscriptionService, Depends(get_subscription_service)
 ]
 UserNotificationSettingsServiceDep = Annotated[
-    UserNotificationSettingsService, Depends(get_user_notification_settings_service)
+    UserNotificationSettingsService,
+    Depends(get_user_notification_settings_service),
 ]
 UserSubscriptionServiceDep = Annotated[
     UserSubscriptionService, Depends(get_user_subscription_service)

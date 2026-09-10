@@ -38,6 +38,8 @@ class Settings(BaseSettings):
     OPENAPI_URL: str = "/api/auth/openapi"
     OPENAPI_SCHEMA_URL: str = "/api/auth/openapi.json"
     CACHE_EXPIRE: int = 600
+    # TTL кэша прав пользователя в Redis (user_permissions:{user_id}) для require_permission().
+    PERMISSIONS_CACHE_TTL_SECONDS: int = 300
     COOKIE_SECURE: bool = False
     OAUTH_REDIRECT_BASE_URL: str = "http://localhost"
     OAUTH_STATE_EXPIRE_SECONDS: int = 300
