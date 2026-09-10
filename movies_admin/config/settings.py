@@ -114,6 +114,9 @@ AUTH_API_PUBLIC_KEY_URL = os.getenv("AUTH_API_PUBLIC_KEY_URL", "")
 AUTH_API_SUBSCRIPTION_LEVELS_URL = os.getenv(
     "AUTH_API_SUBSCRIPTION_LEVELS_URL", ""
 )
+AUTH_API_BASE_URL = os.getenv(
+    "AUTH_API_BASE_URL", "http://auth-service:8000/api/v1"
+)
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "")
 
 NOTIFICATIONS_API_BASE_URL = os.getenv(
