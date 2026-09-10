@@ -28,15 +28,19 @@ class AuthAPIClient:
         self.base_url = (base_url or settings.AUTH_API_BASE_URL).rstrip("/")
         self.timeout = httpx.Timeout(30.0)
 
-    def _get_headers(self, auth_token: str | None = None) -> dict:
+    def _get_headers(
+        self, auth_token: str | None = None, request_id: str | None = None
+    ) -> dict:
         """Получить заголовки для запросов.
 
         Args:
             auth_token: JWT токен админа из сессии.
+            request_id: X-Request-Id.
         """
         headers = {
             "Content-Type": "application/json",
             "Accept": "application/json",
+            "X-Request-Id": request_id or "",
         }
         if auth_token:
             headers["Authorization"] = f"Bearer {auth_token}"
@@ -50,7 +54,10 @@ class AuthAPIClient:
         return response.json()
 
     def get_user_profile(
-        self, user_id: str, auth_token: str | None = None
+        self,
+        user_id: str,
+        auth_token: str | None = None,
+        request_id: str | None = None,
     ) -> dict:
         """Получить личные данные пользователя по id.
 
@@ -59,12 +66,14 @@ class AuthAPIClient:
             auth_token: JWT токен админа из сессии. Нужно право
                 user:view_personal_data (или is_superuser) — проверяется
                 на стороне auth-service через require_permission().
+            request_id: X-Request-Id текущего запроса в movies_admin,
+                прокидывается дальше для сквозной трассировки.
         """
         try:
             with httpx.Client(timeout=self.timeout) as client:
                 response = client.get(
                     f"{self.base_url}{USER_PROFILE_GET_URL.format(user_id=user_id)}",
-                    headers=self._get_headers(auth_token),
+                    headers=self._get_headers(auth_token, request_id),
                 )
                 result = self._handle_response(response)
                 if not isinstance(result, dict):

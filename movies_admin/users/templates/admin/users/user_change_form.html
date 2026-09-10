@@ -1,0 +1,38 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}{{ block.super }}
+<style>
+    .detail-table { width: 100%; max-width: 800px; border-collapse: collapse; }
+    .detail-table th { text-align: left; padding: 10px 12px; background: #f8f9fa; font-weight: bold; color: #333; border-bottom: 1px solid #ddd; width: 200px; vertical-align: top; }
+    .detail-table td { padding: 10px 12px; border-bottom: 1px solid #eee; }
+    .error-message { background: #f8d7da; color: #721c24; padding: 10px; border-radius: 4px; margin-bottom: 15px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    {% if error_message %}
+        <div class="error-message">{{ error_message }}</div>
+    {% endif %}
+
+    {% if profile %}
+        <table class="detail-table">
+            <tr><th>{% trans 'ID' %}</th><td>{{ profile.id }}</td></tr>
+            <tr><th>{% trans 'Email' %}</th><td>{{ profile.email|default:"-" }}</td></tr>
+            <tr><th>{% trans 'Phone' %}</th><td>{{ profile.phone|default:"-" }}</td></tr>
+            <tr><th>{% trans 'Full name' %}</th><td>{{ profile.full_name|default:"-" }}</td></tr>
+            <tr><th>{% trans 'Timezone' %}</th><td>{{ profile.timezone|default:"-" }}</td></tr>
+            <tr><th>{% trans 'Email verified' %}</th><td>{{ profile.email_verified }}</td></tr>
+            <tr><th>{% trans 'Active' %}</th><td>{{ profile.is_active }}</td></tr>
+            <tr><th>{% trans 'Superuser' %}</th><td>{{ profile.is_superuser }}</td></tr>
+        </table>
+    {% else %}
+        <p>{% trans 'No profile data available.' %}</p>
+    {% endif %}
+
+    <div class="submit-row">
+        <a href="{% url 'admin:users_user_changelist' %}" class="button cancel-link">{% trans 'Back to list' %}</a>
+    </div>
+</div>
+{% endblock %}

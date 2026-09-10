@@ -53,7 +53,7 @@ class CustomBackend(BaseBackend):
                 return None
 
         is_superuser = bool(payload.get("is_superuser"))
-        permission_codes = self._get_permission_codes(access_token)
+        permission_codes = self._get_permission_codes(access_token, request_id)
         if not is_superuser and not permission_codes:
             # Пускаем в админку либо суперпользователя, либо админа,
             # у которого есть хотя бы одно назначенное право.
@@ -114,12 +114,20 @@ class CustomBackend(BaseBackend):
         )
 
     @staticmethod
-    def _get_permission_codes(access_token: str) -> list[str] | None:
-        """Получение прав пользователя через auth-service (None при ошибке запроса)."""
+    def _get_permission_codes(
+        access_token: str, request_id: str | None = None
+    ) -> list[str] | None:
+        """Получение прав пользователя через auth-service (None при ошибке запроса).
+
+        X-Request-Id обязателен на стороне auth-service (иначе вернет 400 без него).
+        """
         try:
             response = requests.get(
                 f"{settings.AUTH_API_BASE_URL}/users/me/permissions/",
-                headers={"Authorization": f"Bearer {access_token}"},
+                headers={
+                    "Authorization": f"Bearer {access_token}",
+                    "X-Request-Id": request_id or "",
+                },
                 timeout=5,
             )
         except requests.RequestException:
