@@ -3,7 +3,7 @@
 import httpx
 from django.conf import settings
 
-USER_PROFILE_GET_URL = "/users/{user_id}/profile/"
+USER_PROFILE_GET_URL = "/admin/users/{user_id}/"
 
 
 def _error_detail(response: httpx.Response) -> str:
