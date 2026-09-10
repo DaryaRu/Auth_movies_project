@@ -2,7 +2,7 @@ import secrets
 from typing import Annotated, Any
 from uuid import UUID
 
-from fastapi import Depends, Header, HTTPException, Request, status
+from fastapi import Depends, Header, HTTPException, Query, Request, status
 from fastapi.security import HTTPAuthorizationCredentials
 
 from src.core.config import settings
@@ -43,6 +43,25 @@ from src.utils.security import CustomHTTPBearer
 from src.utils.tokens import JWTTokenService
 
 security = CustomHTTPBearer(auto_error=False)
+
+
+class PaginationParams:
+    """Параметры пагинации для эндпоинтов, отдающих списки."""
+
+    def __init__(
+        self,
+        page_number: int = Query(
+            default=1, ge=1, description="Номер запрашиваемой страницы."
+        ),
+        page_size: int = Query(
+            default=settings.PAGINATION_DEFAULT_PAGE_SIZE,
+            ge=1,
+            le=settings.PAGINATION_MAX_PAGE_SIZE,
+            description="Количество элементов на одной странице.",
+        ),
+    ):
+        self.page_number = page_number
+        self.page_size = page_size
 
 
 def get_token(
@@ -244,6 +263,7 @@ PermissionServiceDep = Annotated[
 StaffUserDep = Annotated[UserORM, Depends(get_current_staff_user)]
 TokenPayloadDep = Annotated[dict[str, Any], Depends(get_token_payload)]
 DBDep = Annotated[DBManager, Depends(get_db)]
+PaginationDep = Annotated[PaginationParams, Depends(PaginationParams)]
 SessionServiceDep = Annotated[SessionService, Depends(get_session_service)]
 OAuthServiceDep = Annotated[OAuthService, Depends(get_oauth_service)]
 SMSProviderDep = Annotated[SMSProviderBase, Depends(get_sms_provider)]
