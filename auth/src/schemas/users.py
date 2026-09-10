@@ -126,6 +126,15 @@ class UserResponseScheme(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class AdminUserListResponse(BaseModel):
+    """Схема ответа списка пользователей для просмотра в админке."""
+
+    items: list[UserResponseScheme]
+    total: int
+    page_number: int
+    page_size: int
+
+
 class UserContactScheme(BaseModel):
     """Данные пользователя для нотификации."""
 
