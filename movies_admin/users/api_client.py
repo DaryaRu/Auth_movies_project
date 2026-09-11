@@ -4,6 +4,7 @@ import httpx
 from django.conf import settings
 
 USER_PROFILE_GET_URL = "/admin/users/{user_id}/"
+USER_LIST_GET_URL = "/admin/users/"
 
 
 def _error_detail(response: httpx.Response) -> str:
@@ -89,6 +90,53 @@ class AuthAPIClient:
             raise APIError(f"Failed to get user profile: {e}") from e
         except httpx.HTTPError as e:
             raise APIError(f"Failed to get user profile: {e}") from e
+
+    def list_users(
+        self,
+        auth_token: str | None = None,
+        request_id: str | None = None,
+        search: str | None = None,
+        page_number: int = 1,
+        page_size: int = 50,
+        sort: str | None = None,
+    ) -> dict:
+        """Список и поиск пользователей (email, телефон, ФИО).
+
+        Ответ auth-service отдается напрямую в шаблон без сохранения
+        в локальную БД movies_admin, поиск и пагинация на стороне auth-service.
+
+        Args:
+            auth_token: JWT токен админа из сессии. Нужно право
+                user:view_personal_data (или is_superuser).
+            request_id: X-Request-Id текущего запроса в movies_admin.
+            search: подстрока поиска по email/телефону/ФИО.
+            page_number: номер страницы (с 1).
+            page_size: размер страницы.
+            sort: full_name/email, с "-" для убывания. Без параметра —
+                по дате регистрации на стороне auth-service.
+        """
+        params = {"page_number": page_number, "page_size": page_size}
+        if search:
+            params["search"] = search
+        if sort:
+            params["sort"] = sort
+        try:
+            with httpx.Client(timeout=self.timeout) as client:
+                response = client.get(
+                    f"{self.base_url}{USER_LIST_GET_URL}",
+                    params=params,
+                    headers=self._get_headers(auth_token, request_id),
+                )
+                result = self._handle_response(response)
+                if not isinstance(result, dict):
+                    raise APIError(f"Expected dict, got {type(result)}")
+                return result
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 403:
+                raise PermissionDeniedError(_error_detail(e.response)) from e
+            raise APIError(f"Failed to list users: {e}") from e
+        except httpx.HTTPError as e:
+            raise APIError(f"Failed to list users: {e}") from e
 
 
 class APIError(Exception):
