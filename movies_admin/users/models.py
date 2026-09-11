@@ -31,6 +31,8 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     class Meta:
         db_table = "users"
+        verbose_name = _("profile")
+        verbose_name_plural = _("profiles")
 
         constraints = [
             models.UniqueConstraint(
