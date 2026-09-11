@@ -1,10 +1,9 @@
+from typing import Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query
 
 from src.api.v1.dependencies import DBDep, PaginationDep, require_permission
-from src.core.config import settings
-from src.core.limiter import limiter
 from src.exceptions import UserNotFoundHTTPException
 from src.models.users import UserORM
 from src.schemas.users import AdminUserListResponse, UserResponseScheme
@@ -17,12 +16,17 @@ router = APIRouter(prefix="/admin/users", tags=["Admin: Users"])
     response_model=AdminUserListResponse,
     summary="Список и поиск профилей пользователей (доступно админам с правом просмотра)",
 )
-@limiter.limit(settings.LIMIT_VALUE)
 async def list_users(
     db: DBDep,
     pagination: PaginationDep,
-    request: Request,
     search: str | None = None,
+    sort: Literal["full_name", "-full_name", "email", "-email"] | None = Query(
+        default=None,
+        description=(
+            "Поле для сортировки (full_name или email). Без параметра — "
+            "сортировка по дате регистрации (сначала новые)."
+        ),
+    ),
     _: UserORM = Depends(require_permission("user:view_personal_data")),
 ):
     """Постраничный список пользователей с поиском по email, телефону и ФИО.
@@ -31,6 +35,7 @@ async def list_users(
         search=search,
         limit=pagination.page_size,
         offset=(pagination.page_number - 1) * pagination.page_size,
+        sort=sort,
     )
     return AdminUserListResponse(
         items=items,  # type: ignore[arg-type]
@@ -45,11 +50,9 @@ async def list_users(
     response_model=UserResponseScheme,
     summary="Получить данные профиля пользователя (доступно админам с правом просмотра)",
 )
-@limiter.limit(settings.LIMIT_VALUE)
 async def get_user_profile(
     user_id: UUID,
     db: DBDep,
-    request: Request,
     _: UserORM = Depends(require_permission("user:view_personal_data")),
 ):
     """Личные данные пользователя по id: email, телефон, ФИО, таймзона,

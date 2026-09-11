@@ -135,7 +135,11 @@ class UsersAbstractRepository(ABC):
 
     @abstractmethod
     async def search_users(
-        self, search: str | None, limit: int, offset: int
+        self,
+        search: str | None,
+        limit: int,
+        offset: int,
+        sort: str | None = None,
     ) -> tuple[list[UserORM], int]:
         """Постраничный поиск пользователей по email, телефону и ФИО (для админки).
 
@@ -144,6 +148,8 @@ class UsersAbstractRepository(ABC):
                 email, телефону и ФИО.
             limit (int): Максимум записей на странице.
             offset (int): Смещение от начала выборки.
+            sort (str | None): Поле сортировки по "full_name"/"email".
+                None - по created_at по убыванию.
         Returns:
             tuple[list[UserORM], int]: Страница пользователей и общее число
                 найденных (без учета limit/offset).
@@ -231,8 +237,17 @@ class UsersPostgreSQLRepository(
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
 
+    _SORT_COLUMNS = {
+        "full_name": "full_name",
+        "email": "email",
+    }
+
     async def search_users(
-        self, search: str | None, limit: int, offset: int
+        self,
+        search: str | None,
+        limit: int,
+        offset: int,
+        sort: str | None = None,
     ) -> tuple[list[UserORM], int]:
         query = select(self.model)
         count_query = select(func.count()).select_from(self.model)
@@ -248,11 +263,20 @@ class UsersPostgreSQLRepository(
 
         total = (await self._session.execute(count_query)).scalar_one()
 
-        query = (
-            query.order_by(self.model.created_at.desc(), self.model.id)
-            .limit(limit)
-            .offset(offset)
-        )
+        field_name = (sort or "").lstrip("-")
+        column = self._SORT_COLUMNS.get(field_name)
+        if column is not None:
+            order_column = getattr(self.model, column)
+            order_clause = (
+                order_column.desc()
+                if sort.startswith("-")
+                else order_column.asc()
+            )
+            query = query.order_by(order_clause, self.model.id)
+        else:
+            query = query.order_by(self.model.created_at.desc(), self.model.id)
+
+        query = query.limit(limit).offset(offset)
         result = await self._session.execute(query)
         return list(result.scalars().all()), total
 
