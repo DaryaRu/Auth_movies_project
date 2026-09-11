@@ -269,7 +269,7 @@ class UsersPostgreSQLRepository(
             order_column = getattr(self.model, column)
             order_clause = (
                 order_column.desc()
-                if sort.startswith("-")
+                if (sort or "").startswith("-")
                 else order_column.asc()
             )
             query = query.order_by(order_clause, self.model.id)

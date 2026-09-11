@@ -115,7 +115,10 @@ class AuthAPIClient:
             sort: full_name/email, с "-" для убывания. Без параметра —
                 по дате регистрации на стороне auth-service.
         """
-        params = {"page_number": page_number, "page_size": page_size}
+        params: dict[str, str | int] = {
+            "page_number": page_number,
+            "page_size": page_size,
+        }
         if search:
             params["search"] = search
         if sort:
