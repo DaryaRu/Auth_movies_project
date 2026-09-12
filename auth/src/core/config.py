@@ -88,6 +88,7 @@ class Settings(BaseSettings):
     NOTIFICATIONS_API_URL: str = ""
     NOTIFICATIONS_TEMPLATE_ID_CACHE_TTL: int = 3600
     SHORT_LINKS_API_URL: str = "http://localhost:8000"
+    USER_ACTIONS_API_URL: str = "http://user-actions-service:8000/api/v1"
     INTERNAL_SERVICE_SECRET: str = ""
     DEFAULT_REDIRECT_HOST: str = "localhost"
     ALLOWED_REDIRECT_HOSTS: str = ""
