@@ -1,0 +1,86 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}{{ block.super }}
+<style>
+    .search-row { margin-bottom: 15px; }
+    .search-row input[type="text"] { width: 300px; padding: 6px 8px; }
+    .list-table { width: 100%; border-collapse: collapse; }
+    .list-table th { text-align: left; padding: 10px 12px; background: #f8f9fa; font-weight: bold; color: #333; border-bottom: 1px solid #ddd; }
+    .list-table th a { color: #333; text-decoration: none; }
+    .list-table th a:hover { text-decoration: underline; }
+    .sort-arrow { color: #666; }
+    .list-table td { padding: 10px 12px; border-bottom: 1px solid #eee; }
+    .list-table tr:hover td { background: #f5f5f5; }
+    .error-message { background: #f8d7da; color: #721c24; padding: 10px; border-radius: 4px; margin-bottom: 15px; }
+    .empty-message { padding: 15px 0; color: #666; }
+    .pagination { margin-top: 15px; }
+    .pagination a, .pagination span.current { margin-right: 8px; }
+    .list-total { color: #666; margin-bottom: 10px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <form class="search-row" method="get">
+        <input type="text" name="q" value="{{ search_query }}" placeholder="{% trans 'Search by email, phone or full name' %}">
+        <input type="submit" value="{% trans 'Search' %}" class="button">
+        {% if search_query %}
+            <a href="{% url 'admin:users_user_changelist' %}" class="button">{% trans 'Clear' %}</a>
+        {% endif %}
+    </form>
+
+    {% if error_message %}
+        <div class="error-message">{{ error_message }}</div>
+    {% endif %}
+
+    {% if not error_message %}
+        <p class="list-total">{% trans 'Total' %}: {{ total }}</p>
+
+        {% if items %}
+            <table class="list-table">
+                <thead>
+                    <tr>
+                        <th>
+                            <a href="?q={{ search_query }}&amp;sort={{ sort_links.email }}">{% trans 'Email' %}</a>
+                            {% if sort == 'email' %}<span class="sort-arrow">&#9650;</span>
+                            {% elif sort == '-email' %}<span class="sort-arrow">&#9660;</span>{% endif %}
+                        </th>
+                        <th>{% trans 'Phone' %}</th>
+                        <th>
+                            <a href="?q={{ search_query }}&amp;sort={{ sort_links.full_name }}">{% trans 'Full name' %}</a>
+                            {% if sort == 'full_name' %}<span class="sort-arrow">&#9650;</span>
+                            {% elif sort == '-full_name' %}<span class="sort-arrow">&#9660;</span>{% endif %}
+                        </th>
+                        <th>{% trans 'Active' %}</th>
+                        <th>{% trans 'Superuser' %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                        <tr>
+                            <td><a href="{% url 'admin:users_user_change' item.id %}">{{ item.email|default:"-" }}</a></td>
+                            <td>{{ item.phone|default:"-" }}</td>
+                            <td>{{ item.full_name|default:"-" }}</td>
+                            <td>{{ item.is_active }}</td>
+                            <td>{{ item.is_superuser }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <div class="pagination">
+                {% if page_number > 1 %}
+                    <a href="?q={{ search_query }}&amp;sort={{ sort }}&amp;p={{ page_number|add:"-1" }}">{% trans 'Previous' %}</a>
+                {% endif %}
+                <span class="current">{% trans 'Page' %} {{ page_number }} {% trans 'of' %} {{ total_pages }}</span>
+                {% if page_number < total_pages %}
+                    <a href="?q={{ search_query }}&amp;sort={{ sort }}&amp;p={{ page_number|add:"1" }}">{% trans 'Next' %}</a>
+                {% endif %}
+            </div>
+        {% else %}
+            <p class="empty-message">{% trans 'No users found.' %}</p>
+        {% endif %}
+    {% endif %}
+</div>
+{% endblock %}

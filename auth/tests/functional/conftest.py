@@ -102,7 +102,9 @@ async def pg_client() -> AsyncGenerator[asyncpg.Connection, None]:
 
 
 @pytest_asyncio.fixture(scope="session")
-async def pg_write_data(pg_client: asyncpg.Connection) -> AsyncGenerator[WriteData, None]:
+async def pg_write_data(
+    pg_client: asyncpg.Connection,
+) -> AsyncGenerator[WriteData, None]:
     """Записывает данные в БД и удаляет все записи из таблиц после сессии."""
     used_tables: set[str] = set()
 
@@ -116,8 +118,8 @@ async def pg_write_data(pg_client: asyncpg.Connection) -> AsyncGenerator[WriteDa
 
     for table in used_tables:
         await delete_data(pg_client, table)
-        
-        
+
+
 @pytest_asyncio.fixture(scope="session")
 async def redis_client():
     """Session-scoped Redis async client."""
@@ -131,6 +133,20 @@ async def redis_client():
 
 
 @pytest_asyncio.fixture()
-async def flush_redis_db(redis_client: Redis) -> None:
-    """Flushe Redis cache before each test."""
-    await redis_client.flushdb()
+async def flush_redis_db(
+    redis_client: Redis, active_user_data: dict[str, Any]
+) -> None:
+    """Удаляет только сессии active_user_data от более ранних тестов.
+
+    У TestActiveSession ожидается одна активная сессия.
+    """
+    user_id = active_user_data["id"]
+    sessions_key = f"user_sessions:{user_id}"
+    sids = await redis_client.smembers(sessions_key)  # type: ignore[misc]
+    if not sids:
+        return
+    async with redis_client.pipeline(transaction=True) as pipe:
+        for sid in sids:
+            pipe.delete(f"session:{sid}")
+        pipe.delete(sessions_key)
+        await pipe.execute()

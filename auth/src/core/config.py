@@ -40,6 +40,8 @@ class Settings(BaseSettings):
     CACHE_EXPIRE: int = 600
     # TTL кэша прав пользователя в Redis (user_permissions:{user_id}) для require_permission().
     PERMISSIONS_CACHE_TTL_SECONDS: int = 300
+    PAGINATION_DEFAULT_PAGE_SIZE: int = 20
+    PAGINATION_MAX_PAGE_SIZE: int = 100
     COOKIE_SECURE: bool = False
     OAUTH_REDIRECT_BASE_URL: str = "http://localhost"
     OAUTH_STATE_EXPIRE_SECONDS: int = 300

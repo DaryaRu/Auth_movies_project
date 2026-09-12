@@ -133,6 +133,29 @@ class UsersAbstractRepository(ABC):
         """
         raise NotImplementedError
 
+    @abstractmethod
+    async def search_users(
+        self,
+        search: str | None,
+        limit: int,
+        offset: int,
+        sort: str | None = None,
+    ) -> tuple[list[UserORM], int]:
+        """Постраничный поиск пользователей по email, телефону и ФИО (для админки).
+
+        Args:
+            search (str | None): Подстрока для поиска (без учета регистра) по
+                email, телефону и ФИО.
+            limit (int): Максимум записей на странице.
+            offset (int): Смещение от начала выборки.
+            sort (str | None): Поле сортировки по "full_name"/"email".
+                None - по created_at по убыванию.
+        Returns:
+            tuple[list[UserORM], int]: Страница пользователей и общее число
+                найденных (без учета limit/offset).
+        """
+        raise NotImplementedError
+
 
 class UsersPostgreSQLRepository(
     UsersAbstractRepository, BasePostgreSQLRepository
@@ -214,6 +237,49 @@ class UsersPostgreSQLRepository(
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
 
+    _SORT_COLUMNS = {
+        "full_name": "full_name",
+        "email": "email",
+    }
+
+    async def search_users(
+        self,
+        search: str | None,
+        limit: int,
+        offset: int,
+        sort: str | None = None,
+    ) -> tuple[list[UserORM], int]:
+        query = select(self.model)
+        count_query = select(func.count()).select_from(self.model)
+        if search:
+            pattern = f"%{search}%"
+            condition = or_(
+                self.model.email.ilike(pattern),
+                self.model.phone.ilike(pattern),
+                self.model.full_name.ilike(pattern),
+            )
+            query = query.where(condition)
+            count_query = count_query.where(condition)
+
+        total = (await self._session.execute(count_query)).scalar_one()
+
+        field_name = (sort or "").lstrip("-")
+        column = self._SORT_COLUMNS.get(field_name)
+        if column is not None:
+            order_column = getattr(self.model, column)
+            order_clause = (
+                order_column.desc()
+                if (sort or "").startswith("-")
+                else order_column.asc()
+            )
+            query = query.order_by(order_clause, self.model.id)
+        else:
+            query = query.order_by(self.model.created_at.desc(), self.model.id)
+
+        query = query.limit(limit).offset(offset)
+        result = await self._session.execute(query)
+        return list(result.scalars().all()), total
+
     async def search_by_min_subscription_level(
         self, min_level: int | None, timezone_filter: str | None = None
     ) -> list[UUID]:
@@ -245,16 +311,13 @@ class UsersPostgreSQLRepository(
             else:
                 query = query.where(self.model.timezone == timezone_filter)
         # Exclude users with notifications disabled
-        query = (
-            query.outerjoin(
-                UserNotificationSettingsORM,
-                UserNotificationSettingsORM.user_id == self.model.id,
-            )
-            .where(
-                or_(
-                    UserNotificationSettingsORM.user_id.is_(None),
-                    UserNotificationSettingsORM.notifications_enabled.is_(True),
-                )
+        query = query.outerjoin(
+            UserNotificationSettingsORM,
+            UserNotificationSettingsORM.user_id == self.model.id,
+        ).where(
+            or_(
+                UserNotificationSettingsORM.user_id.is_(None),
+                UserNotificationSettingsORM.notifications_enabled.is_(True),
             )
         )
         result = await self._session.execute(query)
@@ -293,16 +356,13 @@ class UsersPostgreSQLRepository(
             else:
                 query = query.where(self.model.timezone == timezone_filter)
         # Exclude users with notifications disabled
-        query = (
-            query.outerjoin(
-                UserNotificationSettingsORM,
-                UserNotificationSettingsORM.user_id == self.model.id,
-            )
-            .where(
-                or_(
-                    UserNotificationSettingsORM.user_id.is_(None),
-                    UserNotificationSettingsORM.notifications_enabled.is_(True),
-                )
+        query = query.outerjoin(
+            UserNotificationSettingsORM,
+            UserNotificationSettingsORM.user_id == self.model.id,
+        ).where(
+            or_(
+                UserNotificationSettingsORM.user_id.is_(None),
+                UserNotificationSettingsORM.notifications_enabled.is_(True),
             )
         )
         result = await self._session.execute(query)

@@ -1,0 +1,84 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"Language: ru\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+
+#: users/apps.py
+msgid "users"
+msgstr "Пользователи"
+
+#: users/models.py
+msgid "profile"
+msgstr "профиль"
+
+msgid "profiles"
+msgstr "Профили"
+
+#: users/admin.py
+msgid "User profile"
+msgstr "Профиль пользователя"
+
+msgid "Users"
+msgstr "Пользователи"
+
+#: users/templates/admin/users/user_change_form.html
+msgid "ID"
+msgstr "ID"
+
+msgid "Email"
+msgstr "Email"
+
+msgid "Phone"
+msgstr "Телефон"
+
+msgid "Full name"
+msgstr "ФИО"
+
+msgid "Timezone"
+msgstr "Часовой пояс"
+
+msgid "Email verified"
+msgstr "Email подтверждён"
+
+msgid "Active"
+msgstr "Активен"
+
+msgid "Superuser"
+msgstr "Суперпользователь"
+
+msgid "No profile data available."
+msgstr "Нет данных профиля."
+
+msgid "Back to list"
+msgstr "Назад к списку"
+
+#: users/templates/admin/users/user_list.html
+msgid "Search by email, phone or full name"
+msgstr "Поиск по email, телефону или ФИО"
+
+msgid "Search"
+msgstr "Поиск"
+
+msgid "Clear"
+msgstr "Очистить"
+
+msgid "Total"
+msgstr "Всего"
+
+msgid "No users found."
+msgstr "Пользователи не найдены."
+
+msgid "Previous"
+msgstr "Назад"
+
+msgid "Page"
+msgstr "Страница"
+
+msgid "of"
+msgstr "из"
+
+msgid "Next"
+msgstr "Вперёд"

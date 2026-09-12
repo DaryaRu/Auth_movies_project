@@ -94,7 +94,7 @@ LANGUAGE_CODE = "ru-RU"
 TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
-LOCALE_PATHS = ["movies/locale", "notifications/locale"]
+LOCALE_PATHS = ["movies/locale", "notifications/locale", "users/locale"]
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "collected_static"
@@ -113,6 +113,9 @@ AUTH_API_LOGIN_URL = os.getenv("AUTH_API_LOGIN_URL", "")
 AUTH_API_PUBLIC_KEY_URL = os.getenv("AUTH_API_PUBLIC_KEY_URL", "")
 AUTH_API_SUBSCRIPTION_LEVELS_URL = os.getenv(
     "AUTH_API_SUBSCRIPTION_LEVELS_URL", ""
+)
+AUTH_API_BASE_URL = os.getenv(
+    "AUTH_API_BASE_URL", "http://auth-service:8000/api/v1"
 )
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "")
 
