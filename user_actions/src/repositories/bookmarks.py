@@ -38,3 +38,7 @@ class BookmarkRepository(BaseRepository):
     ) -> tuple[list[dict[str, Any]], int]:
         """Получить все закладки пользователя."""
         return await self.find_by_user(user_id, limit=limit, skip=skip)
+
+    async def delete_all_by_user(self, user_id: UUID) -> bool:
+        """Удалить все закладки пользователя (при удалении аккаунта)."""
+        return await self.delete_by_filters({"user_id": user_id})

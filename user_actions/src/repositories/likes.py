@@ -12,36 +12,39 @@ class LikeRepository(BaseRepository):
 
     table_name = "likes"
 
-    async def get_by_user_and_movie(self, user_id: UUID, movie_id: UUID) -> dict[str, Any] | None:
+    async def get_by_user_and_movie(
+        self, user_id: UUID, movie_id: UUID
+    ) -> dict[str, Any] | None:
         """Получить оценку пользователя для фильма."""
         return await self.find_one({"user_id": user_id, "movie_id": movie_id})
 
-    async def delete_by_user_and_movie(self, user_id: UUID, movie_id: UUID) -> bool:
+    async def delete_by_user_and_movie(
+        self, user_id: UUID, movie_id: UUID
+    ) -> bool:
         """Удалить оценку пользователя для фильма."""
-        return await self.delete_by_filters({"user_id": user_id, "movie_id": movie_id})
+        return await self.delete_by_filters(
+            {"user_id": user_id, "movie_id": movie_id}
+        )
 
     async def get_user_likes(
-            self,
-            user_id: UUID,
-            limit: int = 10,
-            skip: int = 0
-        ) -> tuple[list[dict[str, Any]], int]:
+        self, user_id: UUID, limit: int = 10, skip: int = 0
+    ) -> tuple[list[dict[str, Any]], int]:
         """Получить все оценки пользователя."""
         return await self.find_by_user(user_id, limit=limit, skip=skip)
 
+    async def delete_all_by_user(self, user_id: UUID) -> bool:
+        """Удалить все оценки пользователя (при удалении аккаунта)."""
+        return await self.delete_by_filters({"user_id": user_id})
 
     async def get_movie_likes(
-            self,
-            movie_id: UUID,
-            limit: int = 10,
-            skip: int = 0
-        ) -> tuple[list[dict[str, Any]], int]:
+        self, movie_id: UUID, limit: int = 10, skip: int = 0
+    ) -> tuple[list[dict[str, Any]], int]:
         """Получить все оценки для фильма."""
         return await self.find_by_movie(movie_id, limit=limit, skip=skip)
 
     async def get_movie_stats(self, movie_id: UUID) -> dict[str, Any]:
         """Получить статистику оценок для фильма.
-        
+
         Возвращает:
             - likes: количество лайков (оценка 10)
             - dislikes: количество дизлайков (оценка 0)
@@ -67,7 +70,9 @@ class LikeRepository(BaseRepository):
             likes = likes_row[0] if likes_row else 0
             dislikes = dislikes_row[0] if dislikes_row else 0
             total = stats_row[0] if stats_row else 0
-            average_rating = float(stats_row[1]) if stats_row and stats_row[1] else 0.0
+            average_rating = (
+                float(stats_row[1]) if stats_row and stats_row[1] else 0.0
+            )
             return {
                 "likes": likes,
                 "dislikes": dislikes,

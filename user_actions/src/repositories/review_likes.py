@@ -12,20 +12,32 @@ class ReviewLikeRepository(BaseRepository):
 
     table_name = "review_likes"
 
-    async def get_by_user_and_review(self, user_id: UUID, review_id: UUID) -> dict[str, Any] | None:
+    async def get_by_user_and_review(
+        self, user_id: UUID, review_id: UUID
+    ) -> dict[str, Any] | None:
         """Получить лайк пользователя для рецензии."""
-        return await self.find_one({"user_id": user_id, "review_id": review_id})
+        return await self.find_one(
+            {"user_id": user_id, "review_id": review_id}
+        )
 
-    async def delete_by_user_and_review(self, user_id: UUID, review_id: UUID) -> bool:
+    async def delete_by_user_and_review(
+        self, user_id: UUID, review_id: UUID
+    ) -> bool:
         """Удалить лайк пользователя для рецензии."""
-        return await self.delete_by_filters({"user_id": user_id, "review_id": review_id})
+        return await self.delete_by_filters(
+            {"user_id": user_id, "review_id": review_id}
+        )
+
+    async def delete_all_by_user(self, user_id: UUID) -> bool:
+        """Удалить все лайки рецензий пользователя (при удалении аккаунта).
+
+        Отдельно чистит лайки и дизлайки, поставленные пользователем на чужие рецензии.
+        """
+        return await self.delete_by_filters({"user_id": user_id})
 
     async def get_review_likes(
-            self,
-            review_id: UUID,
-            limit: int = 10,
-            skip: int = 0
-        ) -> tuple[list[dict[str, Any]], int]:
+        self, review_id: UUID, limit: int = 10, skip: int = 0
+    ) -> tuple[list[dict[str, Any]], int]:
         """Получить все лайки для рецензии."""
         return await self.find_by_review(review_id, limit=limit, skip=skip)
 
@@ -36,11 +48,13 @@ class ReviewLikeRepository(BaseRepository):
         limit: int = 10,
     ) -> tuple[list[dict[str, Any]], int]:
         """Найти записи по review_id."""
-        return await self._get_all(skip=skip, limit=limit, filters={"review_id": review_id})
+        return await self._get_all(
+            skip=skip, limit=limit, filters={"review_id": review_id}
+        )
 
     async def get_review_stats(self, review_id: UUID) -> dict[str, Any]:
         """Получить статистику лайков для рецензии.
-        
+
         Возвращает:
             - likes: количество лайков (is_like = true)
             - dislikes: количество дизлайков (is_like = false)
@@ -73,16 +87,19 @@ class ReviewLikeRepository(BaseRepository):
                 "score": likes - dislikes,
             }
 
-    async def get_reviews_stats(self, review_ids: list[UUID]) -> dict[UUID, dict[str, Any]]:
+    async def get_reviews_stats(
+        self, review_ids: list[UUID]
+    ) -> dict[UUID, dict[str, Any]]:
         """Получить статистику лайков для списка рецензий.
-        
+
         Возвращает словарь {review_id: stats}.
         """
         if not review_ids:
             return {}
 
         async with PostgreSQL.pool.acquire() as conn:
-            rows = await conn.fetch("""
+            rows = await conn.fetch(
+                """
                 SELECT
                     review_id,
                     COUNT(*) FILTER (WHERE is_like = true) as likes,
@@ -91,7 +108,9 @@ class ReviewLikeRepository(BaseRepository):
                 FROM review_likes
                 WHERE review_id = ANY($1)
                 GROUP BY review_id
-            """, review_ids)
+            """,
+                review_ids,
+            )
 
             result = {}
             for row in rows:
@@ -108,6 +127,11 @@ class ReviewLikeRepository(BaseRepository):
 
             for review_id in review_ids:
                 if review_id not in result:
-                    result[review_id] = {"likes": 0, "dislikes": 0, "total": 0, "score": 0}
+                    result[review_id] = {
+                        "likes": 0,
+                        "dislikes": 0,
+                        "total": 0,
+                        "score": 0,
+                    }
 
             return result
