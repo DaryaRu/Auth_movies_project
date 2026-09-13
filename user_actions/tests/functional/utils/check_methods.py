@@ -19,4 +19,9 @@ async def assert_status_return_json(
 async def assert_status(response: ClientResponse, status: int) -> None:
     """Проверяет статус ответа без тела."""
     assert response.status == status
+
+
+def assert_error_detail(data: dict[str, Any]) -> None:
+    """Проверяет, что тело ошибки содержит detail."""
+    assert "detail" in data
     

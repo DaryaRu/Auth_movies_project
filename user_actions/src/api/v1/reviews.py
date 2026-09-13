@@ -99,6 +99,10 @@ SortOrderQuery = Annotated[
     - **Оценка фильма (rating)** — числовая оценка от 1 до 10, где:
       - `1` — минимальная оценка (фильм очень не понравился)
       - `10` — максимальная оценка (фильм очень понравился)
+    - **Видимость автора (author_visibility)** — выбор пользователя:
+      - `real_name` (по умолчанию) — показать ФИО автора (full_name из auth-сервиса)
+      - `nickname` — показать никнейм автора (nickname из auth-сервиса)
+      - `anonymous` — имя автора скрыто («Аноним»)
     - **Дополнительные данные** — дата публикации, автор (user_id) — добавляются автоматически
     
     После публикации рецензии другие пользователи могут голосовать за неё (лайк/дизлайк).
@@ -114,7 +118,11 @@ async def create_review(
     """Создать рецензию."""
     try:
         result = await review_service.create_review(
-            user_id, review_data.movie_id, review_data.text, review_data.rating
+            user_id,
+            review_data.movie_id,
+            review_data.text,
+            review_data.rating,
+            author_visibility=review_data.author_visibility,
         )
         return ReviewResponse(**result)
     except ValueError as e:

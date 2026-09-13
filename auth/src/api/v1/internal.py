@@ -2,13 +2,20 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, Request
 
-from src.api.v1.dependencies import DBDep, InternalServiceDep
+from src.api.v1.dependencies import DBDep, InternalServiceDep, get_db_manager
+from src.core.config import settings
+from src.core.limiter import limiter
 from src.core.notification_defaults import notification_defaults
 from src.exceptions import UserNotFoundHTTPException
 from src.schemas.user_notification_settings import UserNotificationSettings
-from src.schemas.users import UserContactScheme, UserSearchScheme
+from src.schemas.users import (
+    UserContactScheme,
+    UserIdsRequest,
+    UserSearchScheme,
+)
+from src.utils.db_manager import DBManager
 
 router = APIRouter(tags=["Internal"])
 
@@ -98,3 +105,26 @@ async def search_user_timezones(
     return await db.users.search_distinct_timezones(
         min_level, timezone_filter=data.timezone
     )
+
+
+@router.post(
+    "/internal/users/names",
+    response_model=dict[str, dict[str, str | None]],
+    summary="Пакетное получение имён пользователей",
+    description="""Внутренний endpoint для user_actions-сервиса.
+    Получает snapshot full_name и nickname для списка пользователей.
+    Используется при создании рецензии для сохранения имени автора.
+    """,
+)
+@limiter.limit(settings.LIMIT_VALUE)
+async def get_users_names_batch(
+    request: Request,
+    body: UserIdsRequest,
+    _: InternalServiceDep,
+    db: DBManager = Depends(get_db_manager),
+) -> dict[str, dict[str, str | None]]:
+    """Возвращает dict: {str(user_id): {"full_name": ..., "nickname": ...}}."""
+    async with db:
+        result = await db.users.get_users_name_snapshots(body.user_ids)
+
+    return {str(uid): data for uid, data in result.items()}

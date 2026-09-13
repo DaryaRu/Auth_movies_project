@@ -5,8 +5,9 @@ from typing import Any
 
 import pytest
 from aiohttp import ClientSession
-from functional.settings import test_settings
-from functional.utils.check_methods import (
+
+from tests.functional.settings import test_settings
+from tests.functional.utils.check_methods import (
     assert_error_detail,
     assert_status_return_json,
 )
@@ -48,6 +49,7 @@ class TestGetProfile:
         assert "id" in data
         assert "phone" in data
         assert "full_name" in data
+        assert "nickname" in data
         assert "timezone" in data
         assert "email_verified" in data
 
@@ -110,6 +112,63 @@ class TestUpdateFullName:
         response = await http_client.patch(
             self.URL,
             json={"full_name": full_name},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        data = await assert_status_return_json(
+            response, HTTPStatus.UNPROCESSABLE_ENTITY
+        )
+
+        assert "detail" in data
+
+
+class TestUpdateNickname:
+    URL = f"{test_settings.api_prefix}/users/me/nickname/"
+
+    async def test_update_nickname_success(
+        self,
+        http_client: ClientSession,
+        active_user_data: dict[str, Any],
+    ):
+        """Успешное обновление никнейма."""
+        token = await _login(
+            http_client,
+            active_user_data["email"],
+            active_user_data["password"],
+        )
+        response = await http_client.patch(
+            self.URL,
+            json={"nickname": "ivan_movie_lover"},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        data = await assert_status_return_json(response, HTTPStatus.OK)
+
+        assert data["nickname"] == "ivan_movie_lover"
+
+    @pytest.mark.parametrize(
+        "nickname",
+        [
+            "ab",
+            "",
+            "Иван",
+            "has space",
+            "лещ_123",
+        ],
+    )
+    async def test_update_nickname_invalid(
+        self,
+        http_client: ClientSession,
+        active_user_data: dict[str, Any],
+        nickname: str,
+    ):
+        """Невалидный никнейм (короткий или недопустимые символы). 422."""
+        token = await _login(
+            http_client,
+            active_user_data["email"],
+            active_user_data["password"],
+        )
+        response = await http_client.patch(
+            self.URL,
+            json={"nickname": nickname},
             headers={"Authorization": f"Bearer {token}"},
         )
         data = await assert_status_return_json(

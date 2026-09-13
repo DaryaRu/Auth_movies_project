@@ -377,3 +377,28 @@ class UsersPostgreSQLRepository(
         )
         result = await self._session.execute(query)
         return list(result.scalars().all())
+
+    async def get_users_name_snapshots(
+        self, user_ids: list[UUID]
+    ) -> dict[UUID, dict[str, str | None]]:
+        """Пакетное получение full_name и nickname по списку user_id.
+
+        Возвращает словарь {user_id: {"full_name": ..., "nickname": ...}}.
+        """
+        if not user_ids:
+            return {}
+
+        query = (
+            select(UserORM.id, UserORM.full_name, UserORM.nickname)
+            .where(UserORM.id.in_(user_ids))
+        )
+        result = await self._session.execute(query)
+        rows = result.all()
+
+        snapshot = {}
+        for row in rows:
+            snapshot[row.id] = {
+                "full_name": row.full_name,
+                "nickname": row.nickname,
+            }
+        return snapshot

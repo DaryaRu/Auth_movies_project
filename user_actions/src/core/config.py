@@ -68,6 +68,9 @@ class Settings(BaseSettings):
     # Service-to-service
     INTERNAL_SERVICE_SECRET: str = ""
 
+    # Auth service integration
+    AUTH_API_URL: str = ""
+
     @property
     def POSTGRES_URL(self) -> str:
         """Возвращает URL подключения к PostgreSQL."""

@@ -10,7 +10,11 @@ from src.api.v1.dependencies import (
 from src.core.config import settings
 from src.core.limiter import limiter
 from src.schemas.permissions import PermissionResponseScheme
-from src.schemas.users import UpdateFullNameRequestScheme, UserResponseScheme
+from src.schemas.users import (
+    UpdateFullNameRequestScheme,
+    UpdateNicknameRequestScheme,
+    UserResponseScheme,
+)
 
 router = APIRouter(tags=["Profile"])
 
@@ -58,3 +62,18 @@ async def get_my_permissions(
         user_id=current_user.id,
         is_superuser=current_user.is_superuser,
     )
+
+@router.patch(
+    "/users/me/nickname/",
+    response_model=UserResponseScheme,
+    summary="Обновить никнейм",
+)
+@limiter.limit(settings.LIMIT_VALUE)
+async def update_nickname(
+    data: UpdateNicknameRequestScheme,
+    profile_service: ProfileServiceDep,
+    user: CurrentUserDep,
+    request: Request,
+):
+    """Обновление никнейма текущего пользователя."""
+    return await profile_service.update_nickname(user_id=user.id, data=data)

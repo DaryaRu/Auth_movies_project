@@ -29,6 +29,10 @@ class TestSettings(BaseSettings):
         default="", alias="INTERNAL_SERVICE_SECRET"
     )
 
+    auth_api_url: str = Field(
+        default="http://auth-service:7000/api/v1", alias="AUTH_API_URL"
+    )
+
     service_wait_max_attempts: int = Field(
         default=30, alias="SERVICE_WAIT_MAX_ATTEMPTS"
     )

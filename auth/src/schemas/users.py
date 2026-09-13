@@ -14,6 +14,7 @@ from pydantic import (
 
 PHONE_REGEX = re.compile(r"^\+[1-9]\d{7,14}$")
 FULL_NAME_REGEX = re.compile(r"^[А-ЯЁа-яёA-Za-z'\- ]+$")
+NICKNAME_REGEX = re.compile(r"^[A-Za-z0-9_\-]+$")
 _VALID_TIMEZONES = available_timezones()
 
 
@@ -50,6 +51,32 @@ def _validate_full_name(v: str | None) -> str | None:
     if not FULL_NAME_REGEX.match(v):
         raise ValueError(
             "ФИО может содержать только буквы, пробел, дефис и апостроф"
+        )
+
+    return v
+
+
+def _validate_nickname(v: str | None) -> str | None:
+    """Валидация никнейма.
+
+    Никнейм — публичный псевдоним пользователя. Может содержать только
+    латинские буквы, цифры, подчёркивание и дефис. Пустое значение (None)
+    означает, что никнейм не задан.
+    """
+    if v is None:
+        return None
+
+    v = v.strip()
+    if not v:
+        raise ValueError("Никнейм не может быть пустым")
+
+    if not (3 <= len(v) <= 255):
+        raise ValueError("Никнейм должен быть от 3 до 255 символов")
+
+    if not NICKNAME_REGEX.match(v):
+        raise ValueError(
+            "Никнейм может содержать только латинские буквы, цифры, "
+            "подчёркивание и дефис"
         )
 
     return v
@@ -119,6 +146,7 @@ class UserResponseScheme(BaseModel):
     email: EmailStr | None
     phone: str | None
     full_name: str | None = None
+    nickname: str | None = None
     is_superuser: bool
     is_active: bool
     email_verified: bool = False
@@ -196,6 +224,21 @@ class UpdateFullNameRequestScheme(BaseModel):
     @classmethod
     def validate_full_name(cls, v: str | None):
         return _validate_full_name(v)
+
+
+class UpdateNicknameRequestScheme(BaseModel):
+    """Схема для обновления никнейма."""
+
+    nickname: str | None = None
+
+    model_config = ConfigDict(
+        json_schema_extra={"example": {"nickname": "ivan_movie_lover"}}
+    )
+
+    @field_validator("nickname")
+    @classmethod
+    def validate_nickname(cls, v: str | None):
+        return _validate_nickname(v)
 
 
 class PhoneChangeRequestScheme(BaseModel):
@@ -343,3 +386,13 @@ class ChangeTimezoneRequestScheme(BaseModel):
         if res is None:
             raise ValueError("Таймзона не может быть пустой")
         return res
+
+
+class UserIdsRequest(BaseModel):
+    """Схема запроса пакетного получения имён."""
+    user_ids: list[UUID] = Field(
+        ...,
+        min_length=1,
+        max_length=100,
+        description="Список UUID пользователей (не более 100)",
+    )
