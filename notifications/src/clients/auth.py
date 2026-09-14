@@ -15,7 +15,10 @@ async def search_distinct_timezones(
     response = await HTTPClient.client.post(
         f"{settings.AUTH_API_URL}/internal/users/search/timezones/",
         json=audience_filter,
-        headers={"X-Request-Id": str(uuid4())},
+        headers={
+            "X-Request-Id": str(uuid4()),
+            "X-Internal-Secret": settings.INTERNAL_SERVICE_SECRET,
+        },
         timeout=10,
     )
     response.raise_for_status()

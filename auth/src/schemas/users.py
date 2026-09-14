@@ -16,6 +16,7 @@ PHONE_REGEX = re.compile(r"^\+[1-9]\d{7,14}$")
 FULL_NAME_REGEX = re.compile(r"^[А-ЯЁа-яёA-Za-z'\- ]+$")
 _VALID_TIMEZONES = available_timezones()
 
+
 def validate_timezone_value(v: str | None) -> str | None:
     """Проверяет, что таймзона входит в список IANA."""
     if v is None:
@@ -226,7 +227,37 @@ class PhoneChangeConfirmScheme(BaseModel):
 
     code: str = Field(..., description="Код подтверждения из СМС")
 
-    model_config = ConfigDict(json_schema_extra={"example": {"code": "482913"}})
+    model_config = ConfigDict(
+        json_schema_extra={"example": {"code": "482913"}}
+    )
+
+
+class DeleteAccountRequestScheme(BaseModel):
+    """Схема запроса на удаление аккаунта.
+
+    Нужно указывать пароль только когда у пользователя не указан телефон.
+    Если телефон есть, то подтверждение идет через СМС-код (/delete-account-confirm/),
+    и это поле игнорируется.
+    """
+
+    password: str | None = Field(
+        default=None,
+        description="Текущий пароль (если у пользователя нет телефона)",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={"example": {"password": "12345TestPassword"}}
+    )
+
+
+class AccountDeleteConfirmScheme(BaseModel):
+    """Схема для подтверждения удаления аккаунта кодом из СМС."""
+
+    code: str = Field(..., description="Код подтверждения из СМС")
+
+    model_config = ConfigDict(
+        json_schema_extra={"example": {"code": "482913"}}
+    )
 
 
 class VerifyTwoFactorRequestScheme(BaseModel):
@@ -297,12 +328,15 @@ class ConfirmEmailRequestScheme(BaseModel):
 
     user_id: UUID = Field(..., description="Идентификатор пользователя")
 
+
 class ChangeTimezoneRequestScheme(BaseModel):
     """Схема для смены таймзоны."""
-    
-    timezone: str = Field(..., description='IANA-имя таймзоны (например, Europe/Moscow)')
 
-    @field_validator('timezone')
+    timezone: str = Field(
+        ..., description="IANA-имя таймзоны (например, Europe/Moscow)"
+    )
+
+    @field_validator("timezone")
     @classmethod
     def validate_timezone(cls, v: str) -> str:
         res = validate_timezone_value(v)

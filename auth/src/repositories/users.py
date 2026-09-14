@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import func, or_, select, update
+from sqlalchemy import delete, func, or_, select, update
 
 from src.models.subscriptions import SubscriptionORM
 from src.models.user_notification_settings import UserNotificationSettingsORM
@@ -97,6 +97,11 @@ class UsersAbstractRepository(ABC):
     @abstractmethod
     async def get_by_id_for_update(self, user_id: UUID) -> UserORM | None:
         """Блокирует строку пользователя для UPDATE."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def delete_user(self, user_id: UUID) -> None:
+        """Полное удаление аккаунта. Связанные записи удаляются каскадно."""
         raise NotImplementedError
 
     @abstractmethod
@@ -236,6 +241,11 @@ class UsersPostgreSQLRepository(
         )
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def delete_user(self, user_id: UUID) -> None:
+        await self._session.execute(
+            delete(self.model).where(self.model.id == user_id)
+        )
 
     _SORT_COLUMNS = {
         "full_name": "full_name",

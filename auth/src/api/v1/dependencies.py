@@ -24,11 +24,15 @@ from src.integrations.sms.base_provider import SMSProviderBase
 from src.integrations.sms.smsc_provider import SMSCProvider
 from src.models.users import UserORM
 from src.repositories.sessions import SessionRedisRepository
+from src.services.account_delete import AccountDeleteService
+from src.services.account_settings import AccountSettingsService
 from src.services.auth import AuthService
+from src.services.login_completion import LoginCompletionService
 from src.services.oauth import OAuthService
 from src.services.permissions import PermissionService
 from src.services.phone_change import PhoneChangeService
 from src.services.profile import ProfileService
+from src.services.registration import RegistrationService
 from src.services.roles import RoleService
 from src.services.sessions import SessionService
 from src.services.subscriptions import SubscriptionService
@@ -108,11 +112,42 @@ def get_session_service() -> SessionService:
     return SessionService(SessionRedisRepository(redis.redis))
 
 
+def get_registration_service(db: "DBDep") -> RegistrationService:
+    return RegistrationService(HashArgon2Service(), db)
+
+
+def get_account_settings_service(
+    db: "DBDep",
+    session_service: "SessionServiceDep",
+    phone_change_service: "PhoneChangeServiceDep",
+) -> AccountSettingsService:
+    return AccountSettingsService(
+        HashArgon2Service(), db, session_service, phone_change_service
+    )
+
+
+def get_account_delete_service(
+    db: "DBDep",
+    session_service: "SessionServiceDep",
+    two_factor_service: "TwoFactorServiceDep",
+) -> AccountDeleteService:
+    return AccountDeleteService(
+        HashArgon2Service(), db, session_service, two_factor_service
+    )
+
+
+def get_login_completion_service(
+    db: "DBDep",
+    session_service: "SessionServiceDep",
+) -> LoginCompletionService:
+    return LoginCompletionService(JWTTokenService(), session_service, db)
+
+
 def get_auth_service(
     db: "DBDep",
     session_service: "SessionServiceDep",
     two_factor_service: "TwoFactorServiceDep",
-    phone_change_service: "PhoneChangeServiceDep",
+    login_completion_service: "LoginCompletionServiceDep",
 ) -> AuthService:
     return AuthService(
         HashArgon2Service(),
@@ -120,7 +155,7 @@ def get_auth_service(
         session_service,
         db,
         two_factor_service,
-        phone_change_service,
+        login_completion_service,
     )
 
 
@@ -227,13 +262,23 @@ def get_sms_provider() -> SMSProviderBase:
 
 
 def get_oauth_service(
-    auth_service: "AuthServiceDep",
+    db: "DBDep",
+    registration_service: "RegistrationServiceDep",
+    login_completion_service: "LoginCompletionServiceDep",
+    session_service: "SessionServiceDep",
     oauth_provider_factory: OAuthProviderFactory = Depends(
         get_oauth_provider_factory
     ),
 ) -> OAuthService:
     assert redis.redis is not None
-    return OAuthService(oauth_provider_factory, auth_service, redis.redis)
+    return OAuthService(
+        oauth_provider_factory,
+        db,
+        registration_service,
+        login_completion_service,
+        session_service,
+        redis.redis,
+    )
 
 
 def get_two_factor_service(
@@ -265,6 +310,9 @@ TokenPayloadDep = Annotated[dict[str, Any], Depends(get_token_payload)]
 DBDep = Annotated[DBManager, Depends(get_db)]
 PaginationDep = Annotated[PaginationParams, Depends(PaginationParams)]
 SessionServiceDep = Annotated[SessionService, Depends(get_session_service)]
+LoginCompletionServiceDep = Annotated[
+    LoginCompletionService, Depends(get_login_completion_service)
+]
 OAuthServiceDep = Annotated[OAuthService, Depends(get_oauth_service)]
 SMSProviderDep = Annotated[SMSProviderBase, Depends(get_sms_provider)]
 TwoFactorServiceDep = Annotated[
@@ -272,6 +320,15 @@ TwoFactorServiceDep = Annotated[
 ]
 PhoneChangeServiceDep = Annotated[
     PhoneChangeService, Depends(get_phone_change_service)
+]
+RegistrationServiceDep = Annotated[
+    RegistrationService, Depends(get_registration_service)
+]
+AccountSettingsServiceDep = Annotated[
+    AccountSettingsService, Depends(get_account_settings_service)
+]
+AccountDeleteServiceDep = Annotated[
+    AccountDeleteService, Depends(get_account_delete_service)
 ]
 SubscriptionServiceDep = Annotated[
     SubscriptionService, Depends(get_subscription_service)

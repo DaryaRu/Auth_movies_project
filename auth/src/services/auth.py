@@ -1,56 +1,31 @@
-import asyncio
-import logging
-from datetime import datetime, timezone
+"""Вход по паролю/2FA, обновление и отзыв токенов и сессий."""
+
 from typing import Any
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from src.exceptions import (
     DecodeTokenException,
-    InvalidPhoneChangeCodeException,
     InvalidTwoFactorCodeException,
-    LastAuthMethodRestrictionException,
-    OAuthAccountNotLinkedException,
-    PasswordAlreadySetException,
     PasswordNotSetException,
-    PhoneAlreadyTakenException,
-    ProviderException,
     TokenExeption,
     TokenKeysException,
     TokenTypeExeption,
     TwoFactorRequiredException,
-    UserAlreadyexistsException,
     UserNotFoundException,
     VerifyPasswordException,
 )
-from src.models.users import UserORM
-from src.schemas.oauth import OAuthUserInfoScheme
-from src.schemas.users import (
-    ChangeEmailRequestScheme,
-    ChangePasswordRequestScheme,
-    PhoneChangeConfirmScheme,
-    PhoneChangeRequestScheme,
-    SetPasswordRequestScheme,
-    UserRequestScheme,
-)
+from src.schemas.users import UserRequestScheme
 from src.services.base import BaseService
-from src.services.phone_change import PhoneChangeService
+from src.services.login_completion import LoginCompletionService
 from src.services.sessions import SessionService
 from src.services.two_factor import TwoFactorService
 from src.utils.db_manager import DBManager
 from src.utils.hashes import BaseHashService
-from src.utils.notifications import notify_user
-from src.utils.short_links import create_short_link
 from src.utils.tokens import JWTTokenService
 
 
 class AuthService(BaseService):
-    """
-    Сервис для работы с пользователями.
-    Инкапсулирует бизнес-логику, связанную с пользователями:
-    - добавление нового пользователя с хэшированием пароля;
-    - поиск пользователя по email;
-    - аутентификация пользователя.
-    """
+    """Вход по паролю/2FA, обновление и отзыв токенов и сессий."""
 
     def __init__(
         self,
@@ -59,166 +34,16 @@ class AuthService(BaseService):
         session_service: SessionService,
         db: DBManager,
         two_factor_service: TwoFactorService,
-        phone_change_service: PhoneChangeService,
+        login_completion_service: LoginCompletionService,
     ) -> None:
         super().__init__(db)
         self._hash_service: BaseHashService = hash_service
         self._token_service: JWTTokenService = token_service
         self._session_service: SessionService = session_service
         self._two_factor_service: TwoFactorService = two_factor_service
-        self._phone_change_service: PhoneChangeService = phone_change_service
-
-    async def register_user(self, user: UserRequestScheme) -> UserORM:
-        is_exsist_user = (
-            await self._db.users.get_one_or_none_by_email_or_phone(
-                user.email, user.phone
-            )
+        self._login_completion: LoginCompletionService = (
+            login_completion_service
         )
-        if is_exsist_user:
-            raise UserAlreadyexistsException()
-        new_user = await self.add_one(user)
-
-        asyncio.create_task(self._send_confirmation_email(new_user.id))
-        return new_user
-
-    async def _send_confirmation_email(self, user_id: UUID) -> None:
-        """Асинхронная отправка письма с подтверждением email."""
-        try:
-            confirmation_link = await create_short_link(user_id=user_id)
-        except Exception as e:
-            logging.warning(
-                "Failed to create confirmation link for user %s: %s",
-                user_id,
-                e,
-            )
-            return
-        await notify_user(
-            user_id,
-            "user_registered",
-            payload={"confirmation_link": confirmation_link},
-        )
-
-    async def confirm_email(self, user_id: UUID) -> UserORM:
-        """Подтверждает email пользователя по user_id из короткой ссылки.
-
-        Args:
-            user_id: Идентификатор пользователя.
-
-        Returns:
-            UserORM: Обновленный объект пользователя.
-
-        Raises:
-            UserNotFoundException: Если пользователь не найден.
-        """
-        user = await self._db.users.get_one_or_none_by_id(id=user_id)
-        if user is None:
-            raise UserNotFoundException()
-
-        updated_user = await self._db.users.update_user_credentials(
-            user_id=user_id,
-            email_verified=True,
-        )
-        return updated_user
-
-    async def create_admin(self, user: UserRequestScheme) -> None:
-        is_exsist_user = (
-            await self._db.users.get_one_or_none_by_email_or_phone(
-                user.email, user.phone
-            )
-        )
-        if is_exsist_user:
-            raise UserAlreadyexistsException()
-        await self.add_one(user, is_superuser=True)
-
-    async def add_one(
-        self, user: UserRequestScheme, is_superuser: bool = False
-    ) -> UserORM:
-        """
-        Добавляет нового пользователя.
-        - Пароль пользователя хэшируется.
-        - Оригинальный пароль удаляется перед сохранением.
-        - Пользователь сохраняется в БД.
-        - Пользователю назначается базовая подписка 'free'.
-        Args:
-            user (UserRequestScheme): Данные пользователя.
-        Returns:
-            UserORM: Пользователь.
-        """
-        hash_password = self._hash_service.create_hash_password(user.password)
-        new_user = await self._db.users.create_user(
-            phone=user.phone,
-            email=user.email,
-            hashed_password=hash_password,
-            is_superuser=is_superuser,
-            timezone=user.timezone,
-            full_name=user.full_name,
-        )
-        await self._assign_free_subscription(new_user.id)
-        return new_user
-
-    async def _assign_free_subscription(self, user_id: UUID) -> None:
-        free_sub = await self._db.subscriptions.get_one_or_none_by_code("free")
-        if free_sub is None:
-            logging.warning(
-                "Подписка 'free' не найдена в БД, не удается назначить"
-            )
-            return
-        await self._db.user_subscriptions.create(
-            user_id=user_id,
-            subscription_id=free_sub.id,
-            started_at=datetime.now(timezone.utc),
-            expires_at=datetime(2999, 12, 31, tzinfo=timezone.utc),
-        )
-
-    async def _get_subscription_info(self, user_id: UUID) -> dict:
-        """
-        Возвращает код и уровень активной подписки пользователя для JWT-токена.
-        Если подписка истекла — деактивирует её и возвращает дефолтные значения 'free'.
-        Если активной подписки нет, возвращает дефолтные значения 'free'.
-
-        Args:
-            user_id (UUID): Идентификатор пользователя.
-        """
-        active = await self._db.user_subscriptions.get_active(user_id)
-        if active is None:
-            return {"subscription_code": "free", "subscription_level": 0}
-        if active.expires_at.replace(tzinfo=timezone.utc) < datetime.now(
-            timezone.utc
-        ):
-            await self._db.user_subscriptions.deactivate(active.id)
-            return {"subscription_code": "free", "subscription_level": 0}
-        return {
-            "subscription_code": active.subscription.code,
-            "subscription_level": active.subscription.level,
-        }
-
-    async def get_one_by_email(self, email: str) -> UserORM:
-        """
-        Получает пользователя по email.
-        Args:
-            email (str): Электронная почта пользователя.
-        Returns:
-            UserORM: Пользователь.
-        """
-        user = await self._db.users.get_one_or_none_by_email(email=email)
-        if user is None:
-            raise UserNotFoundException()
-        return user
-
-    async def get_one(self, id: UUID) -> UserORM:
-        """
-        Получает пользователя по id.
-        Args:
-            id (str): Идентификатор пользователя.
-        Returns:
-            UserORM: Пользователь.
-        Raises:
-            UserNotFoundException: Если пользователь с указанным id не найден.
-        """
-        user = await self._db.users.get_one_or_none_by_id(id=id)
-        if user is None:
-            raise UserNotFoundException()
-        return user
 
     def decode_token(self, token: str) -> dict[str, Any]:
         return self._token_service.decode_jwt_token(token)
@@ -257,7 +82,9 @@ class AuthService(BaseService):
 
         is_superuser = payload.get("is_superuser", False)
         user_id = UUID(payload["sub"])
-        subscription_info = await self._get_subscription_info(user_id)
+        subscription_info = await self._login_completion.get_subscription_info(
+            user_id
+        )
 
         new_access_token, new_refresh_token = (
             self._token_service.create_access_and_refresh_tokens(
@@ -276,166 +103,6 @@ class AuthService(BaseService):
         )
 
         return new_access_token, new_refresh_token
-
-    async def change_user_email(
-        self, user_id: UUID, data: ChangeEmailRequestScheme
-    ) -> UserORM:
-        """
-        Смена email пользователя после проверки пароля.
-        Проверяет существование пользователя, уникальность нового email
-        и корректность текущего пароля.
-
-        Args:
-            user_id (UUID): Уникальный идентификатор пользователя.
-            data (ChangeEmailRequestScheme): Данные для смены email.
-
-        Raises:
-            UserNotFoundException: Если пользователь не найден.
-            UserAlreadyexistsException: Если новый email уже занят.
-            VerifyPasswordError: Если пароль введен неверно.
-
-        Returns:
-            UserORM: Обновленный объект пользователя из базы данных.
-        """
-        user = await self._db.users.get_one_or_none_by_id(id=user_id)
-        if not user:
-            raise UserNotFoundException()
-
-        email_exists = await self._db.users.get_one_or_none_by_email(
-            data.new_email
-        )
-        if email_exists:
-            raise UserAlreadyexistsException()
-
-        if not self._hash_service.verify_password(
-            data.password, user.hashed_password
-        ):
-            raise VerifyPasswordException()
-
-        updated_user = await self._db.users.update_user_credentials(
-            user_id=user_id, email=data.new_email
-        )
-        return updated_user
-
-    async def request_phone_change(
-        self, user_id: UUID, data: PhoneChangeRequestScheme
-    ) -> None:
-        """
-        Запрашивает смену телефона: проверяет пароль и уникальность нового
-        номера, отправляет код подтверждения на новый номер.
-
-        Args:
-            user_id (UUID): Уникальный идентификатор пользователя.
-            data (PhoneChangeRequestScheme): Новый номер и текущий пароль.
-
-        Raises:
-            UserNotFoundException: Если пользователь не найден.
-            VerifyPasswordException: Если пароль введен неверно.
-            PhoneAlreadyTakenException: Если номер уже занят другим аккаунтом.
-        """
-        user = await self._db.users.get_one_or_none_by_id(id=user_id)
-        if user is None:
-            raise UserNotFoundException()
-
-        if not self._hash_service.verify_password(
-            data.password, user.hashed_password
-        ):
-            raise VerifyPasswordException()
-
-        phone_taken = await self._db.users.get_one_or_none_by_email_or_phone(
-            email=None, phone=data.new_phone
-        )
-        if phone_taken is not None:
-            raise PhoneAlreadyTakenException()
-
-        await self._phone_change_service.request_change(
-            user_id, data.new_phone
-        )
-
-    async def confirm_phone_change(
-        self, user_id: UUID, data: PhoneChangeConfirmScheme
-    ) -> UserORM:
-        """
-        Подтверждает смену телефона кодом из СМС: обновляет phone, отзывает
-        все сессии (как change_user_password) и уведомляет на email.
-
-        Args:
-            user_id (UUID): Уникальный идентификатор пользователя.
-            data (PhoneChangeConfirmScheme): Код подтверждения.
-        """
-        new_phone = await self._phone_change_service.confirm_change(
-            user_id, data.code
-        )
-        if new_phone is None:
-            raise InvalidPhoneChangeCodeException()
-
-        updated_user = await self._db.users.update_user_credentials(
-            user_id=user_id, phone=new_phone
-        )
-        await self._session_service.delete_all_sessions(str(user_id))
-        asyncio.create_task(notify_user(user_id, "phone_changed"))
-        return updated_user
-
-    async def change_user_password(
-        self, user_id: UUID, data: ChangePasswordRequestScheme
-    ) -> None:
-        """
-        Смена пароля пользователя и отзыв всех его текущих сессий.
-        Проверяет существование пользователя, корректность старого пароля,
-        после чего хэширует новый пароль и удаляет все токены.
-
-        Args:
-            user_id (UUID): Уникальный идентификатор пользователя.
-            data (ChangePasswordRequestScheme): Данные для смены пароля.
-
-        Raises:
-            UserNotFoundException: Если пользователь не найден.
-            VerifyPasswordException: Если текущий старый пароль введен неверно.
-        """
-        user = await self._db.users.get_one_or_none_by_id(id=user_id)
-        if not user:
-            raise UserNotFoundException()
-
-        if not self._hash_service.verify_password(
-            data.current_password, user.hashed_password
-        ):
-            raise VerifyPasswordException()
-
-        new_hash = self._hash_service.create_hash_password(data.new_password)
-
-        await self._db.users.update_user_credentials(
-            user_id=user_id, hashed_password=new_hash
-        )
-
-        await self._session_service.delete_all_sessions(str(user_id))
-        asyncio.create_task(notify_user(user_id, "password_changed"))
-
-    async def change_user_timezone(
-        self, user_id: UUID, timezone_name: str
-    ) -> UserORM:
-        """
-        Смена таймзоны пользователя.
-        Применяется только к будущим рассылкам.
-
-        Args:
-            user_id (UUID): Уникальный идентификатор пользователя.
-            timezone_name (str): IANA-имя новой таймзоны.
-
-        Raises:
-            UserNotFoundException: Если пользователь не найден.
-
-        Returns:
-            UserORM: Обновленный объект пользователя.
-        """
-        user = await self._db.users.get_one_or_none_by_id(id=user_id)
-        if not user:
-            raise UserNotFoundException()
-
-        await self._db.users.update_user_timezone(
-            user_id=user_id, timezone=timezone_name
-        )
-
-        return user
 
     async def authenticate_user(
         self, auth_user: UserRequestScheme, ip_address: str, user_agent: str
@@ -474,7 +141,7 @@ class AuthService(BaseService):
             await self._two_factor_service.send_code(user.id, user.phone)
             raise TwoFactorRequiredException()
 
-        return await self._create_user_session(
+        return await self._login_completion.create_session(
             user, ip_address, user_agent, auth_method="password"
         )
 
@@ -510,42 +177,9 @@ class AuthService(BaseService):
         if not await self._two_factor_service.verify_code(user.id, code):
             raise InvalidTwoFactorCodeException()
 
-        return await self._create_user_session(
+        return await self._login_completion.create_session(
             user, ip_address, user_agent, auth_method="password+sms"
         )
-
-    async def _create_user_session(
-        self,
-        user: UserORM,
-        ip_address: str,
-        user_agent: str,
-        auth_method: str,
-    ) -> tuple[str, str]:
-        sid = uuid4()
-
-        subscription_info = await self._get_subscription_info(user.id)
-
-        access_token, refresh_token = (
-            self._token_service.create_access_and_refresh_tokens(
-                {
-                    "sub": str(user.id),
-                    "is_superuser": user.is_superuser,
-                    "sid": str(sid),
-                    **subscription_info,
-                }
-            )
-        )
-
-        await self._session_service.add_session(
-            user.id,
-            user_agent,
-            ip_address,
-            refresh_token,
-            sid,
-            auth_method=auth_method,
-        )
-
-        return access_token, refresh_token
 
     async def revoke_refresh_token(self, refresh_token: str) -> None:
         try:
@@ -562,165 +196,3 @@ class AuthService(BaseService):
             return
         user_id = payload["sub"]
         await self._session_service.delete_all_sessions(user_id)
-
-    async def _get_or_create_oauth_user(
-        self,
-        user_info: OAuthUserInfoScheme,
-    ) -> UserORM:
-        oauth_account = await self._db.oauth_accounts.get_by_provider_data(
-            provider=user_info.provider,
-            provider_user_id=user_info.provider_user_id,
-        )
-
-        if oauth_account:
-            return await self.get_one(oauth_account.user_id)
-        if not user_info.email and not user_info.phone:
-            raise ProviderException()
-        user = await self._db.users.get_one_or_none_by_email_or_phone(
-            email=user_info.email, phone=user_info.phone
-        )
-        if not user:
-            user = await self._db.users.create_user(
-                email=user_info.email,
-                phone=user_info.phone,
-                hashed_password=None,
-            )
-            await self._assign_free_subscription(user.id)
-
-        await self._db.oauth_accounts.create_oauth_account(
-            user_id=user.id,
-            provider=user_info.provider,
-            provider_user_id=user_info.provider_user_id,
-        )
-        return user
-
-    async def authenticate_oauth_user(
-        self, user_info: OAuthUserInfoScheme, ip_address: str, user_agent: str
-    ) -> tuple[str, str]:
-        user = await self._get_or_create_oauth_user(user_info)
-        return await self._create_user_session(
-            user, ip_address, user_agent, auth_method=user_info.provider
-        )
-
-    async def set_password(
-        self, user_id: UUID, data: SetPasswordRequestScheme
-    ) -> None:
-        """Устанавливает пароль для OAuth-пользователя без пароля.
-
-        Raises:
-            UserNotFoundException: Если пользователь не найден.
-            PasswordAlreadySetException: Если пароль уже установлен (использовать change-password).
-        """
-        user = await self._db.users.get_one_or_none_by_id(id=user_id)
-        if not user:
-            raise UserNotFoundException()
-
-        if user.hashed_password is not None:
-            raise PasswordAlreadySetException()
-
-        new_hash = self._hash_service.create_hash_password(data.password)
-        await self._db.users.update_user_credentials(
-            user_id=user_id,
-            hashed_password=new_hash,
-        )
-
-    async def _delete_sessions_by_auth_method(
-        self,
-        user_id: UUID,
-        auth_method: str,
-        current_sid: str,
-    ) -> bool:
-        """Аннулирует в Redis все активные сессии пользователя,
-        созданные через определенный метод входа."""
-        sessions = await self._session_service.get_active_sessions(
-            user_id=user_id, current_sid=current_sid
-        )
-
-        current_session_deleted = False
-
-        for session_info in sessions:
-            sid = (
-                session_info.get("sid")
-                if isinstance(session_info, dict)
-                else getattr(session_info, "sid", None)
-            )
-            if not sid:
-                continue
-
-            full_session = await self._session_service.get_session(sid)
-            if not full_session:
-                continue
-
-            session_auth_method = (
-                full_session.get("auth_method")
-                if isinstance(full_session, dict)
-                else getattr(full_session, "auth_method", None)
-            )
-
-            if session_auth_method == auth_method:
-                await self._session_service.delete_session(sid)
-                if str(sid) == str(current_sid):
-                    current_session_deleted = True
-
-        return current_session_deleted
-
-    async def unlink_account(
-        self,
-        user_id: UUID,
-        provider: str,
-        current_sid: str,
-    ) -> tuple[list[str], bool]:
-        """
-        Отвязывает аккаунт внешнего провайдера
-        от личного кабинета пользователя.
-
-        Args:
-            user_id (UUID): Идентификатор пользователя в системе.
-            provider (str): Название провайдера (google, yandex, vk).
-            current_sid (str): Идентификатор текущей активной сессии.
-
-        Returns:
-            tuple[list[str], bool]: Кортеж, содержащий:
-                - list[str]: Список названий привязанных провайдеров.
-                - bool: Флаг True, если текущая сессия была аннулирована.
-
-        Raises:
-            UserNotFoundException: Если пользователь не найден.
-            OAuthAccountNotLinkedException: Если провайдер не привязан.
-            LastAuthMethodRestrictionException: Если это единственный
-            способ входа.
-        """
-        async with self._db as db:
-            user = await db.users.get_by_id_for_update(user_id)
-            if not user:
-                raise UserNotFoundException()
-
-            all_accounts = await db.oauth_accounts.get_all_by_user_id(user_id)
-
-            target_account = next(
-                (acc for acc in all_accounts if acc.provider == provider), None
-            )
-            if not target_account:
-                raise OAuthAccountNotLinkedException()
-
-            has_password = bool(user.hashed_password)
-            remaining_oauth_count = len(all_accounts) - 1
-
-            if not has_password and remaining_oauth_count == 0:
-                raise LastAuthMethodRestrictionException()
-
-            await db.oauth_accounts.delete_oauth_account(target_account.id)
-
-            remaining_providers = [
-                acc.provider
-                for acc in all_accounts
-                if acc.provider != provider
-            ]
-
-        current_session_deleted = await self._delete_sessions_by_auth_method(
-            user_id=user_id,
-            auth_method=provider,
-            current_sid=current_sid,
-        )
-
-        return remaining_providers, current_session_deleted

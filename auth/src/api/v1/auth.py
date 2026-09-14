@@ -1,5 +1,6 @@
+"""Регистрация, вход в аккаунт (с 2FA), управление сессией."""
+
 from datetime import datetime, timedelta, timezone
-from uuid import UUID
 
 from fastapi import APIRouter, Request, Response, status
 from fastapi_cache.decorator import cache
@@ -7,31 +8,21 @@ from fastapi_cache.decorator import cache
 from src.api.v1.dependencies import (
     AuthServiceDep,
     CurrentUserDep,
-    DBDep,
     InternalServiceDep,
     RefreshTokenDep,
-    RoleServiceDep,
+    RegistrationServiceDep,
     SessionServiceDep,
     TokenPayloadDep,
 )
 from src.core.config import settings
 from src.core.limiter import limiter
-from src.core.notification_defaults import notification_defaults
 from src.exceptions import (
     DecodeTokenException,
-    InvalidPhoneChangeCodeException,
-    InvalidPhoneChangeCodeHTTPException,
     InvalidTokenHTTPException,
     InvalidTwoFactorCodeException,
     InvalidTwoFactorCodeHTTPException,
-    NoPendingPhoneChangeException,
-    NoPendingPhoneChangeHTTPException,
-    PasswordAlreadySetException,
-    PasswordAlreadySetHTTPException,
     PasswordNotSetException,
     PasswordNotSetHTTPException,
-    PhoneAlreadyTakenException,
-    PhoneAlreadyTakenHTTPException,
     ProviderException,
     ProviderHTTPException,
     SendCooldownException,
@@ -48,22 +39,12 @@ from src.exceptions import (
     VerifyPasswordException,
     VerifyPasswordHTTPException,
 )
-from src.schemas.permissions import PermissionResponseScheme
 from src.schemas.sessions import UserSessionResponse
 from src.schemas.tokens import JWTAccessToken, TwoFactorRequiredScheme
-from src.schemas.user_notification_settings import UserNotificationSettings
 from src.schemas.users import (
-    ChangeEmailRequestScheme,
-    ChangePasswordRequestScheme,
-    ChangeTimezoneRequestScheme,
     ConfirmEmailRequestScheme,
-    PhoneChangeConfirmScheme,
-    PhoneChangeRequestScheme,
-    SetPasswordRequestScheme,
-    UserContactScheme,
     UserRequestScheme,
     UserResponseScheme,
-    UserSearchScheme,
     VerifyTwoFactorRequestScheme,
 )
 
@@ -77,12 +58,12 @@ router = APIRouter(tags=["Auth"])
 )
 async def confirm_email(
     data: ConfirmEmailRequestScheme,
-    auth_service: AuthServiceDep,
+    registration_service: RegistrationServiceDep,
     _: InternalServiceDep,
 ):
     """Подтверждает email пользователя после перехода по короткой ссылке."""
     try:
-        confirmed_user = await auth_service.confirm_email(data.user_id)
+        confirmed_user = await registration_service.confirm_email(data.user_id)
     except UserNotFoundException as exc:
         raise UserNotFoundHTTPException(detail=exc.detail) from exc
     return confirmed_user
@@ -97,12 +78,12 @@ async def confirm_email(
 @limiter.limit(settings.LIMIT_VALUE)
 async def create_user(
     user: UserRequestScheme,
-    auth_service: AuthServiceDep,
+    registration_service: RegistrationServiceDep,
     request: Request,
 ):
     """Регистрация нового пользователя. Хэширует пароль и сохраняет в БД."""
     try:
-        created_user = await auth_service.register_user(user)
+        created_user = await registration_service.register_user(user)
     except UserAlreadyexistsException as exc:
         raise UserAlreadyexistsHTTPException(detail=exc.detail) from exc
     return created_user
@@ -325,259 +306,3 @@ async def get_user_active_sessions(
         user_id=current_user.id,
         current_sid=token_payload["sid"],
     )
-
-
-@router.get(
-    "/users/me/permissions/",
-    summary="Права текущего пользователя",
-    response_model=list[PermissionResponseScheme],
-)
-@limiter.limit(settings.LIMIT_VALUE)
-async def get_my_permissions(
-    current_user: CurrentUserDep,
-    role_service: RoleServiceDep,
-    request: Request,
-):
-    """Возвращает список прав доступа, назначенных текущему пользователю через его роли."""
-    return await role_service.get_user_permissions(
-        user_id=current_user.id,
-        is_superuser=current_user.is_superuser,
-    )
-
-
-@router.get(
-    "/internal/users/{user_id}/",
-    summary="Email пользователя по ID",
-    response_model=UserContactScheme,
-)
-async def get_user_contact(user_id: UUID, db: DBDep, _: InternalServiceDep):
-    """Получение контактов пользователя между сервисами."""
-    user = await db.users.get_one_or_none_by_id(id=user_id)
-    if user is None:
-        raise UserNotFoundHTTPException()
-    return UserContactScheme(user_id=user.id, email=user.email)
-
-
-@router.get(
-    "/internal/users/{user_id}/notification-settings",
-    summary="Настройки уведомлений пользователя по ID",
-    response_model=UserNotificationSettings,
-)
-async def get_user_notification_settings(
-    user_id: UUID,
-    db: DBDep,
-    _: InternalServiceDep,
-):
-    """Получение настроек уведомлений пользователя между сервисами.
-
-    Если у пользователя нет записи в user_notification_settings,
-    возвращается объект с дефолтными значениями из notification_defaults."""
-    user = await db.users.get_one_or_none_by_id(id=user_id)
-    if user is None:
-        raise UserNotFoundHTTPException()
-
-    notif_settings = await db.user_notification_settings.get_by_user_id(user_id)
-    if notif_settings is None:
-        # Нет записи в БД — возвращаем дефолты
-        return UserNotificationSettings(
-            user_id=user_id,
-            notifications_enabled=notification_defaults.NOTIFICATIONS_ENABLED,
-            email_enabled=notification_defaults.EMAIL_ENABLED,
-            sms_enabled=notification_defaults.SMS_ENABLED,
-            push_enabled=notification_defaults.PUSH_ENABLED,
-        )
-    return UserNotificationSettings.model_validate(notif_settings)
-
-
-@router.post(
-    "/internal/users/search/",
-    summary="Поиск пользователей по audience_filter (для рассылок)",
-    response_model=list[UUID],
-)
-async def search_users(
-    data: UserSearchScheme, db: DBDep, _: InternalServiceDep
-):
-    """Используется notifications-service (воркер). Возвращает id активных пользователей,
-    подходящих под фильтр."""
-    min_level = (
-        data.subscription_level.gte
-        if data.subscription_level is not None
-        else None
-    )
-    return await db.users.search_by_min_subscription_level(
-        min_level, timezone_filter=data.timezone
-    )
-
-
-@router.post(
-    "/internal/users/search/timezones/",
-    summary="Уникальные таймзоны пользователей (для рассылок)",
-    response_model=list[str],
-)
-async def search_user_timezones(data: UserSearchScheme, db: DBDep):
-    """Используется notifications-service для разбивки рассылок по таймзонам.
-    Возвращает уникальные таймзоны активных пользователей.
-    Пользователи без заданной таймзоны считаются 'UTC'."""
-    min_level = (
-        data.subscription_level.gte
-        if data.subscription_level is not None
-        else None
-    )
-    return await db.users.search_distinct_timezones(
-        min_level, timezone_filter=data.timezone
-    )
-
-
-@router.patch(
-    "/change-email/",
-    response_model=UserResponseScheme,
-    summary="Смена email",
-)
-@limiter.limit(settings.LIMIT_VALUE)
-async def change_email(
-    data: ChangeEmailRequestScheme,
-    auth_service: AuthServiceDep,
-    user: CurrentUserDep,
-    request: Request,
-):
-    """Смена email с подтверждением текущего пароля. Новый email должен быть уникальным."""
-    try:
-        updated_user = await auth_service.change_user_email(
-            user_id=user.id, data=data
-        )
-        return updated_user
-    except UserAlreadyexistsException as exc:
-        raise UserAlreadyexistsHTTPException(detail=exc.detail) from exc
-    except UserNotFoundException as exc:
-        raise UserNotFoundHTTPException(detail=exc.detail) from exc
-    except VerifyPasswordException as exc:
-        raise VerifyPasswordHTTPException(detail=exc.detail) from exc
-
-
-@router.post(
-    "/change-phone-request/",
-    status_code=status.HTTP_204_NO_CONTENT,
-    summary="Запрос смены номера телефона",
-)
-@limiter.limit(settings.LIMIT_VALUE)
-async def request_phone_change(
-    data: PhoneChangeRequestScheme,
-    auth_service: AuthServiceDep,
-    user: CurrentUserDep,
-    request: Request,
-):
-    """Проверяет пароль и уникальность нового номера, отправляет код
-    подтверждения на новый номер. Телефон меняется только после
-    /confirm-phone/."""
-    try:
-        await auth_service.request_phone_change(user_id=user.id, data=data)
-    except VerifyPasswordException as exc:
-        raise VerifyPasswordHTTPException(detail=exc.detail) from exc
-    except PhoneAlreadyTakenException as exc:
-        raise PhoneAlreadyTakenHTTPException(detail=exc.detail) from exc
-    except TooManyAttemptsException as exc:
-        raise TooManyAttemptsHTTPException(detail=exc.detail) from exc
-    except SendCooldownException as exc:
-        raise TooManyAttemptsHTTPException(detail=exc.detail) from exc
-    except ProviderException as exc:
-        raise ProviderHTTPException(detail=exc.detail) from exc
-
-
-@router.post(
-    "/confirm-phone/",
-    response_model=UserResponseScheme,
-    summary="Подтверждение смены номера телефона",
-)
-@limiter.limit(settings.LIMIT_VALUE)
-async def confirm_phone_change(
-    data: PhoneChangeConfirmScheme,
-    auth_service: AuthServiceDep,
-    user: CurrentUserDep,
-    request: Request,
-):
-    """Проверяет код из СМС, при совпадении обновляет телефон и отзывает
-    все сессии (как при смене пароля)."""
-    try:
-        return await auth_service.confirm_phone_change(user_id=user.id, data=data)
-    except InvalidPhoneChangeCodeException as exc:
-        raise InvalidPhoneChangeCodeHTTPException(detail=exc.detail) from exc
-    except NoPendingPhoneChangeException as exc:
-        raise NoPendingPhoneChangeHTTPException(detail=exc.detail) from exc
-    except TooManyAttemptsException as exc:
-        raise TooManyAttemptsHTTPException(detail=exc.detail) from exc
-
-
-@router.patch(
-    "/change-password/",
-    status_code=status.HTTP_204_NO_CONTENT,
-    summary="Смена пароля",
-)
-@limiter.limit(settings.LIMIT_VALUE)
-async def change_password(
-    data: ChangePasswordRequestScheme,
-    response: Response,
-    auth_service: AuthServiceDep,
-    user: CurrentUserDep,
-    request: Request,
-):
-    """Смена пароля с подтверждением текущего. Сбрасывает все активные сессии."""
-    try:
-        await auth_service.change_user_password(user_id=user.id, data=data)
-
-        response.delete_cookie(
-            key="refresh_token",
-            httponly=True,
-            secure=settings.COOKIE_SECURE,
-            samesite="lax",
-            path="/",
-        )
-
-        return Response(status_code=status.HTTP_204_NO_CONTENT)
-    except UserNotFoundException as exc:
-        raise UserNotFoundHTTPException(detail=exc.detail) from exc
-    except VerifyPasswordException as exc:
-        raise VerifyPasswordHTTPException(detail=exc.detail) from exc
-
-
-@router.post(
-    "/set-password/",
-    status_code=status.HTTP_204_NO_CONTENT,
-    summary="Установка пароля для OAuth-пользователя",
-)
-async def set_password(
-    data: SetPasswordRequestScheme,
-    auth_service: AuthServiceDep,
-    user: CurrentUserDep,
-):
-    """Устанавливает пароль для пользователя, вошедшего через OAuth (без пароля).
-    Если пароль уже установлен — использовать /change-password/.
-    """
-    try:
-        await auth_service.set_password(user_id=user.id, data=data)
-        return Response(status_code=status.HTTP_204_NO_CONTENT)
-    except UserNotFoundException as exc:
-        raise UserNotFoundHTTPException(detail=exc.detail) from exc
-    except PasswordAlreadySetException as exc:
-        raise PasswordAlreadySetHTTPException(detail=exc.detail) from exc
-
-
-@router.patch(
-    "/users/me/timezone/",
-    response_model=UserResponseScheme,
-    summary="Смена таймзоны пользователя",
-)
-@limiter.limit(settings.LIMIT_VALUE)
-async def change_user_timezone(
-    data: ChangeTimezoneRequestScheme,
-    auth_service: AuthServiceDep,
-    user: CurrentUserDep,
-    request: Request,
-):
-    """Смена таймзоны пользователя."""
-    try:
-        updated_user = await auth_service.change_user_timezone(
-            user_id=user.id, timezone_name=data.timezone
-        )
-        return updated_user
-    except UserNotFoundException as exc:
-        raise UserNotFoundHTTPException(detail=exc.detail) from exc

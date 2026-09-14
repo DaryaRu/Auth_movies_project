@@ -37,6 +37,13 @@ class ReviewRepository(BaseRepository):
             {"user_id": user_id, "movie_id": movie_id}
         )
 
+    async def delete_all_by_user(self, user_id: UUID) -> bool:
+        """Удалить все рецензии пользователя (при удалении аккаунта).
+
+        Лайкии дизлайки на эти рецензии от других пользователей удалятся каскадно.
+        """
+        return await self.delete_by_filters({"user_id": user_id})
+
     async def get_user_reviews(
         self,
         user_id: UUID,
@@ -88,9 +95,7 @@ class ReviewRepository(BaseRepository):
         )
 
     def _build_order_clause(
-        self,
-        sort_by: ReviewSortField,
-        sort_order: ReviewSortOrder
+        self, sort_by: ReviewSortField, sort_order: ReviewSortOrder
     ) -> str:
         """Построить ORDER BY clause."""
         if sort_by in ("likes", "score"):
@@ -113,10 +118,7 @@ class ReviewRepository(BaseRepository):
         order_clause = self._build_order_clause(sort_by, sort_order)
 
         return await self._get_all(
-            skip=skip,
-            limit=limit,
-            filters=filters,
-            order_by=order_clause
+            skip=skip, limit=limit, filters=filters, order_by=order_clause
         )
 
     async def get_movie_stats(self, movie_id: UUID) -> dict[str, Any]:
