@@ -6,6 +6,8 @@ from src.api.v1.dependencies import AccountSettingsServiceDep, CurrentUserDep
 from src.core.config import settings
 from src.core.limiter import limiter
 from src.exceptions import (
+    EmailRequiredForPhoneChangeException,
+    EmailRequiredForPhoneChangeHTTPException,
     InvalidPhoneChangeCodeException,
     InvalidPhoneChangeCodeHTTPException,
     NoPendingPhoneChangeException,
@@ -77,9 +79,9 @@ async def request_phone_change(
     user: CurrentUserDep,
     request: Request,
 ):
-    """Проверяет пароль и уникальность нового номера, отправляет код
-    подтверждения на новый номер. Телефон меняется только после
-    /confirm-phone/."""
+    """Проверяет пароль и уникальность нового номера, отправляет два
+    независимых кода подтверждения: на новый номер (СМС) и на текущий email.
+    Телефон меняется только после /confirm-phone/ с обоими кодами."""
     try:
         await account_settings_service.request_phone_change(
             user_id=user.id, data=data
@@ -88,6 +90,10 @@ async def request_phone_change(
         raise VerifyPasswordHTTPException(detail=exc.detail) from exc
     except PhoneAlreadyTakenException as exc:
         raise PhoneAlreadyTakenHTTPException(detail=exc.detail) from exc
+    except EmailRequiredForPhoneChangeException as exc:
+        raise EmailRequiredForPhoneChangeHTTPException(
+            detail=exc.detail
+        ) from exc
     except TooManyAttemptsException as exc:
         raise TooManyAttemptsHTTPException(detail=exc.detail) from exc
     except SendCooldownException as exc:
@@ -108,8 +114,8 @@ async def confirm_phone_change(
     user: CurrentUserDep,
     request: Request,
 ):
-    """Проверяет код из СМС, при совпадении обновляет телефон и отзывает
-    все сессии (как при смене пароля)."""
+    """Проверяет оба кода (СМС + email), при совпадении обоих обновляет
+    телефон и отзывает все сессии (как при смене пароля)."""
     try:
         return await account_settings_service.confirm_phone_change(
             user_id=user.id, data=data

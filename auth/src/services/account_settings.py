@@ -86,7 +86,8 @@ class AccountSettingsService:
     ) -> None:
         """
         Запрашивает смену телефона: проверяет пароль и уникальность нового
-        номера, отправляет код подтверждения на новый номер.
+        номера, отправляет два независимых кода подтверждения: на новый
+        номер (СМС) и на текущий email аккаунта.
 
         Args:
             user_id (UUID): Уникальный идентификатор пользователя.
@@ -96,6 +97,7 @@ class AccountSettingsService:
             UserNotFoundException: Если пользователь не найден.
             VerifyPasswordException: Если пароль введен неверно.
             PhoneAlreadyTakenException: Если номер уже занят другим аккаунтом.
+            EmailRequiredForPhoneChangeException: На аккаунте нет email.
         """
         user = await self._db.users.get_one_or_none_by_id(id=user_id)
         if user is None:
@@ -113,22 +115,22 @@ class AccountSettingsService:
             raise PhoneAlreadyTakenException()
 
         await self._phone_change_service.request_change(
-            user_id, data.new_phone
+            user_id, data.new_phone, user.email
         )
 
     async def confirm_phone_change(
         self, user_id: UUID, data: PhoneChangeConfirmScheme
     ) -> UserORM:
         """
-        Подтверждает смену телефона кодом из СМС: обновляет phone, отзывает
-        все сессии (как change_user_password) и уведомляет на email.
+        Подтверждает смену телефона двумя кодами (СМС + email): обновляет
+        телефон, отзывает все сессии и уведомляет на email.
 
         Args:
             user_id (UUID): Уникальный идентификатор пользователя.
-            data (PhoneChangeConfirmScheme): Код подтверждения.
+            data (PhoneChangeConfirmScheme): Коды подтверждения из СМС и email.
         """
         new_phone = await self._phone_change_service.confirm_change(
-            user_id, data.code
+            user_id, data.sms_code, data.email_code
         )
         if new_phone is None:
             raise InvalidPhoneChangeCodeException()

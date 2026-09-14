@@ -266,12 +266,16 @@ class PhoneChangeRequestScheme(BaseModel):
 
 
 class PhoneChangeConfirmScheme(BaseModel):
-    """Схема для подтверждения смены номера телефона кодом из СМС."""
+    """Схема для подтверждения смены номера телефона двумя кодами:
+    из СМС (новый номер) и с email (текущий аккаунт)."""
 
-    code: str = Field(..., description="Код подтверждения из СМС")
+    sms_code: str = Field(..., description="Код подтверждения из СМС")
+    email_code: str = Field(..., description="Код подтверждения из email")
 
     model_config = ConfigDict(
-        json_schema_extra={"example": {"code": "482913"}}
+        json_schema_extra={
+            "example": {"sms_code": "482913", "email_code": "159426"}
+        }
     )
 
 
