@@ -25,6 +25,9 @@ class TestSettings(BaseSettings):
     api_prefix: str = Field(default="/api/v1/user-actions", alias="API_PREFIX")
     environment: str = Field(default="test", alias="ENVIRONMENT")
     private_key_path: str = Field(alias="PRIVATE_KEY_PATH")
+    internal_service_secret: str = Field(
+        default="", alias="INTERNAL_SERVICE_SECRET"
+    )
 
     service_wait_max_attempts: int = Field(
         default=30, alias="SERVICE_WAIT_MAX_ATTEMPTS"
