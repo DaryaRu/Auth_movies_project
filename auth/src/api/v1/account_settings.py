@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Request, Response, status
 
-from src.api.v1.dependencies import AuthServiceDep, CurrentUserDep
+from src.api.v1.dependencies import AccountSettingsServiceDep, CurrentUserDep
 from src.core.config import settings
 from src.core.limiter import limiter
 from src.exceptions import (
@@ -47,13 +47,13 @@ router = APIRouter(tags=["Auth"])
 @limiter.limit(settings.LIMIT_VALUE)
 async def change_email(
     data: ChangeEmailRequestScheme,
-    auth_service: AuthServiceDep,
+    account_settings_service: AccountSettingsServiceDep,
     user: CurrentUserDep,
     request: Request,
 ):
     """Смена email с подтверждением текущего пароля. Новый email должен быть уникальным."""
     try:
-        updated_user = await auth_service.change_user_email(
+        updated_user = await account_settings_service.change_user_email(
             user_id=user.id, data=data
         )
         return updated_user
@@ -73,7 +73,7 @@ async def change_email(
 @limiter.limit(settings.LIMIT_VALUE)
 async def request_phone_change(
     data: PhoneChangeRequestScheme,
-    auth_service: AuthServiceDep,
+    account_settings_service: AccountSettingsServiceDep,
     user: CurrentUserDep,
     request: Request,
 ):
@@ -81,7 +81,9 @@ async def request_phone_change(
     подтверждения на новый номер. Телефон меняется только после
     /confirm-phone/."""
     try:
-        await auth_service.request_phone_change(user_id=user.id, data=data)
+        await account_settings_service.request_phone_change(
+            user_id=user.id, data=data
+        )
     except VerifyPasswordException as exc:
         raise VerifyPasswordHTTPException(detail=exc.detail) from exc
     except PhoneAlreadyTakenException as exc:
@@ -102,14 +104,14 @@ async def request_phone_change(
 @limiter.limit(settings.LIMIT_VALUE)
 async def confirm_phone_change(
     data: PhoneChangeConfirmScheme,
-    auth_service: AuthServiceDep,
+    account_settings_service: AccountSettingsServiceDep,
     user: CurrentUserDep,
     request: Request,
 ):
     """Проверяет код из СМС, при совпадении обновляет телефон и отзывает
     все сессии (как при смене пароля)."""
     try:
-        return await auth_service.confirm_phone_change(
+        return await account_settings_service.confirm_phone_change(
             user_id=user.id, data=data
         )
     except InvalidPhoneChangeCodeException as exc:
@@ -129,13 +131,15 @@ async def confirm_phone_change(
 async def change_password(
     data: ChangePasswordRequestScheme,
     response: Response,
-    auth_service: AuthServiceDep,
+    account_settings_service: AccountSettingsServiceDep,
     user: CurrentUserDep,
     request: Request,
 ):
     """Смена пароля с подтверждением текущего. Сбрасывает все активные сессии."""
     try:
-        await auth_service.change_user_password(user_id=user.id, data=data)
+        await account_settings_service.change_user_password(
+            user_id=user.id, data=data
+        )
 
         response.delete_cookie(
             key="refresh_token",
@@ -159,14 +163,14 @@ async def change_password(
 )
 async def set_password(
     data: SetPasswordRequestScheme,
-    auth_service: AuthServiceDep,
+    account_settings_service: AccountSettingsServiceDep,
     user: CurrentUserDep,
 ):
     """Устанавливает пароль для пользователя, вошедшего через OAuth (без пароля).
     Если пароль уже установлен — использовать /change-password/.
     """
     try:
-        await auth_service.set_password(user_id=user.id, data=data)
+        await account_settings_service.set_password(user_id=user.id, data=data)
         return Response(status_code=status.HTTP_204_NO_CONTENT)
     except UserNotFoundException as exc:
         raise UserNotFoundHTTPException(detail=exc.detail) from exc
@@ -182,13 +186,13 @@ async def set_password(
 @limiter.limit(settings.LIMIT_VALUE)
 async def change_user_timezone(
     data: ChangeTimezoneRequestScheme,
-    auth_service: AuthServiceDep,
+    account_settings_service: AccountSettingsServiceDep,
     user: CurrentUserDep,
     request: Request,
 ):
     """Смена таймзоны пользователя."""
     try:
-        updated_user = await auth_service.change_user_timezone(
+        updated_user = await account_settings_service.change_user_timezone(
             user_id=user.id, timezone_name=data.timezone
         )
         return updated_user

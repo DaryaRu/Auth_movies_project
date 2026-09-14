@@ -1,3 +1,5 @@
+"""Вход, токены, сессии, OAuth-аккаунты."""
+
 from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID, uuid4
@@ -18,18 +20,8 @@ from src.exceptions import (
 )
 from src.models.users import UserORM
 from src.schemas.oauth import OAuthUserInfoScheme
-from src.schemas.users import (
-    ChangeEmailRequestScheme,
-    ChangePasswordRequestScheme,
-    PhoneChangeConfirmScheme,
-    PhoneChangeRequestScheme,
-    SetPasswordRequestScheme,
-    UserRequestScheme,
-)
-from src.services.account_delete import AccountDeleteService
-from src.services.account_settings import AccountSettingsService
+from src.schemas.users import UserRequestScheme
 from src.services.base import BaseService
-from src.services.phone_change import PhoneChangeService
 from src.services.registration import RegistrationService
 from src.services.sessions import SessionService
 from src.services.two_factor import TwoFactorService
@@ -39,11 +31,7 @@ from src.utils.tokens import JWTTokenService
 
 
 class AuthService(BaseService):
-    """
-    Вход, токены, сессии, OAuth реализованы прямо здесь.
-    Регистрация, изменение данных аккаунта и его удаление в RegistrationService,
-    AccountSettingsService, AccountDeleteService.
-    """
+    """Вход, токены, сессии, OAuth-аккаунты."""
 
     def __init__(
         self,
@@ -52,80 +40,14 @@ class AuthService(BaseService):
         session_service: SessionService,
         db: DBManager,
         two_factor_service: TwoFactorService,
-        phone_change_service: PhoneChangeService,
+        registration_service: RegistrationService,
     ) -> None:
         super().__init__(db)
         self._hash_service: BaseHashService = hash_service
         self._token_service: JWTTokenService = token_service
         self._session_service: SessionService = session_service
         self._two_factor_service: TwoFactorService = two_factor_service
-
-        self._registration = RegistrationService(hash_service, db)
-        self._account_settings = AccountSettingsService(
-            hash_service, db, session_service, phone_change_service
-        )
-        self._account_delete = AccountDeleteService(
-            hash_service, db, session_service, two_factor_service
-        )
-
-    # Регистрация
-
-    async def register_user(self, user: UserRequestScheme) -> UserORM:
-        return await self._registration.register_user(user)
-
-    async def confirm_email(self, user_id: UUID) -> UserORM:
-        return await self._registration.confirm_email(user_id)
-
-    async def create_admin(self, user: UserRequestScheme) -> None:
-        await self._registration.create_admin(user)
-
-    # Данные аккаунта
-
-    async def change_user_email(
-        self, user_id: UUID, data: ChangeEmailRequestScheme
-    ) -> UserORM:
-        return await self._account_settings.change_user_email(user_id, data)
-
-    async def request_phone_change(
-        self, user_id: UUID, data: PhoneChangeRequestScheme
-    ) -> None:
-        await self._account_settings.request_phone_change(user_id, data)
-
-    async def confirm_phone_change(
-        self, user_id: UUID, data: PhoneChangeConfirmScheme
-    ) -> UserORM:
-        return await self._account_settings.confirm_phone_change(user_id, data)
-
-    async def change_user_password(
-        self, user_id: UUID, data: ChangePasswordRequestScheme
-    ) -> None:
-        await self._account_settings.change_user_password(user_id, data)
-
-    async def change_user_timezone(
-        self, user_id: UUID, timezone_name: str
-    ) -> UserORM:
-        return await self._account_settings.change_user_timezone(
-            user_id, timezone_name
-        )
-
-    async def set_password(
-        self, user_id: UUID, data: SetPasswordRequestScheme
-    ) -> None:
-        await self._account_settings.set_password(user_id, data)
-
-    # Удаление аккаунта
-
-    async def request_account_delete(
-        self, user: UserORM, password: str | None
-    ) -> bool:
-        return await self._account_delete.request_account_delete(
-            user, password
-        )
-
-    async def confirm_account_delete(self, user_id: UUID, code: str) -> None:
-        await self._account_delete.confirm_account_delete(user_id, code)
-
-    # Вход, токены, сессии, OAuth
+        self._registration: RegistrationService = registration_service
 
     async def _get_subscription_info(self, user_id: UUID) -> dict:
         """

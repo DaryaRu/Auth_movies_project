@@ -10,6 +10,7 @@ from src.api.v1.dependencies import (
     CurrentUserDep,
     InternalServiceDep,
     RefreshTokenDep,
+    RegistrationServiceDep,
     SessionServiceDep,
     TokenPayloadDep,
 )
@@ -57,12 +58,12 @@ router = APIRouter(tags=["Auth"])
 )
 async def confirm_email(
     data: ConfirmEmailRequestScheme,
-    auth_service: AuthServiceDep,
+    registration_service: RegistrationServiceDep,
     _: InternalServiceDep,
 ):
     """Подтверждает email пользователя после перехода по короткой ссылке."""
     try:
-        confirmed_user = await auth_service.confirm_email(data.user_id)
+        confirmed_user = await registration_service.confirm_email(data.user_id)
     except UserNotFoundException as exc:
         raise UserNotFoundHTTPException(detail=exc.detail) from exc
     return confirmed_user
@@ -77,12 +78,12 @@ async def confirm_email(
 @limiter.limit(settings.LIMIT_VALUE)
 async def create_user(
     user: UserRequestScheme,
-    auth_service: AuthServiceDep,
+    registration_service: RegistrationServiceDep,
     request: Request,
 ):
     """Регистрация нового пользователя. Хэширует пароль и сохраняет в БД."""
     try:
-        created_user = await auth_service.register_user(user)
+        created_user = await registration_service.register_user(user)
     except UserAlreadyexistsException as exc:
         raise UserAlreadyexistsHTTPException(detail=exc.detail) from exc
     return created_user

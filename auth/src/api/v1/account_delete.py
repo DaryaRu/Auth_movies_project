@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request, status
 
-from src.api.v1.dependencies import AuthServiceDep, CurrentUserDep
+from src.api.v1.dependencies import AccountDeleteServiceDep, CurrentUserDep
 from src.core.config import settings
 from src.core.limiter import limiter
 from src.exceptions import (
@@ -35,7 +35,7 @@ router = APIRouter(tags=["Auth"])
 @limiter.limit(settings.LIMIT_VALUE)
 async def request_account_delete(
     data: DeleteAccountRequestScheme,
-    auth_service: AuthServiceDep,
+    account_delete_service: AccountDeleteServiceDep,
     user: CurrentUserDep,
     request: Request,
 ):
@@ -43,7 +43,7 @@ async def request_account_delete(
     аккаунт удаляется после подтверждения. Если телефона нет,
     то проверяется текущий пароль и удаляется аккаунт."""
     try:
-        two_fa_required = await auth_service.request_account_delete(
+        two_fa_required = await account_delete_service.request_account_delete(
             user=user, password=data.password
         )
     except PasswordNotSetException as exc:
@@ -51,9 +51,7 @@ async def request_account_delete(
     except VerifyPasswordException as exc:
         raise VerifyPasswordHTTPException(detail=exc.detail) from exc
     except AccountDeleteUnavailableException as exc:
-        raise AccountDeleteUnavailableHTTPException(
-            detail=exc.detail
-        ) from exc
+        raise AccountDeleteUnavailableHTTPException(detail=exc.detail) from exc
     except SendCooldownException as exc:
         raise TooManyAttemptsHTTPException(detail=exc.detail) from exc
     except TooManyAttemptsException as exc:
@@ -71,13 +69,13 @@ async def request_account_delete(
 @limiter.limit(settings.LIMIT_VALUE)
 async def confirm_account_delete(
     data: AccountDeleteConfirmScheme,
-    auth_service: AuthServiceDep,
+    account_delete_service: AccountDeleteServiceDep,
     user: CurrentUserDep,
     request: Request,
 ):
     """Проверяет код из СМС (если у пользователя указан телефоном) и при совпадении удаляет аккаунт."""
     try:
-        await auth_service.confirm_account_delete(
+        await account_delete_service.confirm_account_delete(
             user_id=user.id, code=data.code
         )
     except InvalidTwoFactorCodeException as exc:
@@ -85,6 +83,4 @@ async def confirm_account_delete(
     except TooManyAttemptsException as exc:
         raise TooManyAttemptsHTTPException(detail=exc.detail) from exc
     except AccountDeleteUnavailableException as exc:
-        raise AccountDeleteUnavailableHTTPException(
-            detail=exc.detail
-        ) from exc
+        raise AccountDeleteUnavailableHTTPException(detail=exc.detail) from exc

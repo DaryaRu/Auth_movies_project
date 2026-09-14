@@ -4,19 +4,12 @@ import rich
 import typer
 from pydantic import ValidationError
 
-from src.databases import redis
 from src.databases.pg import async_session_maker
 from src.exceptions import UserAlreadyexistsException
-from src.integrations.sms.smsc_provider import SMSCProvider
-from src.repositories.sessions import SessionRedisRepository
 from src.schemas.users import UserRequestScheme
-from src.services.auth import AuthService
-from src.services.phone_change import PhoneChangeService
-from src.services.sessions import SessionService
-from src.services.two_factor import TwoFactorService
+from src.services.registration import RegistrationService
 from src.utils.db_manager import DBManager
 from src.utils.hashes import HashArgon2Service
-from src.utils.tokens import JWTTokenService
 
 app = typer.Typer()
 
@@ -30,14 +23,7 @@ async def _create_superuser(
         password=password,
     )
     async with DBManager(session_factory=async_session_maker) as db:
-        await AuthService(
-            HashArgon2Service(),
-            JWTTokenService(),
-            SessionService(SessionRedisRepository(redis.redis)),  # type: ignore[arg-type]
-            db,
-            TwoFactorService(SMSCProvider(), redis.redis),  # type: ignore[arg-type]
-            PhoneChangeService(SMSCProvider(), redis.redis),  # type: ignore[arg-type]
-        ).create_admin(admin)
+        await RegistrationService(HashArgon2Service(), db).create_admin(admin)
 
 
 @app.command()
