@@ -87,19 +87,19 @@ show-2fa-code-by-email:
 	echo "user_id=$$USER_ID"; \
 	docker compose exec -T redis redis-cli GET "2fa_code:$$USER_ID"
 
-# Показывает код смены номера телефона из Redis по user_id.
-# Он хранится хешем (не строкой, как 2FA-код), поэтому используем HGET, а не GET.
+# Показывает оба кода смены номера телефона (sms_code + email_code) из Redis по user_id.
+# Хранятся хешем (не строкой, как 2FA-код), поэтому HGETALL, а не GET.
 # Пример: make show-phone-change-code user_id=aad61edd-ba14-4848-8815-6b147515d91a
 show-phone-change-code:
-	docker compose exec -T redis redis-cli HGET "phone_change:$(user_id)" sms_code
+	docker compose exec -T redis redis-cli HGETALL "phone_change:$(user_id)"
 
-# Показывает код смены номера телефона из Redis по email.
+# Показывает оба кода смены номера телефона из Redis по email.
 # Пример: make show-phone-change-code-by-email email=test@example.com
 show-phone-change-code-by-email:
 	@USER_ID=$$(docker compose exec -T auth-db psql -U movies -d movies -tAc "SELECT id FROM users WHERE email = '$(email)';"); \
 	if [ -z "$$USER_ID" ]; then echo "Пользователь с email=$(email) не найден"; exit 1; fi; \
 	echo "user_id=$$USER_ID"; \
-	docker compose exec -T redis redis-cli HGET "phone_change:$$USER_ID" sms_code
+	docker compose exec -T redis redis-cli HGETALL "phone_change:$$USER_ID"
 
 # Генерирует RSA-ключи для подписи JWT (пропускает, если файлы уже существуют)
 keys:
