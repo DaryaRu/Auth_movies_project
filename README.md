@@ -112,6 +112,8 @@ http://localhost/admin/              — Django-админка
 
 `make test-notifications` — функциональные тесты notifications-сервиса
 
+`make test-user-actions` - функциональные тесты user_actions-сервиса
+
 `make test-all` — тесты всех сервисов
 
 `make logs-analytics` — логи analytics-service

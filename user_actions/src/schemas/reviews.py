@@ -1,6 +1,7 @@
 """Схемы для рецензий."""
 
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -28,7 +29,10 @@ class ReviewBase(BaseModel):
 class ReviewCreate(ReviewBase):
     """Схема для создания рецензии."""
 
-    pass
+    author_visibility: Literal['real_name', 'nickname', 'anonymous'] = Field(
+        default='real_name',
+        description="Видимость имени автора: 'real_name' (по умолчанию) — показать ФИО, 'nickname' — показать никнейм, 'anonymous' — скрыть"
+    )
 
 
 class ReviewUpdate(BaseModel):
@@ -47,6 +51,8 @@ class ReviewResponse(ReviewBase):
     likes_count: int = Field(default=0, description="Количество лайков рецензии")
     dislikes_count: int = Field(default=0, description="Количество дизлайков рецензии")
     score: int = Field(default=0, description="Разница между лайками и дизлайками")
+    author_name: str = Field(default="Аноним", description="Имя автора (snapshot из auth-сервиса для author_visibility='real_name' — ФИО, для 'nickname' — никнейм, иначе 'Аноним')")
+    author_visibility: str = Field(default='real_name', description="Видимость имени автора: 'real_name', 'nickname' или 'anonymous'")
 
     model_config = {"from_attributes": True}
 

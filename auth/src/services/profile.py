@@ -1,7 +1,10 @@
 from uuid import UUID
 
 from src.models.users import UserORM
-from src.schemas.users import UpdateFullNameRequestScheme
+from src.schemas.users import (
+    UpdateFullNameRequestScheme,
+    UpdateNicknameRequestScheme,
+)
 from src.services.base import BaseService
 
 
@@ -27,4 +30,21 @@ class ProfileService(BaseService):
         """
         return await self._db.users.update_user_credentials(
             user_id=user_id, full_name=data.full_name
+        )
+
+    async def update_nickname(
+        self, user_id: UUID, data: UpdateNicknameRequestScheme
+    ) -> UserORM:
+        """
+        Обновление никнейма пользователя.
+
+        Args:
+            user_id (UUID): Уникальный идентификатор пользователя.
+            data (UpdateNicknameRequestScheme): Новый никнейм.
+
+        Returns:
+            UserORM: Обновленный объект пользователя из базы данных.
+        """
+        return await self._db.users.update_user_credentials(
+            user_id=user_id, nickname=data.nickname
         )

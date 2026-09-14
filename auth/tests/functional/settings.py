@@ -25,6 +25,10 @@ class TestSettings(BaseSettings):
     api_url: str = Field(default="http://localhost:7000", alias="API_URL")
     api_prefix: str = Field(default="/api/v1", alias="API_PREFIX")
 
+    internal_service_secret: str = Field(
+        default="", alias="INTERNAL_SERVICE_SECRET"
+    )
+
     service_wait_max_attempts: int = Field(
         default=30, alias="SERVICE_WAIT_MAX_ATTEMPTS"
     )

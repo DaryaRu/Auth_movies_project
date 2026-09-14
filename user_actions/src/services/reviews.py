@@ -4,11 +4,30 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
+from src.integrations.auth_client import AuthClient
 from src.repositories.reviews import (
     ReviewRepository,
     ReviewSortField,
     ReviewSortOrder,
 )
+
+ANONYMOUS_NAME = "Аноним"
+
+
+def _resolve_author_name(
+    snapshot: dict[str, str | None], author_visibility: str
+) -> str:
+    """Определить отображаемое имя автора рецензии.
+
+    - anonymous: всегда строка «Аноним»;
+    - real_name: full_name из auth-сервиса (snapshot), а при его отсутствии — «Аноним»;
+    - nickname: nickname из auth-сервиса (snapshot), а при его отсутствии — «Аноним».
+    """
+    if author_visibility == 'anonymous':
+        return ANONYMOUS_NAME
+    if author_visibility == 'nickname':
+        return snapshot.get('nickname') or ANONYMOUS_NAME
+    return snapshot.get('full_name') or ANONYMOUS_NAME
 
 
 class ReviewService:
@@ -19,18 +38,28 @@ class ReviewService:
         self.repo = repository
 
     async def create_review(
-        self, user_id: UUID, movie_id: UUID, text: str, rating: int
+        self, user_id: UUID, movie_id: UUID, text: str, rating: int,
+        author_visibility: str = 'real_name',
     ) -> dict[str, Any]:
         """Создать рецензию."""
         existing = await self.repo.get_by_user_and_movie(user_id, movie_id)
         if existing:
             raise ValueError("User already has a review for this movie")
 
+        snapshot: dict[str, str | None] = {"full_name": None, "nickname": None}
+        if author_visibility in ('real_name', 'nickname'):
+            names_map = await AuthClient.get_users_names([str(user_id)])
+            snapshot = names_map.get(str(user_id), snapshot)
+
+        author_name = _resolve_author_name(snapshot, author_visibility)
+
         data = {
             "user_id": user_id,
             "movie_id": movie_id,
             "text": text,
             "rating": rating,
+            "author_visibility": author_visibility,
+            "author_name": author_name,
         }
 
         new_review = await self.repo.create(data, returning="*")
