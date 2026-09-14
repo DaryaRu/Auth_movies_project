@@ -71,9 +71,7 @@ class TooManyAttemptsException(AuthServiceException):
 
 class SendCooldownException(AuthServiceException):
     def __init__(self, retry_after_seconds: int) -> None:
-        self.detail = (
-            f"Слишком частый запрос кода. Попробуйте через {retry_after_seconds} сек."
-        )
+        self.detail = f"Слишком частый запрос кода. Попробуйте через {retry_after_seconds} сек."
         super().__init__()
 
 
@@ -95,6 +93,10 @@ class NoPendingPhoneChangeException(AuthServiceException):
 
 class InvalidPhoneChangeCodeException(AuthServiceException):
     detail = "Неверный или истекший код подтверждения"
+
+
+class AccountDeleteUnavailableException(AuthServiceException):
+    detail = "Сервис временно недоступен, попробуйте удалить аккаунт позже"
 
 
 class AuthServiceHTTPException(HTTPException):
@@ -138,6 +140,10 @@ class NoPendingPhoneChangeHTTPException(AuthServiceHTTPException):
 
 class InvalidPhoneChangeCodeHTTPException(AuthServiceHTTPException):
     status_code = 401
+
+
+class AccountDeleteUnavailableHTTPException(AuthServiceHTTPException):
+    status_code = 503
 
 
 class DecodeTokenHTTPException(AuthServiceHTTPException):
