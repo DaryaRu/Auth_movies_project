@@ -14,6 +14,8 @@ from src.exceptions import (
     NoPendingPhoneChangeHTTPException,
     PasswordAlreadySetException,
     PasswordAlreadySetHTTPException,
+    PasswordNotSetException,
+    PasswordNotSetHTTPException,
     PhoneAlreadyTakenException,
     PhoneAlreadyTakenHTTPException,
     ProviderException,
@@ -63,6 +65,8 @@ async def change_email(
         raise UserAlreadyexistsHTTPException(detail=exc.detail) from exc
     except UserNotFoundException as exc:
         raise UserNotFoundHTTPException(detail=exc.detail) from exc
+    except PasswordNotSetException as exc:
+        raise PasswordNotSetHTTPException(detail=exc.detail) from exc
     except VerifyPasswordException as exc:
         raise VerifyPasswordHTTPException(detail=exc.detail) from exc
 
@@ -86,6 +90,8 @@ async def request_phone_change(
         await account_settings_service.request_phone_change(
             user_id=user.id, data=data
         )
+    except PasswordNotSetException as exc:
+        raise PasswordNotSetHTTPException(detail=exc.detail) from exc
     except VerifyPasswordException as exc:
         raise VerifyPasswordHTTPException(detail=exc.detail) from exc
     except PhoneAlreadyTakenException as exc:
@@ -158,6 +164,8 @@ async def change_password(
         return Response(status_code=status.HTTP_204_NO_CONTENT)
     except UserNotFoundException as exc:
         raise UserNotFoundHTTPException(detail=exc.detail) from exc
+    except PasswordNotSetException as exc:
+        raise PasswordNotSetHTTPException(detail=exc.detail) from exc
     except VerifyPasswordException as exc:
         raise VerifyPasswordHTTPException(detail=exc.detail) from exc
 

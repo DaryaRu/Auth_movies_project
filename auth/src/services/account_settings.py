@@ -6,6 +6,7 @@ from uuid import UUID
 from src.exceptions import (
     InvalidPhoneChangeCodeException,
     PasswordAlreadySetException,
+    PasswordNotSetException,
     PhoneAlreadyTakenException,
     UserAlreadyexistsException,
     UserNotFoundException,
@@ -56,6 +57,7 @@ class AccountSettingsService:
         Raises:
             UserNotFoundException: Если пользователь не найден.
             UserAlreadyexistsException: Если новый email уже занят.
+            PasswordNotSetException: Если у пользователя не задан пароль.
             VerifyPasswordError: Если пароль введен неверно.
 
         Returns:
@@ -71,6 +73,8 @@ class AccountSettingsService:
         if email_exists:
             raise UserAlreadyexistsException()
 
+        if not user.hashed_password:
+            raise PasswordNotSetException()
         if not self._hash_service.verify_password(
             data.password, user.hashed_password
         ):
@@ -95,6 +99,7 @@ class AccountSettingsService:
 
         Raises:
             UserNotFoundException: Если пользователь не найден.
+            PasswordNotSetException: Если у пользователя не задан пароль.
             VerifyPasswordException: Если пароль введен неверно.
             PhoneAlreadyTakenException: Если номер уже занят другим аккаунтом.
             EmailRequiredForPhoneChangeException: На аккаунте нет email.
@@ -103,6 +108,8 @@ class AccountSettingsService:
         if user is None:
             raise UserNotFoundException()
 
+        if not user.hashed_password:
+            raise PasswordNotSetException()
         if not self._hash_service.verify_password(
             data.password, user.hashed_password
         ):
@@ -156,12 +163,15 @@ class AccountSettingsService:
 
         Raises:
             UserNotFoundException: Если пользователь не найден.
+            PasswordNotSetException: Если у пользователя не задан пароль.
             VerifyPasswordException: Если текущий старый пароль введен неверно.
         """
         user = await self._db.users.get_one_or_none_by_id(id=user_id)
         if not user:
             raise UserNotFoundException()
 
+        if not user.hashed_password:
+            raise PasswordNotSetException()
         if not self._hash_service.verify_password(
             data.current_password, user.hashed_password
         ):
