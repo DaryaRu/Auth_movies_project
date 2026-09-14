@@ -1,16 +1,12 @@
-"""Вход, токены, сессии, OAuth-аккаунты."""
+"""Вход по паролю/2FA, обновление и отзыв токенов и сессий."""
 
-from datetime import datetime, timezone
 from typing import Any
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from src.exceptions import (
     DecodeTokenException,
     InvalidTwoFactorCodeException,
-    LastAuthMethodRestrictionException,
-    OAuthAccountNotLinkedException,
     PasswordNotSetException,
-    ProviderException,
     TokenExeption,
     TokenKeysException,
     TokenTypeExeption,
@@ -18,11 +14,9 @@ from src.exceptions import (
     UserNotFoundException,
     VerifyPasswordException,
 )
-from src.models.users import UserORM
-from src.schemas.oauth import OAuthUserInfoScheme
 from src.schemas.users import UserRequestScheme
 from src.services.base import BaseService
-from src.services.registration import RegistrationService
+from src.services.login_completion import LoginCompletionService
 from src.services.sessions import SessionService
 from src.services.two_factor import TwoFactorService
 from src.utils.db_manager import DBManager
@@ -31,7 +25,7 @@ from src.utils.tokens import JWTTokenService
 
 
 class AuthService(BaseService):
-    """Вход, токены, сессии, OAuth-аккаунты."""
+    """Вход по паролю/2FA, обновление и отзыв токенов и сессий."""
 
     def __init__(
         self,
@@ -40,64 +34,16 @@ class AuthService(BaseService):
         session_service: SessionService,
         db: DBManager,
         two_factor_service: TwoFactorService,
-        registration_service: RegistrationService,
+        login_completion_service: LoginCompletionService,
     ) -> None:
         super().__init__(db)
         self._hash_service: BaseHashService = hash_service
         self._token_service: JWTTokenService = token_service
         self._session_service: SessionService = session_service
         self._two_factor_service: TwoFactorService = two_factor_service
-        self._registration: RegistrationService = registration_service
-
-    async def _get_subscription_info(self, user_id: UUID) -> dict:
-        """
-        Возвращает код и уровень активной подписки пользователя для JWT-токена.
-        Если подписка истекла — деактивирует её и возвращает дефолтные значения 'free'.
-        Если активной подписки нет, возвращает дефолтные значения 'free'.
-
-        Args:
-            user_id (UUID): Идентификатор пользователя.
-        """
-        active = await self._db.user_subscriptions.get_active(user_id)
-        if active is None:
-            return {"subscription_code": "free", "subscription_level": 0}
-        if active.expires_at.replace(tzinfo=timezone.utc) < datetime.now(
-            timezone.utc
-        ):
-            await self._db.user_subscriptions.deactivate(active.id)
-            return {"subscription_code": "free", "subscription_level": 0}
-        return {
-            "subscription_code": active.subscription.code,
-            "subscription_level": active.subscription.level,
-        }
-
-    async def get_one_by_email(self, email: str) -> UserORM:
-        """
-        Получает пользователя по email.
-        Args:
-            email (str): Электронная почта пользователя.
-        Returns:
-            UserORM: Пользователь.
-        """
-        user = await self._db.users.get_one_or_none_by_email(email=email)
-        if user is None:
-            raise UserNotFoundException()
-        return user
-
-    async def get_one(self, id: UUID) -> UserORM:
-        """
-        Получает пользователя по id.
-        Args:
-            id (str): Идентификатор пользователя.
-        Returns:
-            UserORM: Пользователь.
-        Raises:
-            UserNotFoundException: Если пользователь с указанным id не найден.
-        """
-        user = await self._db.users.get_one_or_none_by_id(id=id)
-        if user is None:
-            raise UserNotFoundException()
-        return user
+        self._login_completion: LoginCompletionService = (
+            login_completion_service
+        )
 
     def decode_token(self, token: str) -> dict[str, Any]:
         return self._token_service.decode_jwt_token(token)
@@ -136,7 +82,9 @@ class AuthService(BaseService):
 
         is_superuser = payload.get("is_superuser", False)
         user_id = UUID(payload["sub"])
-        subscription_info = await self._get_subscription_info(user_id)
+        subscription_info = await self._login_completion.get_subscription_info(
+            user_id
+        )
 
         new_access_token, new_refresh_token = (
             self._token_service.create_access_and_refresh_tokens(
@@ -193,7 +141,7 @@ class AuthService(BaseService):
             await self._two_factor_service.send_code(user.id, user.phone)
             raise TwoFactorRequiredException()
 
-        return await self._create_user_session(
+        return await self._login_completion.create_session(
             user, ip_address, user_agent, auth_method="password"
         )
 
@@ -229,42 +177,9 @@ class AuthService(BaseService):
         if not await self._two_factor_service.verify_code(user.id, code):
             raise InvalidTwoFactorCodeException()
 
-        return await self._create_user_session(
+        return await self._login_completion.create_session(
             user, ip_address, user_agent, auth_method="password+sms"
         )
-
-    async def _create_user_session(
-        self,
-        user: UserORM,
-        ip_address: str,
-        user_agent: str,
-        auth_method: str,
-    ) -> tuple[str, str]:
-        sid = uuid4()
-
-        subscription_info = await self._get_subscription_info(user.id)
-
-        access_token, refresh_token = (
-            self._token_service.create_access_and_refresh_tokens(
-                {
-                    "sub": str(user.id),
-                    "is_superuser": user.is_superuser,
-                    "sid": str(sid),
-                    **subscription_info,
-                }
-            )
-        )
-
-        await self._session_service.add_session(
-            user.id,
-            user_agent,
-            ip_address,
-            refresh_token,
-            sid,
-            auth_method=auth_method,
-        )
-
-        return access_token, refresh_token
 
     async def revoke_refresh_token(self, refresh_token: str) -> None:
         try:
@@ -281,143 +196,3 @@ class AuthService(BaseService):
             return
         user_id = payload["sub"]
         await self._session_service.delete_all_sessions(user_id)
-
-    async def _get_or_create_oauth_user(
-        self,
-        user_info: OAuthUserInfoScheme,
-    ) -> UserORM:
-        oauth_account = await self._db.oauth_accounts.get_by_provider_data(
-            provider=user_info.provider,
-            provider_user_id=user_info.provider_user_id,
-        )
-
-        if oauth_account:
-            return await self.get_one(oauth_account.user_id)
-        if not user_info.email and not user_info.phone:
-            raise ProviderException()
-        user = await self._db.users.get_one_or_none_by_email_or_phone(
-            email=user_info.email, phone=user_info.phone
-        )
-        if not user:
-            user = await self._db.users.create_user(
-                email=user_info.email,
-                phone=user_info.phone,
-                hashed_password=None,
-            )
-            await self._registration.assign_free_subscription(user.id)
-
-        await self._db.oauth_accounts.create_oauth_account(
-            user_id=user.id,
-            provider=user_info.provider,
-            provider_user_id=user_info.provider_user_id,
-        )
-        return user
-
-    async def authenticate_oauth_user(
-        self, user_info: OAuthUserInfoScheme, ip_address: str, user_agent: str
-    ) -> tuple[str, str]:
-        user = await self._get_or_create_oauth_user(user_info)
-        return await self._create_user_session(
-            user, ip_address, user_agent, auth_method=user_info.provider
-        )
-
-    async def _delete_sessions_by_auth_method(
-        self,
-        user_id: UUID,
-        auth_method: str,
-        current_sid: str,
-    ) -> bool:
-        """Аннулирует в Redis все активные сессии пользователя,
-        созданные через определенный метод входа."""
-        sessions = await self._session_service.get_active_sessions(
-            user_id=user_id, current_sid=current_sid
-        )
-
-        current_session_deleted = False
-
-        for session_info in sessions:
-            sid = (
-                session_info.get("sid")
-                if isinstance(session_info, dict)
-                else getattr(session_info, "sid", None)
-            )
-            if not sid:
-                continue
-
-            full_session = await self._session_service.get_session(sid)
-            if not full_session:
-                continue
-
-            session_auth_method = (
-                full_session.get("auth_method")
-                if isinstance(full_session, dict)
-                else getattr(full_session, "auth_method", None)
-            )
-
-            if session_auth_method == auth_method:
-                await self._session_service.delete_session(sid)
-                if str(sid) == str(current_sid):
-                    current_session_deleted = True
-
-        return current_session_deleted
-
-    async def unlink_account(
-        self,
-        user_id: UUID,
-        provider: str,
-        current_sid: str,
-    ) -> tuple[list[str], bool]:
-        """
-        Отвязывает аккаунт внешнего провайдера
-        от личного кабинета пользователя.
-
-        Args:
-            user_id (UUID): Идентификатор пользователя в системе.
-            provider (str): Название провайдера (google, yandex, vk).
-            current_sid (str): Идентификатор текущей активной сессии.
-
-        Returns:
-            tuple[list[str], bool]: Кортеж, содержащий:
-                - list[str]: Список названий привязанных провайдеров.
-                - bool: Флаг True, если текущая сессия была аннулирована.
-
-        Raises:
-            UserNotFoundException: Если пользователь не найден.
-            OAuthAccountNotLinkedException: Если провайдер не привязан.
-            LastAuthMethodRestrictionException: Если это единственный
-            способ входа.
-        """
-        async with self._db as db:
-            user = await db.users.get_by_id_for_update(user_id)
-            if not user:
-                raise UserNotFoundException()
-
-            all_accounts = await db.oauth_accounts.get_all_by_user_id(user_id)
-
-            target_account = next(
-                (acc for acc in all_accounts if acc.provider == provider), None
-            )
-            if not target_account:
-                raise OAuthAccountNotLinkedException()
-
-            has_password = bool(user.hashed_password)
-            remaining_oauth_count = len(all_accounts) - 1
-
-            if not has_password and remaining_oauth_count == 0:
-                raise LastAuthMethodRestrictionException()
-
-            await db.oauth_accounts.delete_oauth_account(target_account.id)
-
-            remaining_providers = [
-                acc.provider
-                for acc in all_accounts
-                if acc.provider != provider
-            ]
-
-        current_session_deleted = await self._delete_sessions_by_auth_method(
-            user_id=user_id,
-            auth_method=provider,
-            current_sid=current_sid,
-        )
-
-        return remaining_providers, current_session_deleted
