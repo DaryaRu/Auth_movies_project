@@ -13,7 +13,7 @@ import asyncio
 import json
 import logging
 from functools import lru_cache
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import redis.asyncio as aioredis
 from core.settings import settings
@@ -29,7 +29,12 @@ _STAMPED_LOCK_TTL = 30
 class NotificationSettingsResponse:
     """Результат получения настроек уведомлений."""
 
-    __slots__ = ("notifications_enabled", "email_enabled", "sms_enabled", "push_enabled")
+    __slots__ = (
+        "notifications_enabled",
+        "email_enabled",
+        "sms_enabled",
+        "push_enabled",
+    )
 
     def __init__(
         self,
@@ -83,7 +88,9 @@ class AuthUnavailableError(Exception):
     """Auth-service недоступен — нужно ретраить."""
 
 
-async def _fetch_from_auth(user_id: UUID) -> NotificationSettingsResponse | None:
+async def _fetch_from_auth(
+    user_id: UUID,
+) -> NotificationSettingsResponse | None:
     """Прямой HTTP-запрос к auth-service.
 
     Если auth недоступен (5xx, timeout, network) — бросает AuthUnavailableError
@@ -94,7 +101,10 @@ async def _fetch_from_auth(user_id: UUID) -> NotificationSettingsResponse | None
     try:
         response = await HTTPClient.client.get(
             _get_auth_url(user_id),
-            headers={"X-Internal-Secret": settings.INTERNAL_SERVICE_SECRET},
+            headers={
+                "X-Internal-Secret": settings.INTERNAL_SERVICE_SECRET,
+                "X-Request-Id": str(uuid4()),
+            },
             timeout=5,
         )
     except Exception as exc:
@@ -112,14 +122,18 @@ async def _fetch_from_auth(user_id: UUID) -> NotificationSettingsResponse | None
         return None
 
     logger.error(
-        "auth-service error for %s: %s — will retry", user_id, response.status_code
+        "auth-service error for %s: %s — will retry",
+        user_id,
+        response.status_code,
     )
     raise AuthUnavailableError(
         f"auth-service error for {user_id}: {response.status_code}"
     )
 
 
-async def get_notification_settings(user_id: UUID) -> NotificationSettingsResponse | None:
+async def get_notification_settings(
+    user_id: UUID,
+) -> NotificationSettingsResponse | None:
     """Получить настройки пользователя с Redis-кэшем.
 
     Слои:
@@ -156,7 +170,9 @@ async def get_notification_settings(user_id: UUID) -> NotificationSettingsRespon
                 try:
                     cached = await redis_conn.get(cache_key)
                     if cached:
-                        return NotificationSettingsResponse.from_dict(json.loads(cached))
+                        return NotificationSettingsResponse.from_dict(
+                            json.loads(cached)
+                        )
                 except aioredis.RedisError:
                     pass
             settings_data = await _fetch_from_auth(user_id)
@@ -174,22 +190,34 @@ async def get_notification_settings(user_id: UUID) -> NotificationSettingsRespon
     # Пытаемся захватить Redis lock — SET NX с TTL
     lock_acquired = False
     try:
-        lock_acquired = await redis_conn.set(lock_key, "1", ex=_STAMPED_LOCK_TTL, nx=True)
+        lock_acquired = await redis_conn.set(
+            lock_key, "1", ex=_STAMPED_LOCK_TTL, nx=True
+        )
     except aioredis.RedisError as exc:
-        logger.warning("Redis unavailable for lock (%s): %s — falling back to asyncio.Lock", lock_key, exc)
+        logger.warning(
+            "Redis unavailable for lock (%s): %s — falling back to asyncio.Lock",
+            lock_key,
+            exc,
+        )
 
     if lock_acquired:
         try:
             # double-check после захвата лога
             cached = await redis_conn.get(cache_key)
             if cached:
-                return NotificationSettingsResponse.from_dict(json.loads(cached))
+                return NotificationSettingsResponse.from_dict(
+                    json.loads(cached)
+                )
 
             settings_data = await _fetch_from_auth(user_id)
             if settings_data is None:
                 return None
 
-            await redis_conn.set(cache_key, settings_data.to_json(), ex=settings.NOTIFICATION_SETTINGS_CACHE_TTL)
+            await redis_conn.set(
+                cache_key,
+                settings_data.to_json(),
+                ex=settings.NOTIFICATION_SETTINGS_CACHE_TTL,
+            )
             return settings_data
         except Exception:
             raise
@@ -209,7 +237,9 @@ async def get_notification_settings(user_id: UUID) -> NotificationSettingsRespon
             try:
                 cached = await redis_conn.get(cache_key)
                 if cached:
-                    return NotificationSettingsResponse.from_dict(json.loads(cached))
+                    return NotificationSettingsResponse.from_dict(
+                        json.loads(cached)
+                    )
             except aioredis.RedisError:
                 pass
 
@@ -219,8 +249,14 @@ async def get_notification_settings(user_id: UUID) -> NotificationSettingsRespon
             return None
 
         try:
-            await redis_conn.set(cache_key, settings_data.to_json(), ex=settings.NOTIFICATION_SETTINGS_CACHE_TTL)
+            await redis_conn.set(
+                cache_key,
+                settings_data.to_json(),
+                ex=settings.NOTIFICATION_SETTINGS_CACHE_TTL,
+            )
         except aioredis.RedisError as exc:
-            logger.warning("Redis unavailable for write (%s): %s", cache_key, exc)
+            logger.warning(
+                "Redis unavailable for write (%s): %s", cache_key, exc
+            )
 
     return settings_data
