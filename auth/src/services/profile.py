@@ -1,3 +1,4 @@
+from typing import Any
 from uuid import UUID
 
 from src.models.users import UserORM
@@ -6,6 +7,7 @@ from src.schemas.users import (
     UpdateNicknameRequestScheme,
 )
 from src.services.base import BaseService
+from src.utils.user_activity import get_user_activity
 
 
 class ProfileService(BaseService):
@@ -48,3 +50,17 @@ class ProfileService(BaseService):
         return await self._db.users.update_user_credentials(
             user_id=user_id, nickname=data.nickname
         )
+
+    async def get_user_activity(self, user_id: UUID) -> dict[str, list[Any]]:
+        """
+        Закладки, оценки и рецензии пользователя из user_actions-service.
+
+        При недоступности user_actions-service возвращает пустые списки.
+
+        Args:
+            user_id (UUID): Уникальный идентификатор пользователя.
+
+        Returns:
+            dict[str, list[Any]]: {"bookmarks": [...], "likes": [...], "reviews": [...]}.
+        """
+        return await get_user_activity(user_id)

@@ -9,6 +9,7 @@ from src.api.v1.dependencies import (
 )
 from src.core.config import settings
 from src.core.limiter import limiter
+from src.schemas.activity import UserActivityScheme
 from src.schemas.permissions import PermissionResponseScheme
 from src.schemas.users import (
     UpdateFullNameRequestScheme,
@@ -78,3 +79,19 @@ async def update_nickname(
 ):
     """Обновление никнейма текущего пользователя."""
     return await profile_service.update_nickname(user_id=user.id, data=data)
+
+
+@router.get(
+    "/users/me/activity/",
+    response_model=UserActivityScheme,
+    summary="Активность пользователя: закладки, оценки, рецензии",
+)
+@limiter.limit(settings.LIMIT_VALUE)
+async def get_my_activity(
+    profile_service: ProfileServiceDep,
+    user: CurrentUserDep,
+    request: Request,
+):
+    """Закладки, оценки и рецензии текущего пользователя из user_actions-service.
+    При недоступности user_actions-service отдает пустые списки, не роняя запрос."""
+    return await profile_service.get_user_activity(user_id=user.id)
