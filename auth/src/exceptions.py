@@ -95,6 +95,10 @@ class InvalidPhoneChangeCodeException(AuthServiceException):
     detail = "Неверный или истекший код подтверждения"
 
 
+class EmailRequiredForPhoneChangeException(AuthServiceException):
+    detail = "Для смены номера телефона на аккаунте должен быть указан email"
+
+
 class AccountDeleteUnavailableException(AuthServiceException):
     detail = "Сервис временно недоступен, попробуйте удалить аккаунт позже"
 
@@ -140,6 +144,10 @@ class NoPendingPhoneChangeHTTPException(AuthServiceHTTPException):
 
 class InvalidPhoneChangeCodeHTTPException(AuthServiceHTTPException):
     status_code = 401
+
+
+class EmailRequiredForPhoneChangeHTTPException(AuthServiceHTTPException):
+    status_code = 400
 
 
 class AccountDeleteUnavailableHTTPException(AuthServiceHTTPException):

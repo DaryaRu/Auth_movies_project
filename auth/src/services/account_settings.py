@@ -6,6 +6,7 @@ from uuid import UUID
 from src.exceptions import (
     InvalidPhoneChangeCodeException,
     PasswordAlreadySetException,
+    PasswordNotSetException,
     PhoneAlreadyTakenException,
     UserAlreadyexistsException,
     UserNotFoundException,
@@ -56,6 +57,7 @@ class AccountSettingsService:
         Raises:
             UserNotFoundException: Если пользователь не найден.
             UserAlreadyexistsException: Если новый email уже занят.
+            PasswordNotSetException: Если у пользователя не задан пароль.
             VerifyPasswordError: Если пароль введен неверно.
 
         Returns:
@@ -71,6 +73,8 @@ class AccountSettingsService:
         if email_exists:
             raise UserAlreadyexistsException()
 
+        if not user.hashed_password:
+            raise PasswordNotSetException()
         if not self._hash_service.verify_password(
             data.password, user.hashed_password
         ):
@@ -86,7 +90,8 @@ class AccountSettingsService:
     ) -> None:
         """
         Запрашивает смену телефона: проверяет пароль и уникальность нового
-        номера, отправляет код подтверждения на новый номер.
+        номера, отправляет два независимых кода подтверждения: на новый
+        номер (СМС) и на текущий email аккаунта.
 
         Args:
             user_id (UUID): Уникальный идентификатор пользователя.
@@ -94,13 +99,17 @@ class AccountSettingsService:
 
         Raises:
             UserNotFoundException: Если пользователь не найден.
+            PasswordNotSetException: Если у пользователя не задан пароль.
             VerifyPasswordException: Если пароль введен неверно.
             PhoneAlreadyTakenException: Если номер уже занят другим аккаунтом.
+            EmailRequiredForPhoneChangeException: На аккаунте нет email.
         """
         user = await self._db.users.get_one_or_none_by_id(id=user_id)
         if user is None:
             raise UserNotFoundException()
 
+        if not user.hashed_password:
+            raise PasswordNotSetException()
         if not self._hash_service.verify_password(
             data.password, user.hashed_password
         ):
@@ -113,22 +122,22 @@ class AccountSettingsService:
             raise PhoneAlreadyTakenException()
 
         await self._phone_change_service.request_change(
-            user_id, data.new_phone
+            user_id, data.new_phone, user.email
         )
 
     async def confirm_phone_change(
         self, user_id: UUID, data: PhoneChangeConfirmScheme
     ) -> UserORM:
         """
-        Подтверждает смену телефона кодом из СМС: обновляет phone, отзывает
-        все сессии (как change_user_password) и уведомляет на email.
+        Подтверждает смену телефона двумя кодами (СМС + email): обновляет
+        телефон, отзывает все сессии и уведомляет на email.
 
         Args:
             user_id (UUID): Уникальный идентификатор пользователя.
-            data (PhoneChangeConfirmScheme): Код подтверждения.
+            data (PhoneChangeConfirmScheme): Коды подтверждения из СМС и email.
         """
         new_phone = await self._phone_change_service.confirm_change(
-            user_id, data.code
+            user_id, data.sms_code, data.email_code
         )
         if new_phone is None:
             raise InvalidPhoneChangeCodeException()
@@ -154,12 +163,15 @@ class AccountSettingsService:
 
         Raises:
             UserNotFoundException: Если пользователь не найден.
+            PasswordNotSetException: Если у пользователя не задан пароль.
             VerifyPasswordException: Если текущий старый пароль введен неверно.
         """
         user = await self._db.users.get_one_or_none_by_id(id=user_id)
         if not user:
             raise UserNotFoundException()
 
+        if not user.hashed_password:
+            raise PasswordNotSetException()
         if not self._hash_service.verify_password(
             data.current_password, user.hashed_password
         ):

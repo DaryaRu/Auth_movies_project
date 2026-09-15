@@ -63,6 +63,7 @@ async def get_my_permissions(
         is_superuser=current_user.is_superuser,
     )
 
+
 @router.patch(
     "/users/me/nickname/",
     response_model=UserResponseScheme,

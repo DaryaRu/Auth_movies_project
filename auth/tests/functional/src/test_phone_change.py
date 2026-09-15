@@ -11,10 +11,8 @@ from aiohttp import ClientSession
 from functional.settings import test_settings
 from functional.utils.check_methods import (
     assert_error_detail,
-    assert_status,
     assert_status_return_json,
 )
-from functional.utils.helpers import get_phone_change_code
 from redis.asyncio import Redis
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
@@ -28,8 +26,7 @@ async def _reset_phone_change_state(
     phone_change:{user_id} и phone_change_attempts:{user_id} удаляются всегда.
     phone_change_send_cooldown:{phone} и phone_change_send_rate:{phone} —
     только если передан phone (кулдаун и лимит отправок привязаны к
-    конкретному new_phone, а не к пользователю). Нужен тесту, который
-    реально шлет запрос через SMSC (TestPhoneChangeFullFlow).
+    конкретному new_phone, а не к пользователю).
     """
     keys = [f"phone_change:{user_id}", f"phone_change_attempts:{user_id}"]
     if phone is not None:
@@ -39,6 +36,8 @@ async def _reset_phone_change_state(
 
 
 class TestRequestPhoneChange:
+    """Тесты POST /change-phone-request/."""
+
     URL = f"{test_settings.api_prefix}/change-phone-request/"
 
     async def test_request_phone_change_wrong_password(
@@ -46,7 +45,7 @@ class TestRequestPhoneChange:
         http_client: ClientSession,
         phone_change_user_token: str,
     ):
-        """Неверный текущий пароль на первом шаге смены номера."""
+        """Неверный текущий пароль на первом шаге смены номера. 401."""
         response = await http_client.post(
             self.URL,
             json={"new_phone": "+79001112233", "password": "wrong_password"},
@@ -97,29 +96,41 @@ class TestRequestPhoneChange:
 
 
 class TestConfirmPhoneChange:
+    """Тесты POST /confirm-phone/."""
+
     URL = f"{test_settings.api_prefix}/confirm-phone/"
 
     @staticmethod
     async def _seed_pending_change(
-        redis_client: Redis, user_id: UUID, new_phone: str, code: str
+        redis_client: Redis,
+        user_id: UUID,
+        new_phone: str,
+        sms_code: str,
+        email_code: str,
     ) -> None:
-        """Записывает ожидающий запрос смены номера напрямую в Redis, без реальной отправки СМС.
+        """Записывает ожидающий запрос смены номера напрямую в Redis, без
+        реальной отправки СМС/email.
 
-        PhoneChangeService.confirm_change() читает только Redis и не обращается к SMSC.
+        PhoneChangeService.confirm_change() читает только Redis и не
+        обращается к SMSC/notifications-service.
         """
         await redis_client.hset(  # type: ignore[misc]
             f"phone_change:{user_id}",
-            mapping={"new_phone": new_phone, "sms_code": code},
+            mapping={
+                "new_phone": new_phone,
+                "sms_code": sms_code,
+                "email_code": email_code,
+            },
         )
 
-    async def test_confirm_phone_change_wrong_code(
+    async def test_confirm_phone_change_wrong_sms_code(
         self,
         http_client: ClientSession,
         phone_change_user_data: dict[str, Any],
         phone_change_user_token: str,
         redis_client: Redis,
     ):
-        """Неверный код подтверждения на confirm (401), номер не меняется."""
+        """Неверный СМС-код при верном email-коде на confirm (401), номер не меняется."""
         await _reset_phone_change_state(
             redis_client, phone_change_user_data["id"]
         )
@@ -128,11 +139,12 @@ class TestConfirmPhoneChange:
             phone_change_user_data["id"],
             "+79000000002",
             "111111",
+            "222222",
         )
 
         response = await http_client.post(
             self.URL,
-            json={"code": "000000"},
+            json={"sms_code": "000000", "email_code": "222222"},
             headers={"Authorization": f"Bearer {phone_change_user_token}"},
         )
         data = await assert_status_return_json(
@@ -144,6 +156,36 @@ class TestConfirmPhoneChange:
             data["detail"]["error"]
             == "Неверный или истекший код подтверждения"
         )
+
+    async def test_confirm_phone_change_wrong_email_code(
+        self,
+        http_client: ClientSession,
+        phone_change_user_data: dict[str, Any],
+        phone_change_user_token: str,
+        redis_client: Redis,
+    ):
+        """Неверный email-код при верном СМС-коде на confirm (401), номер не меняется."""
+        await _reset_phone_change_state(
+            redis_client, phone_change_user_data["id"]
+        )
+        await self._seed_pending_change(
+            redis_client,
+            phone_change_user_data["id"],
+            "+79000000006",
+            "333333",
+            "444444",
+        )
+
+        response = await http_client.post(
+            self.URL,
+            json={"sms_code": "333333", "email_code": "000000"},
+            headers={"Authorization": f"Bearer {phone_change_user_token}"},
+        )
+        data = await assert_status_return_json(
+            response, HTTPStatus.UNAUTHORIZED
+        )
+
+        assert_error_detail(data)
 
     async def test_confirm_phone_change_no_pending_request(
         self,
@@ -159,7 +201,7 @@ class TestConfirmPhoneChange:
 
         response = await http_client.post(
             self.URL,
-            json={"code": "123456"},
+            json={"sms_code": "123456", "email_code": "654321"},
             headers={"Authorization": f"Bearer {phone_change_user_token}"},
         )
         data = await assert_status_return_json(
@@ -184,19 +226,20 @@ class TestConfirmPhoneChange:
             phone_change_user_data["id"],
             "+79000000003",
             "555555",
+            "666666",
         )
 
         for _ in range(5):
             response = await http_client.post(
                 self.URL,
-                json={"code": "000000"},
+                json={"sms_code": "000000", "email_code": "666666"},
                 headers={"Authorization": f"Bearer {phone_change_user_token}"},
             )
             await assert_status_return_json(response, HTTPStatus.UNAUTHORIZED)
 
         response = await http_client.post(
             self.URL,
-            json={"code": "000000"},
+            json={"sms_code": "000000", "email_code": "666666"},
             headers={"Authorization": f"Bearer {phone_change_user_token}"},
         )
         data = await assert_status_return_json(
@@ -212,7 +255,7 @@ class TestConfirmPhoneChange:
         """Подтверждение смены номера без токена авторизации. 401."""
         response = await http_client.post(
             self.URL,
-            json={"code": "123456"},
+            json={"sms_code": "123456", "email_code": "654321"},
         )
         data = await assert_status_return_json(
             response, HTTPStatus.UNAUTHORIZED
@@ -227,18 +270,22 @@ class TestConfirmPhoneChange:
         phone_change_user_token: str,
         redis_client: Redis,
     ):
-        """Успешный confirm отзывает все сессии пользователя."""
+        """Успешный confirm (оба кода верны) отзывает все сессии пользователя."""
         await _reset_phone_change_state(
             redis_client, phone_change_user_data["id"]
         )
         new_phone = "+79000000001"
         await self._seed_pending_change(
-            redis_client, phone_change_user_data["id"], new_phone, "482913"
+            redis_client,
+            phone_change_user_data["id"],
+            new_phone,
+            "482913",
+            "159426",
         )
 
         response = await http_client.post(
             self.URL,
-            json={"code": "482913"},
+            json={"sms_code": "482913", "email_code": "159426"},
             headers={"Authorization": f"Bearer {phone_change_user_token}"},
         )
         data = await assert_status_return_json(response, HTTPStatus.OK)
@@ -247,29 +294,23 @@ class TestConfirmPhoneChange:
 
 
 class TestPhoneChangeFullFlow:
-    """Настоящий флоу. Реально шлет СМС через SMSC, код читается из реального ответа.
-
-    Использует отдельного пользователя. Тест доходит до успешного confirm и отзыва сессий.
-    Заводим отдельный NEW_PHONE, так как номер из phone_user_data занят к моменту этого теста и
-    request отвечает 409 вместо 204.
-
-    Если тест вдруг начнет падать с ProviderException/502 с синтетическим номером,
-    нужно попробовать подобрать другой номер либо заменить реальным (связано с самим SMSC).
+    """Запрос на смену номера требует два реальных внешних отправления: СМС
+    через SMSC и email-код через notifications-service.
+    Стек auth-service не содержит notifications-service, поэтому email-код недоступен и request
+    падает на этом шаге, до отправки СМС.
     """
 
     REQUEST_URL = f"{test_settings.api_prefix}/change-phone-request/"
-    CONFIRM_URL = f"{test_settings.api_prefix}/confirm-phone/"
     NEW_PHONE = "+79621234568"
 
-    async def test_request_and_confirm_real_send(
+    async def test_request_fails_without_notifications_service(
         self,
         http_client: ClientSession,
         phone_change_full_flow_user_data: dict[str, Any],
         phone_change_full_flow_user_token: str,
         redis_client: Redis,
     ):
-        """Полный флоу: request реально шлет СМС, confirm подтверждает настоящим кодом
-        из ответа SMSC."""
+        """request падает с 502 (ProviderException) на отправке email-кода, СМС не отправляется."""
         await _reset_phone_change_state(
             redis_client,
             phone_change_full_flow_user_data["id"],
@@ -286,20 +327,15 @@ class TestPhoneChangeFullFlow:
                 "Authorization": f"Bearer {phone_change_full_flow_user_token}"
             },
         )
-        await assert_status(request_response, HTTPStatus.NO_CONTENT)
-
-        code = await get_phone_change_code(
-            redis_client, phone_change_full_flow_user_data["id"]
+        data = await assert_status_return_json(
+            request_response, HTTPStatus.BAD_GATEWAY
         )
-        assert code is not None
 
-        confirm_response = await http_client.post(
-            self.CONFIRM_URL,
-            json={"code": code},
-            headers={
-                "Authorization": f"Bearer {phone_change_full_flow_user_token}"
-            },
+        assert_error_detail(data)
+
+        pending = await redis_client.hgetall(  # type: ignore[misc]
+            f"phone_change:{phone_change_full_flow_user_data['id']}"
         )
-        data = await assert_status_return_json(confirm_response, HTTPStatus.OK)
-
-        assert data["phone"] == self.NEW_PHONE
+        assert pending.get("new_phone") == self.NEW_PHONE
+        assert "sms_code" in pending
+        assert "email_code" in pending

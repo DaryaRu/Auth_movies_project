@@ -43,12 +43,3 @@ async def get_2fa_code(redis_client: Redis, user_id: UUID) -> str | None:
 
     TwoFactorService пишет его в 2fa_code:{user_id} до отправки через СМС-провайдера."""
     return await redis_client.get(f"2fa_code:{user_id}")
-
-
-async def get_phone_change_code(
-    redis_client: Redis, user_id: UUID
-) -> str | None:
-    """Читает код смены телефона напрямую из Redis.
-
-    PhoneChangeService хранит его хешем phone_change:{user_id}, поле sms_code."""
-    return await redis_client.hget(f"phone_change:{user_id}", "sms_code")  # type: ignore[misc]
