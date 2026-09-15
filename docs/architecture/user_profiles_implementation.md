@@ -50,37 +50,38 @@
 
 ## Смена номера телефона
 
-Смена номера (`POST /change-phone-request/` и `POST /confirm-phone/`) устроена по тому же паттерну, что вход по СМС, но у него отдельный `PhoneChangeService`, свои Redis-ключи, свои настройки в конфиге. Общее — только `SMSProviderBase`/`SMSCProvider` (интерфейс отправки) и `SendCooldownException`.
+Смена номера (`POST /change-phone-request/` и `POST /confirm-phone/`) требует двух независимых кодов: СМС-код на новый номер (доказывает владение номером) и код на текущий email аккаунта (доказывает, что это владелец аккаунта, который знает пароль и имеет доступ к почте). Устроена по похожему паттерну, что вход по СМС, но имеет отдельный `PhoneChangeService`, свои Redis-ключи, свои настройки в конфиге. Общее с 2FA-логином — только `SMSProviderBase`/`SMSCProvider` (интерфейс отправки СМС) и `SendCooldownException`. Доставка email-кода идет через `notify_user`, при сбое поднимает `ProviderException`.
 
 ### Redis-ключи
 
-- `phone_change:{user_id}` — хеш с полями `new_phone` + `sms_code`. TTL — `PHONE_CHANGE_CODE_EXPIRE_SECONDS` (300 секунд).
-- `phone_change_attempts:{user_id}` — счетчик неверных попыток проверки текущего кода (лимит `PHONE_CHANGE_MAX_ATTEMPTS`). TTL — тот же, что и у кода.
+- `phone_change:{user_id}` — хеш с полями `new_phone` + `sms_code` + `email_code`. TTL — `PHONE_CHANGE_CODE_EXPIRE_SECONDS` (300 секунд).
+- `phone_change_attempts:{user_id}` — общий счетчик неверных попыток проверки (не совпал хотя бы один из двух кодов), лимит `PHONE_CHANGE_MAX_ATTEMPTS`. TTL — тот же, что и у кода.
 - `phone_change_send_cooldown:{new_phone}` — флаг «код только что отправлен». TTL — `PHONE_CHANGE_SEND_COOLDOWN_SECONDS` (60 секунд).
 - `phone_change_send_rate:{new_phone}` — счетчик отправок за текущее окно. TTL — `PHONE_CHANGE_SEND_RATE_WINDOW_SECONDS` (3600 секунд).
 
-Код хранится хешем, а не строкой, так как вместе с кодом нужно хранить и сам `new_phone`.
+Код хранится хешем, а не строкой, так как вместе с кодами нужно хранить и сам `new_phone`. Кулдаун/лимит отправок привязаны только к `new_phone` (номеру), а не к обоим каналам.
 
-### Сценарий смены
+### Сценарий смены номера телефона
 
-1. `POST /change-phone-request/` (авторизация обязательна) — `PhoneChangeRequestScheme` (`new_phone` + текущий `password`). `AuthService.request_phone_change()` проверяет пароль (`VerifyPasswordException`) и уникальность `new_phone` среди других аккаунтов, затем в `PhoneChangeService.request_change()`. Номер в БД пока не меняется.
-2. `PhoneChangeService.request_change()` — тот же порядок Redis → СМС, что у `TwoFactorService.send_code()`: код и `new_phone` пишутся в Redis-хеш до вызова провайдера. Кулдаун и лимит отправок за фиксированный интервал фиксируются только после успешной отправки, чтобы неудачная отправка не съедала попытку пользователя.
-3. `POST /confirm-phone/` — `PhoneChangeConfirmScheme` (только `code`). `PhoneChangeService.confirm_change()` сначала проверяет лимит попыток (`PHONE_CHANGE_MAX_ATTEMPTS`), затем сверяет код через `secrets.compare_digest()`. При несовпадении увеличивает счетчик попыток и возвращает `None` — код остается в Redis, можно повторить. При совпадении удаляет хеш и счетчик, возвращает `new_phone`. `AuthService.confirm_phone_change()` превращает `None` в `InvalidPhoneChangeCodeException`, а отсутствие записи в Redis — в `NoPendingPhoneChangeException`.
-4. При успешном подтверждении номер обновляется в БД, вызывается `delete_all_sessions()` для отзыва всех сессий пользователя.
+1. `POST /change-phone-request/` (авторизация обязательна) — `PhoneChangeRequestScheme` (`new_phone` + текущий `password`). Проверяется пароль и уникальность `new_phone` среди других аккаунтов, затем вызывается `PhoneChangeService.request_change()` с `user.email`. Номер в БД пока не меняется.
+2. `PhoneChangeService.request_change()`. Если у пользователя нет email отдает `EmailRequiredForPhoneChangeException` (актуально для OAuth-пользователей без email, у которых есть только `phone`). Иначе генерирует `sms_code` и `email_code` независимо, пишет оба вместе с `new_phone` в Redis-хеш до отправки. Затем шлет email-код через `notify_user`, и только при успехе — СМС-код через `SMSProviderBase.send_code()`. Кулдаун и лимит отправок за фиксированный интервал фиксируются только после обеих успешных отправок, чтобы неудачная попытка не съедала лимит пользователя.
+3. `POST /confirm-phone/`. `PhoneChangeConfirmScheme` требует `sms_code` + `email_code`. `PhoneChangeService.confirm_change()` сначала проверяет лимит попыток (`PHONE_CHANGE_MAX_ATTEMPTS`), затем сверяет оба кода через `secrets.compare_digest()`. При несовпадении хотя бы одного увеличивает общий счетчик попыток и возвращает `None` — запись остается в Redis, можно повторить. При совпадении обоих удаляет хеш и счетчик, возвращает `new_phone`. `AccountSettingsService.confirm_phone_change()` превращает `None` в `InvalidPhoneChangeCodeException`, а отсутствие записи в Redis — в `NoPendingPhoneChangeException`.
+4. При успешном подтверждении номер обновляется в БД, вызывается `delete_all_sessions()` для отзыва всех сессий пользователя, уходит уведомление `phone_changed` на email.
 
 ### Отличия от 2FA-логина
 
 - Требует пароль на первом шаге запроса, а у 2FA-логина пароль уже проверен раньше, на шаге `authenticate_user()`, до входа в блок кода из СМС.
-- В Redis вместе с кодом хранятся еще и данные самого запроса (`new_phone`) — у 2FA-логина в Redis только код, потому что номер телефона уже есть в БД.
+- Два канала подтверждения (СМС + email) вместо одного — у 2FA-логина только СМС, потому что второй фактор там и так телефон, дублировать его email-кодом незачем.
+- В Redis вместе с кодами хранятся еще и данные самого запроса (`new_phone`) — у 2FA-логина в Redis только код, потому что номер телефона уже есть в БД.
 
 ## Ручная проверка сценария: логин с 2FA и смена номера
 
 1. `POST /login/` с `email`+`password` пользователя, у которого уже есть `phone` → `200 {"two_fa_required": true}`.
 2. Код лежит в Redis, реальная SMS не доставляется при `SMSC_TEST_MODE=1`: `make show-2fa-code-by-email email=...` — сам найдет `user_id` через psql и прочитает `2fa_code:{user_id}`.
 3. `POST /login/verify-phone/` с тем же `email` и кодом → выдача токена, `refresh_token` в cookie.
-4. `POST /change-phone-request/` с `new_phone`+`password`, заголовок `Authorization: Bearer <access_token>` из шага 3 → `204`. SMSC даже в виртуальном режиме может отклонять произвольные несуществующие номера (`error_code=6`) (скорее всего происходит реальная проверка у оператора, а не формальная проверка формата). Сейчас в тестах и примерах схем используются `+79621234567`, `+79621234568`, заменить, если перестанет работать.
-5. `make show-phone-change-code-by-email email=...` — код лежит в Redis-хеше `phone_change:{user_id}`, поле `sms_code`.
-6. `POST /confirm-phone/` с кодом, тем же токеном → `200`, `phone` обновлен. `ACCESS_TOKEN_EXPIRE_MINUTES=5` и `PHONE_CHANGE_CODE_EXPIRE_SECONDS=300` совпадают по времени; если между шагом 3 и этим шагом прошло больше 5 минут, токен из шага 3 уже просрочен и `/confirm-phone/` ответит `401 {"error": "Ошибка декодирования токена"}`. Нужно перелогиниться.
+4. `POST /change-phone-request/` с `new_phone`+`password`, заголовок `Authorization: Bearer <access_token>` из шага 3 → `204`. Требует полного стека (профиль `analytics` — `notifications-service`/`notifications-worker`/`mailpit`), иначе email-код не уйдет и запрос упадет с `502` (`ProviderException`). SMSC даже в виртуальном режиме может отклонять произвольные несуществующие номера (`error_code=6`) (скорее всего происходит реальная проверка у оператора, а не формальная проверка формата). Сейчас в тестах и примерах схем используются `+79621234567`, `+79621234568`, заменить, если перестанет работать.
+5. `make show-phone-change-code-by-email email=...` — оба кода лежат в одном Redis-хеше `phone_change:{user_id}`, поля `sms_code` и `email_code` (команда теперь делает `HGETALL`, а не `HGET` одного поля).
+6. `POST /confirm-phone/` с обоими кодами (`{"sms_code": "...", "email_code": "..."}`), тем же токеном → `200`, `phone` обновлен. `ACCESS_TOKEN_EXPIRE_MINUTES=5` и `PHONE_CHANGE_CODE_EXPIRE_SECONDS=300` совпадают по времени; если между шагом 3 и этим шагом прошло больше 5 минут, токен из шага 3 уже просрочен и `/confirm-phone/` ответит `401 {"error": "Ошибка декодирования токена"}`. Нужно перелогиниться.
 7. После успешного подтверждения сессия отзывается немедленно `delete_all_sessions()`. Следующий запрос с этим токеном получит `401 {"error": "Невалидный токен"}` (`TokenExeption`). Нужен новый `/login/`.
 8. Повторный `POST /login/` тем же `email` → снова `two_fa_required: true`, потому что аккаунт с этим email теперь просто имеет другой (новый) `phone` — 2FA включается по факту наличия телефона, а не по конкретному номеру. Логин старым номером в поле `phone` (а не email) даст `404 UserNotFoundException` — старый номер уже ничей.
 
@@ -132,8 +133,21 @@
 
 Поиск и пагинация происходят на стороне auth-service (`ILIKE` + `LIMIT/OFFSET` в `search_users()`), а не в movies_admin, так как пользователей потенциально десятки тысяч, держать их полную копию в локальной таблице избыточно.
 
+## Смена таймзоны
+
+Эндпоинт `PATCH /users/me/timezone/` (auth-service) позволяет пользователю изменить таймзону после регистрации — раньше ее можно было задать только один раз, при регистрации. Таймзона нужна notifications-service для планирования рассылок по локальному времени пользователя.
+
+## Отключение уведомлений
+
+Эндпоинты `GET/PATCH /users/me/notification-settings/` (auth-service) поверх таблицы `user_notification_settings`. Пользователь включает/выключает уведомления по каналам (email/sms/push). `PATCH` инвалидирует Redis-кэш notifications-worker (`invalidate_notification_settings_cache`), чтобы новые настройки подхватились сразу, не дожидаясь TTL кэша.
+
+## Приватность отзывов
+
+Поле `author_visibility` (`real_name`/`nickname`/`anonymous`) на `reviews` в user_actions-service — при создании рецензии сервис резолвит и сохраняет `author_name` снепшотом на момент создания. Поле `nickname` и эндпоинт `PATCH /users/me/nickname/` в auth-service. Резолв имени автора при создании рецензии идет через внутренний batch-эндпоинт `POST /internal/users/names` (auth-service).
+
 ## Ограничения текущего решения
 
-- **2FA не проверяется при входе через OAuth.** `authenticate_oauth_user()` создает сессию напрямую, минуя `authenticate_user()` и весь описанный выше флоу, даже если у пользователя указан телефон. Открытый вопрос, решение не принято — см. `user_profiles_architecture.md`, раздел «Ограничения текущего решения».
+- **2FA не проверяется при входе через OAuth.** `OAuthService.authenticate()` создает сессию напрямую, минуя `authenticate_user()` и весь описанный выше флоу, даже если у пользователя указан телефон. Открытый вопрос.
 - **Только один канал подтверждения (СМС).** Сервис и Redis-ключи спроектированы под конкретный канал (`2fa_code`, не `2fa_code_sms`/`2fa_code_email`). `SMSProviderBase` как абстракция это не блокирует, при добавлении второго канала потребуется только доработка `TwoFactorService`.
 - **Из movies_admin нельзя назначить другого админа (выдать права контент-менеджеру и т.п.).** Заводить роль, назначать ей права и назначать роль пользователю сейчас можно только вручную через API auth-service (через Swagger), не из самой movies_admin. Пользователь сначала должен получить обычный аккаунт в auth-service (регистрация), только потом ему можно назначить права и пустить в админку, так как `CustomBackend` всегда проверяет пароль через auth-service `/login/`.
+- **`users.is_active` нигде не устанавливается в `False`.** Поле читается в трех местах (`authenticate_user()`, `search_by_min_subscription_level()`, `search_distinct_timezones()`) — при `False` пользователь не сможет залогиниться и не попадет в рассылки, но выставить его в `False` сейчас неоткуда, по факту всегда `True`. Задел под будущую блокировку аккаунта администратором (бан/приостановка без удаления данных, отдельно от самостоятельного удаления профиля пользователем). Понадобится только админ-эндпоинт для переключения флага, остальная логика уже на месте.
