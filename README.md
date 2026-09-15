@@ -2,7 +2,7 @@
 
 Онлайн-кинотеатр состоит из нескольких сервисов:
 
-- **auth-service** — аутентификация, управление пользователями, ролями, правами и подписками. Выдаёт JWT токены.
+- **auth-service** — аутентификация, управление пользователями, профилями, ролями, правами и подписками. Выдаёт JWT токены.
 - **movies-service** — API контента: фильмы, жанры, персоны. Верифицирует токены и проверяет уровень подписки.
 - **movies-admin** — Django-администрирование каталога фильмов. Вход через auth-service.
 - **movies-etl** — синхронизация данных из PostgreSQL в Elasticsearch.
@@ -253,6 +253,18 @@ POST /api/v1/users/{user_id}/subscription/
 После следующего логина пользователя новый `subscription_level` отразится в JWT-токене.
 
 **Выставить уровень фильму:** в Django-админке (`http://localhost/admin/`) открыть карточку фильма и установить поле «Уровень подписки».
+
+
+## Профиль пользователя
+
+- `GET /api/v1/users/me/` — данные профиля (email, телефон, ФИО, таймзона, статус верификации email)
+- `PATCH /api/v1/users/me/full-name/` — изменить ФИО
+- `PATCH /api/v1/users/me/nickname/` — изменить никнейм (влияет на отображение автора в отзывах)
+- `PATCH /api/v1/users/me/timezone/` — изменить таймзону
+- `POST /api/v1/change-phone-request/` и `POST /api/v1/confirm-phone/` — смена номера телефона: код на новый номер по СМС и код на текущий email
+- `GET/PATCH /api/v1/users/me/notification-settings/` — настройки уведомлений по каналам
+- `GET /api/v1/users/me/activity/` — закладки, оценки и рецензии пользователя (агрегируется из user-actions-service)
+- `GET /api/v1/admin/users/?search=` — список и поиск профилей, доступно админам с правом `user:view_personal_data`
 
 
 ## analytics-service
