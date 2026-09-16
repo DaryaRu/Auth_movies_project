@@ -59,10 +59,7 @@ async def get_my_permissions(
     request: Request,
 ):
     """Возвращает список прав доступа, назначенных текущему пользователю через его роли."""
-    return await role_service.get_user_permissions(
-        user_id=current_user.id,
-        is_superuser=current_user.is_superuser,
-    )
+    return await role_service.get_user_permissions(user_id=current_user.id)
 
 
 @router.patch(

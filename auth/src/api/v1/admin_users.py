@@ -30,7 +30,7 @@ async def list_users(
     _: UserORM = Depends(require_permission("user:view_personal_data")),
 ):
     """Постраничный список пользователей с поиском по email, телефону и ФИО.
-    Требует право user:view_personal_data (суперпользователь проходит без него)."""
+    Требует право user:view_personal_data."""
     items, total = await db.users.search_users(
         search=search,
         limit=pagination.page_size,
@@ -56,8 +56,7 @@ async def get_user_profile(
     _: UserORM = Depends(require_permission("user:view_personal_data")),
 ):
     """Личные данные пользователя по id: email, телефон, ФИО, таймзона,
-    статус верификации email. Требует право user:view_personal_data
-    (суперпользователь проходит без него)."""
+    статус верификации email."""
     user = await db.users.get_one_or_none_by_id(user_id)
     if user is None:
         raise UserNotFoundHTTPException()

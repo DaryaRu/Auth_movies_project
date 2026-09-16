@@ -27,10 +27,10 @@ from src.repositories.sessions import SessionRedisRepository
 from src.services.account_delete import AccountDeleteService
 from src.services.account_settings import AccountSettingsService
 from src.services.auth import AuthService
+from src.services.email_change import EmailChangeService
 from src.services.login_completion import LoginCompletionService
 from src.services.oauth import OAuthService
 from src.services.permissions import PermissionService
-from src.services.email_change import EmailChangeService
 from src.services.phone_change import PhoneChangeService
 from src.services.profile import ProfileService
 from src.services.registration import RegistrationService
@@ -240,17 +240,14 @@ async def get_current_staff_user(
 def require_permission(code: str):
     """Аналог StaffUserDep, но по конкретному коду права, а не по статусу суперпользователя.
 
-    is_superuser читается прямо из JWT payload (без похода в Redis/БД) и дает
-    универсальный обход. Для остальных пользователей код проверяется по кэшу в Redis.
+    Без обхода для is_superuser: право должно быть явно назначено через роль,
+    даже суперпользователю.
     """
 
     async def dependency(
-        token_payload: "TokenPayloadDep",
         user: "CurrentUserDep",
         role_service: "RoleServiceDep",
     ) -> UserORM:
-        if token_payload.get("is_superuser"):
-            return user
         codes = await role_service.get_user_permissions_cached(user.id)
         if code not in codes:
             raise NotEnoughPermissionsHTTPException()
