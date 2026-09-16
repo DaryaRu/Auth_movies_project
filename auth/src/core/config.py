@@ -65,6 +65,18 @@ class Settings(BaseSettings):
     PHONE_CHANGE_SEND_RATE_WINDOW_SECONDS: int = 3600
     # Минимальный интервал (в секундах) между двумя запросами кода смены на один номер.
     PHONE_CHANGE_SEND_COOLDOWN_SECONDS: int = 60
+    EMAIL_CHANGE_CODE_EXPIRE_SECONDS: int = 300
+    # Сколько раз можно ошибиться при вводе кода подтверждения смены email,
+    # прежде чем он станет недействителен и понадобится новый запрос.
+    EMAIL_CHANGE_MAX_ATTEMPTS: int = 5
+    # Сколько раз можно запросить код смены (на старый или новый адрес по отдельности)
+    # за EMAIL_CHANGE_SEND_RATE_WINDOW_SECONDS.
+    EMAIL_CHANGE_MAX_SENDS_PER_WINDOW: int = 5
+    # Окно (в секундах), за которое считается EMAIL_CHANGE_MAX_SENDS_PER_WINDOW.
+    EMAIL_CHANGE_SEND_RATE_WINDOW_SECONDS: int = 3600
+    # Минимальный интервал (в секундах) между двумя запросами кода смены на старый
+    # или новый адрес по отдельности.
+    EMAIL_CHANGE_SEND_COOLDOWN_SECONDS: int = 60
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
     OTEL_EXPORTER_OTLP_ENDPOINT: str
