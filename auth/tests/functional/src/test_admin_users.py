@@ -148,14 +148,14 @@ class TestListUsers:
     async def test_list_users_search_by_marker(
         self,
         http_client: ClientSession,
-        superuser_headers: dict[str, str],
+        view_permission_granted_headers: dict[str, str],
         search_and_pagination_users: list[dict[str, Any]],
     ):
         """Поиск по общей части email находит всех подходящих пользователей."""
         response = await http_client.get(
             ADMIN_USERS_URL + "/",
             params={"search": UNIQUE_TEST_MARKER, "page_size": 50},
-            headers=superuser_headers,
+            headers=view_permission_granted_headers,
         )
         data = await assert_status_return_json(response, HTTPStatus.OK)
 
@@ -168,7 +168,7 @@ class TestListUsers:
     async def test_list_users_search_by_email(
         self,
         http_client: ClientSession,
-        superuser_headers: dict[str, str],
+        view_permission_granted_headers: dict[str, str],
         search_and_pagination_users: list[dict[str, Any]],
     ):
         """Поиск по точному email находит только одного пользователя."""
@@ -176,7 +176,7 @@ class TestListUsers:
         response = await http_client.get(
             ADMIN_USERS_URL + "/",
             params={"search": target["email"]},
-            headers=superuser_headers,
+            headers=view_permission_granted_headers,
         )
         data = await assert_status_return_json(response, HTTPStatus.OK)
 
@@ -186,13 +186,13 @@ class TestListUsers:
     async def test_list_users_search_no_match(
         self,
         http_client: ClientSession,
-        superuser_headers: dict[str, str],
+        view_permission_granted_headers: dict[str, str],
     ):
         """Поиск без совпадений возвращает пустой список."""
         response = await http_client.get(
             ADMIN_USERS_URL + "/",
             params={"search": f"no-such-user-{uuid.uuid4().hex}"},
-            headers=superuser_headers,
+            headers=view_permission_granted_headers,
         )
         data = await assert_status_return_json(response, HTTPStatus.OK)
 
@@ -202,7 +202,7 @@ class TestListUsers:
     async def test_list_users_pagination(
         self,
         http_client: ClientSession,
-        superuser_headers: dict[str, str],
+        view_permission_granted_headers: dict[str, str],
         search_and_pagination_users: list[dict[str, Any]],
     ):
         """page_size ограничивает выдачу, page_number сдвигает окно, total не меняется."""
@@ -213,7 +213,7 @@ class TestListUsers:
                 "page_number": 1,
                 "page_size": 2,
             },
-            headers=superuser_headers,
+            headers=view_permission_granted_headers,
         )
         first_data = await assert_status_return_json(first_page, HTTPStatus.OK)
         assert len(first_data["items"]) == 2
@@ -228,7 +228,7 @@ class TestListUsers:
                 "page_number": 2,
                 "page_size": 2,
             },
-            headers=superuser_headers,
+            headers=view_permission_granted_headers,
         )
         second_data = await assert_status_return_json(
             second_page, HTTPStatus.OK
@@ -271,6 +271,19 @@ class TestListUsers:
         )
         await assert_status_return_json(response, HTTPStatus.OK)
 
+    async def test_list_users_superuser_without_permission_forbidden(
+        self,
+        http_client: ClientSession,
+        superuser_headers: dict[str, str],
+    ):
+        """Без обхода для is_superuser: суперпользователь без явно назначенного
+        права user:view_personal_data получает 403, как и обычный пользователь."""
+        response = await http_client.get(
+            ADMIN_USERS_URL + "/", headers=superuser_headers
+        )
+        data = await assert_status_return_json(response, HTTPStatus.FORBIDDEN)
+        assert_error_detail(data)
+
 
 class TestGetUserProfile:
     """Тесты GET /admin/users/{user_id}/."""
@@ -278,13 +291,14 @@ class TestGetUserProfile:
     async def test_get_user_profile_success(
         self,
         http_client: ClientSession,
-        superuser_headers: dict[str, str],
+        view_permission_granted_headers: dict[str, str],
         search_and_pagination_users: list[dict[str, Any]],
     ):
         """Полный набор полей профиля, включая email_verified и timezone."""
         target = search_and_pagination_users[0]
         response = await http_client.get(
-            f"{ADMIN_USERS_URL}/{target['id']}/", headers=superuser_headers
+            f"{ADMIN_USERS_URL}/{target['id']}/",
+            headers=view_permission_granted_headers,
         )
         data = await assert_status_return_json(response, HTTPStatus.OK)
 
@@ -297,12 +311,12 @@ class TestGetUserProfile:
     async def test_get_user_profile_not_found(
         self,
         http_client: ClientSession,
-        superuser_headers: dict[str, str],
+        view_permission_granted_headers: dict[str, str],
     ):
         """Запрос профиля по несуществующему user_id возвращает 404 с телом ошибки."""
         response = await http_client.get(
             f"{ADMIN_USERS_URL}/{NOT_EXISTING_UUID}/",
-            headers=superuser_headers,
+            headers=view_permission_granted_headers,
         )
         data = await assert_status_return_json(response, HTTPStatus.NOT_FOUND)
         assert_error_detail(data)
@@ -331,6 +345,21 @@ class TestGetUserProfile:
         response = await http_client.get(
             f"{ADMIN_USERS_URL}/{search_and_pagination_users[0]['id']}/",
             headers=regular_user_headers,
+        )
+        data = await assert_status_return_json(response, HTTPStatus.FORBIDDEN)
+        assert_error_detail(data)
+
+    async def test_get_user_profile_superuser_without_permission_forbidden(
+        self,
+        http_client: ClientSession,
+        superuser_headers: dict[str, str],
+        search_and_pagination_users: list[dict[str, Any]],
+    ):
+        """Без обхода для is_superuser: суперпользователь без явно назначенного
+        права user:view_personal_data получает 403."""
+        response = await http_client.get(
+            f"{ADMIN_USERS_URL}/{search_and_pagination_users[0]['id']}/",
+            headers=superuser_headers,
         )
         data = await assert_status_return_json(response, HTTPStatus.FORBIDDEN)
         assert_error_detail(data)
