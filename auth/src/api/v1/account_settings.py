@@ -8,8 +8,12 @@ from src.core.limiter import limiter
 from src.exceptions import (
     EmailRequiredForPhoneChangeException,
     EmailRequiredForPhoneChangeHTTPException,
+    InvalidEmailChangeCodeException,
+    InvalidEmailChangeCodeHTTPException,
     InvalidPhoneChangeCodeException,
     InvalidPhoneChangeCodeHTTPException,
+    NoPendingEmailChangeException,
+    NoPendingEmailChangeHTTPException,
     NoPendingPhoneChangeException,
     NoPendingPhoneChangeHTTPException,
     PasswordAlreadySetException,
@@ -34,6 +38,8 @@ from src.schemas.users import (
     ChangeEmailRequestScheme,
     ChangePasswordRequestScheme,
     ChangeTimezoneRequestScheme,
+    EmailChangeVerifyNewScheme,
+    EmailChangeVerifyOldScheme,
     PhoneChangeConfirmScheme,
     PhoneChangeRequestScheme,
     SetPasswordRequestScheme,
@@ -43,24 +49,24 @@ from src.schemas.users import (
 router = APIRouter(tags=["Auth"])
 
 
-@router.patch(
-    "/change-email/",
-    response_model=UserResponseScheme,
-    summary="Смена email",
+@router.post(
+    "/change-email-request/",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Запрос на смену email",
 )
 @limiter.limit(settings.LIMIT_VALUE)
-async def change_email(
+async def request_email_change(
     data: ChangeEmailRequestScheme,
     account_settings_service: AccountSettingsServiceDep,
     user: CurrentUserDep,
     request: Request,
 ):
-    """Смена email с подтверждением текущего пароля. Новый email должен быть уникальным."""
+    """Проверяет пароль и уникальность нового email, отправляет код
+    подтверждения на старый (текущий) email."""
     try:
-        updated_user = await account_settings_service.change_user_email(
+        await account_settings_service.request_email_change(
             user_id=user.id, data=data
         )
-        return updated_user
     except UserAlreadyexistsException as exc:
         raise UserAlreadyexistsHTTPException(detail=exc.detail) from exc
     except UserNotFoundException as exc:
@@ -69,6 +75,68 @@ async def change_email(
         raise PasswordNotSetHTTPException(detail=exc.detail) from exc
     except VerifyPasswordException as exc:
         raise VerifyPasswordHTTPException(detail=exc.detail) from exc
+    except TooManyAttemptsException as exc:
+        raise TooManyAttemptsHTTPException(detail=exc.detail) from exc
+    except SendCooldownException as exc:
+        raise TooManyAttemptsHTTPException(detail=exc.detail) from exc
+    except ProviderException as exc:
+        raise ProviderHTTPException(detail=exc.detail) from exc
+
+
+@router.post(
+    "/verify-old-email/",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Подтверждение кода со старого email при смене email",
+)
+@limiter.limit(settings.LIMIT_VALUE)
+async def verify_old_email(
+    data: EmailChangeVerifyOldScheme,
+    account_settings_service: AccountSettingsServiceDep,
+    user: CurrentUserDep,
+    request: Request,
+):
+    """При совпадении кода отправляет код подтверждения на новый адрес."""
+    try:
+        ok = await account_settings_service.verify_old_email_change(
+            user_id=user.id, code=data.code
+        )
+        if not ok:
+            raise InvalidEmailChangeCodeException()
+    except InvalidEmailChangeCodeException as exc:
+        raise InvalidEmailChangeCodeHTTPException(detail=exc.detail) from exc
+    except NoPendingEmailChangeException as exc:
+        raise NoPendingEmailChangeHTTPException(detail=exc.detail) from exc
+    except TooManyAttemptsException as exc:
+        raise TooManyAttemptsHTTPException(detail=exc.detail) from exc
+    except SendCooldownException as exc:
+        raise TooManyAttemptsHTTPException(detail=exc.detail) from exc
+    except ProviderException as exc:
+        raise ProviderHTTPException(detail=exc.detail) from exc
+
+
+@router.post(
+    "/verify-new-email/",
+    response_model=UserResponseScheme,
+    summary="Подтверждение кода с нового email. Завершает смену email",
+)
+@limiter.limit(settings.LIMIT_VALUE)
+async def verify_new_email(
+    data: EmailChangeVerifyNewScheme,
+    account_settings_service: AccountSettingsServiceDep,
+    user: CurrentUserDep,
+    request: Request,
+):
+    """Обновляет email, отмечает его подтвержденным и отзывает все сессии."""
+    try:
+        return await account_settings_service.verify_new_email_change(
+            user_id=user.id, code=data.code
+        )
+    except InvalidEmailChangeCodeException as exc:
+        raise InvalidEmailChangeCodeHTTPException(detail=exc.detail) from exc
+    except NoPendingEmailChangeException as exc:
+        raise NoPendingEmailChangeHTTPException(detail=exc.detail) from exc
+    except TooManyAttemptsException as exc:
+        raise TooManyAttemptsHTTPException(detail=exc.detail) from exc
 
 
 @router.post(

@@ -30,6 +30,7 @@ from src.services.auth import AuthService
 from src.services.login_completion import LoginCompletionService
 from src.services.oauth import OAuthService
 from src.services.permissions import PermissionService
+from src.services.email_change import EmailChangeService
 from src.services.phone_change import PhoneChangeService
 from src.services.profile import ProfileService
 from src.services.registration import RegistrationService
@@ -116,13 +117,23 @@ def get_registration_service(db: "DBDep") -> RegistrationService:
     return RegistrationService(HashArgon2Service(), db)
 
 
+def get_email_change_service() -> EmailChangeService:
+    assert redis.redis is not None
+    return EmailChangeService(redis.redis)
+
+
 def get_account_settings_service(
     db: "DBDep",
     session_service: "SessionServiceDep",
     phone_change_service: "PhoneChangeServiceDep",
+    email_change_service: "EmailChangeServiceDep",
 ) -> AccountSettingsService:
     return AccountSettingsService(
-        HashArgon2Service(), db, session_service, phone_change_service
+        HashArgon2Service(),
+        db,
+        session_service,
+        phone_change_service,
+        email_change_service,
     )
 
 
@@ -320,6 +331,9 @@ TwoFactorServiceDep = Annotated[
 ]
 PhoneChangeServiceDep = Annotated[
     PhoneChangeService, Depends(get_phone_change_service)
+]
+EmailChangeServiceDep = Annotated[
+    EmailChangeService, Depends(get_email_change_service)
 ]
 RegistrationServiceDep = Annotated[
     RegistrationService, Depends(get_registration_service)
