@@ -43,6 +43,7 @@ async def create_notification(
             notification.user_id,
             notification.template_id,
             notification.payload,
+            notification.recipient_email,
         )
     except TemplateNotFoundError as e:
         raise HTTPException(

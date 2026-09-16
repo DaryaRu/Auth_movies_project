@@ -15,6 +15,13 @@ class NotificationCreate(BaseModel):
         default_factory=dict,
         description="Данные для подстановки в шаблон (должны совпадать с allowed_variables шаблона)",
     )
+    recipient_email: str | None = Field(
+        None,
+        description=(
+            "Явный email-адрес получателя. "
+            "Для случаев, когда адрес пока не сохранен на аккаунте."
+        ),
+    )
 
     model_config = {
         "json_schema_extra": {

@@ -29,7 +29,11 @@ class NotificationService:
         self.template_repo = template_repository
 
     async def create_notification(
-        self, user_id: UUID, template_id: UUID, payload: dict
+        self,
+        user_id: UUID,
+        template_id: UUID,
+        payload: dict,
+        recipient_email: str | None = None,
     ) -> None:
         """Провалидировать и опубликовать персональное уведомление в notification-ready."""
         template = await self.template_repo.get_by_id(template_id)
@@ -46,6 +50,7 @@ class NotificationService:
             "payload": payload,
             "channel": template.channel,
             "deduplication_key": str(uuid4()),
+            "recipient_email": recipient_email,
         }
         assert kafka.producer is not None
         try:
