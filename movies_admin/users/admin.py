@@ -19,9 +19,7 @@ PROFILE_VIEW_PERMISSION_CODE = "user:view_personal_data"
 
 
 def _has_profile_view_permission(request) -> bool:
-    """Суперпользователь может просматривать всегда, а остальные только по наличию права из сессии."""
-    if request.user.is_superuser:
-        return True
+    """Право на просмотр должно быть явно назначено."""
     return PROFILE_VIEW_PERMISSION_CODE in request.session.get(
         "permission_codes", []
     )

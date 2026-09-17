@@ -344,6 +344,30 @@ class ChangeEmailRequestScheme(BaseModel):
     )
 
 
+class EmailChangeVerifyOldScheme(BaseModel):
+    """Схема для подтверждения кода со старого email."""
+
+    code: str = Field(
+        ..., description="Код подтверждения из письма на старый email"
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={"example": {"code": "482913"}}
+    )
+
+
+class EmailChangeVerifyNewScheme(BaseModel):
+    """Схема для подтверждения кода с нового email."""
+
+    code: str = Field(
+        ..., description="Код подтверждения из письма на новый email"
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={"example": {"code": "159426"}}
+    )
+
+
 class ChangePasswordRequestScheme(BaseModel):
     """Схема для смены пароля."""
 
@@ -394,6 +418,7 @@ class ChangeTimezoneRequestScheme(BaseModel):
 
 class UserIdsRequest(BaseModel):
     """Схема запроса пакетного получения имён."""
+
     user_ids: list[UUID] = Field(
         ...,
         min_length=1,

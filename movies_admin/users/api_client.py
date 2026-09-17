@@ -64,9 +64,10 @@ class AuthAPIClient:
 
         Args:
             user_id: UUID пользователя.
-            auth_token: JWT токен админа из сессии. Нужно право
-                user:view_personal_data (или is_superuser) — проверяется
-                на стороне auth-service через require_permission().
+            auth_token: JWT токен админа из сессии. Нужно явно назначенное
+                право user:view_personal_data — проверяется на стороне
+                auth-service через require_permission(), без обхода для
+                суперпользователя.
             request_id: X-Request-Id текущего запроса в movies_admin,
                 прокидывается дальше для сквозной трассировки.
         """
@@ -106,8 +107,7 @@ class AuthAPIClient:
         в локальную БД movies_admin, поиск и пагинация на стороне auth-service.
 
         Args:
-            auth_token: JWT токен админа из сессии. Нужно право
-                user:view_personal_data (или is_superuser).
+            auth_token: JWT токен админа из сессии. Нужно право user:view_personal_data.
             request_id: X-Request-Id текущего запроса в movies_admin.
             search: подстрока поиска по email/телефону/ФИО.
             page_number: номер страницы (с 1).

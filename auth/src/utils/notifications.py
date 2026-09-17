@@ -84,7 +84,10 @@ async def _fetch_required_template_id(code: str) -> str | None:
 
 @async_backoff(exceptions=(httpx.HTTPError,))
 async def _send_notification_request(
-    user_id: UUID, template_id: str, payload: dict[str, Any]
+    user_id: UUID,
+    template_id: str,
+    payload: dict[str, Any],
+    recipient_email: str | None = None,
 ) -> None:
     assert http_client.client is not None
     response = await http_client.client.post(
@@ -93,6 +96,7 @@ async def _send_notification_request(
             "user_id": str(user_id),
             "template_id": template_id,
             "payload": payload,
+            "recipient_email": recipient_email,
         },
         headers={"X-Internal-Secret": settings.INTERNAL_SERVICE_SECRET},
         timeout=5,
@@ -101,7 +105,10 @@ async def _send_notification_request(
 
 
 async def _notify_user_required(
-    user_id: UUID, code: str, payload: dict[str, Any]
+    user_id: UUID,
+    code: str,
+    payload: dict[str, Any],
+    recipient_email: str | None = None,
 ) -> None:
     """Резолвит template_id по коду и отправляет уведомление. Оба запроса с ретраями на сетевых ошибках.
     Если template_id не резолвился либо отправка не удалась после ретраев, то поднимает
@@ -110,7 +117,9 @@ async def _notify_user_required(
         template_id = await _fetch_required_template_id(code)
         if template_id is None:
             raise ProviderException()
-        await _send_notification_request(user_id, template_id, payload)
+        await _send_notification_request(
+            user_id, template_id, payload, recipient_email
+        )
     except httpx.HTTPError as exc:
         logger.error(
             "Required notification failed for code=%s user=%s: %s",
@@ -171,6 +180,16 @@ async def notify_user(
             user_id,
             e,
         )
+
+
+async def notify_address(
+    user_id: UUID,
+    code: str,
+    recipient_email: str,
+    payload: dict[str, Any] | None = None,
+) -> None:
+    """Отправляет уведомление на email-адрес, с ретраями, при неудаче - ProviderException."""
+    await _notify_user_required(user_id, code, payload or {}, recipient_email)
 
 
 # Ключ кэша воркера: ntf:settings:{user_id}

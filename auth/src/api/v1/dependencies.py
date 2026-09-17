@@ -27,6 +27,7 @@ from src.repositories.sessions import SessionRedisRepository
 from src.services.account_delete import AccountDeleteService
 from src.services.account_settings import AccountSettingsService
 from src.services.auth import AuthService
+from src.services.email_change import EmailChangeService
 from src.services.login_completion import LoginCompletionService
 from src.services.oauth import OAuthService
 from src.services.permissions import PermissionService
@@ -116,13 +117,23 @@ def get_registration_service(db: "DBDep") -> RegistrationService:
     return RegistrationService(HashArgon2Service(), db)
 
 
+def get_email_change_service() -> EmailChangeService:
+    assert redis.redis is not None
+    return EmailChangeService(redis.redis)
+
+
 def get_account_settings_service(
     db: "DBDep",
     session_service: "SessionServiceDep",
     phone_change_service: "PhoneChangeServiceDep",
+    email_change_service: "EmailChangeServiceDep",
 ) -> AccountSettingsService:
     return AccountSettingsService(
-        HashArgon2Service(), db, session_service, phone_change_service
+        HashArgon2Service(),
+        db,
+        session_service,
+        phone_change_service,
+        email_change_service,
     )
 
 
@@ -229,17 +240,14 @@ async def get_current_staff_user(
 def require_permission(code: str):
     """Аналог StaffUserDep, но по конкретному коду права, а не по статусу суперпользователя.
 
-    is_superuser читается прямо из JWT payload (без похода в Redis/БД) и дает
-    универсальный обход. Для остальных пользователей код проверяется по кэшу в Redis.
+    Без обхода для is_superuser: право должно быть явно назначено через роль,
+    даже суперпользователю.
     """
 
     async def dependency(
-        token_payload: "TokenPayloadDep",
         user: "CurrentUserDep",
         role_service: "RoleServiceDep",
     ) -> UserORM:
-        if token_payload.get("is_superuser"):
-            return user
         codes = await role_service.get_user_permissions_cached(user.id)
         if code not in codes:
             raise NotEnoughPermissionsHTTPException()
@@ -320,6 +328,9 @@ TwoFactorServiceDep = Annotated[
 ]
 PhoneChangeServiceDep = Annotated[
     PhoneChangeService, Depends(get_phone_change_service)
+]
+EmailChangeServiceDep = Annotated[
+    EmailChangeService, Depends(get_email_change_service)
 ]
 RegistrationServiceDep = Annotated[
     RegistrationService, Depends(get_registration_service)

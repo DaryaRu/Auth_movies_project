@@ -4,6 +4,7 @@ import asyncio
 from uuid import UUID
 
 from src.exceptions import (
+    InvalidEmailChangeCodeException,
     InvalidPhoneChangeCodeException,
     PasswordAlreadySetException,
     PasswordNotSetException,
@@ -20,6 +21,7 @@ from src.schemas.users import (
     PhoneChangeRequestScheme,
     SetPasswordRequestScheme,
 )
+from src.services.email_change import EmailChangeService
 from src.services.phone_change import PhoneChangeService
 from src.services.sessions import SessionService
 from src.utils.db_manager import DBManager
@@ -36,32 +38,30 @@ class AccountSettingsService:
         db: DBManager,
         session_service: SessionService,
         phone_change_service: PhoneChangeService,
+        email_change_service: EmailChangeService,
     ) -> None:
         self._hash_service = hash_service
         self._db = db
         self._session_service = session_service
         self._phone_change_service = phone_change_service
+        self._email_change_service = email_change_service
 
-    async def change_user_email(
+    async def request_email_change(
         self, user_id: UUID, data: ChangeEmailRequestScheme
-    ) -> UserORM:
+    ) -> None:
         """
-        Смена email пользователя после проверки пароля.
-        Проверяет существование пользователя, уникальность нового email
-        и корректность текущего пароля.
+        Запрашивает смену email: проверяет пароль и уникальность нового
+        email, отправляет код подтверждения на текущий email.
 
         Args:
             user_id (UUID): Уникальный идентификатор пользователя.
-            data (ChangeEmailRequestScheme): Данные для смены email.
+            data (ChangeEmailRequestScheme): Новый email и текущий пароль.
 
         Raises:
             UserNotFoundException: Если пользователь не найден.
             UserAlreadyexistsException: Если новый email уже занят.
             PasswordNotSetException: Если у пользователя не задан пароль.
-            VerifyPasswordError: Если пароль введен неверно.
-
-        Returns:
-            UserORM: Обновленный объект пользователя из базы данных.
+            VerifyPasswordException: Если пароль введен неверно.
         """
         user = await self._db.users.get_one_or_none_by_id(id=user_id)
         if not user:
@@ -80,9 +80,37 @@ class AccountSettingsService:
         ):
             raise VerifyPasswordException()
 
-        updated_user = await self._db.users.update_user_credentials(
-            user_id=user_id, email=data.new_email
+        await self._email_change_service.request_change(
+            user_id, data.new_email
         )
+
+    async def verify_old_email_change(self, user_id: UUID, code: str) -> bool:
+        """
+        Проверяет код со старого email. При совпадении отправляет код
+        подтверждения на новый адрес и возвращает True.
+        """
+        return await self._email_change_service.verify_old_email(user_id, code)
+
+    async def verify_new_email_change(
+        self, user_id: UUID, code: str
+    ) -> UserORM:
+        """
+        Проверяет код с нового email. При совпадении обновляет email,
+        отмечает его подтвержденным и отзывает все сессии.
+
+        Raises:
+            InvalidEmailChangeCodeException: Код не совпал или истек.
+        """
+        new_email = await self._email_change_service.verify_new_email(
+            user_id, code
+        )
+        if new_email is None:
+            raise InvalidEmailChangeCodeException()
+
+        updated_user = await self._db.users.update_user_credentials(
+            user_id=user_id, email=new_email, email_verified=True
+        )
+        await self._session_service.delete_all_sessions(str(user_id))
         return updated_user
 
     async def request_phone_change(

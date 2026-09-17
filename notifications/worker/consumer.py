@@ -52,6 +52,7 @@ class ReadyMessage(BaseModel):
     payload: dict[str, Any] = {}
     channel: str
     deduplication_key: str
+    recipient_email: str | None = None
 
 
 def _is_channel_allowed(
@@ -155,6 +156,8 @@ async def _render_and_send(
 
         if message.channel == "push":
             delivery_address = str(message.user_id)
+        elif message.recipient_email is not None:
+            delivery_address = message.recipient_email
         else:
             email = await get_email(message.user_id)
             if email is None:
