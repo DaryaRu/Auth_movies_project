@@ -1,7 +1,7 @@
 import http
 import logging
 from functools import lru_cache
-from typing import Any
+from typing import Any, NamedTuple
 
 import requests
 from django.conf import settings
@@ -12,28 +12,103 @@ from jose import JWTError, jwt
 User = get_user_model()
 
 
+class LoginResult(NamedTuple):
+    """Результат входа для start_login/complete_two_factor_login."""
+
+    user: Any = None
+    two_fa_required: bool = False
+
+
 class CustomBackend(BaseBackend):
     def authenticate(self, request, username=None, password=None):
-        url = settings.AUTH_API_LOGIN_URL
-        request_id = request.headers.get("X-Request-Id")
-        payload = {"email": username, "password": password}
+        """Если у аккаунта включена 2FA по телефону, auth-service вернет
+        two_fa_required без токенов, в один шаг завершить вход нельзя,
+        метод возвращает None, как при неверном пароле.
+        Двухшаговый вход с кодом из СМС через start_login()/complete_two_factor_login(),
+        которые вызывает отдельный view.
+        """
+        if username is None or password is None:
+            return None
+        return self.start_login(request, username, password).user
+
+    def start_login(self, request, email: str, password: str) -> LoginResult:
+        """Первый шаг входа: email с паролем."""
+        request_id = request.headers.get("X-Request-Id") if request else None
+        data = self._request(
+            settings.AUTH_API_LOGIN_URL,
+            {"email": email, "password": password},
+            request_id,
+        )
+        if data is None:
+            return LoginResult()
+        if data.get("two_fa_required"):
+            return LoginResult(two_fa_required=True)
+        access_token = data.get("access_token")
+        if access_token is None:
+            logging.error(
+                "Login response has neither access_token nor two_fa_required"
+            )
+            return LoginResult()
+        user = self._build_session(request, access_token, email, request_id)
+        return LoginResult(user=user)
+
+    def complete_two_factor_login(
+        self, request, email: str, code: str
+    ) -> LoginResult:
+        """Второй шаг входа: код из СМС, отправленный после start_login()."""
+        request_id = request.headers.get("X-Request-Id") if request else None
+        data = self._request(
+            f"{settings.AUTH_API_BASE_URL}/login/verify-phone/",
+            {"email": email, "code": code},
+            request_id,
+        )
+        if data is None:
+            return LoginResult()
+        access_token = data.get("access_token")
+        if access_token is None:
+            logging.error("Verify-phone response has no access_token")
+            return LoginResult()
+        user = self._build_session(request, access_token, email, request_id)
+        return LoginResult(user=user)
+
+    @staticmethod
+    def _request(
+        url: str, payload: dict, request_id: str | None
+    ) -> dict | None:
+        """POST к auth-service. None при сетевой ошибке или ответе не 200."""
         try:
             response = requests.post(
                 url,
                 json=payload,
                 timeout=5,
-                headers={"X-Request-Id": request_id},
+                headers={"X-Request-Id": request_id or ""},
             )
         except requests.RequestException:
-            logging.error("Auth API unavailable")
+            logging.error(f"Auth API unavailable: {url}")
             return None
         if response.status_code != http.HTTPStatus.OK:
-            logging.error(f"Login status code - {response.status_code}")
-            logging.error(f"Login error - {response.text}")
+            logging.error(f"Auth API status code - {response.status_code}")
+            logging.error(f"Auth API error - {response.text}")
+            return None
+        return response.json()
+
+    def get_user(self, user_id):
+        try:
+            return User.objects.get(pk=user_id)
+        except User.DoesNotExist:
             return None
 
-        access_token = response.json()["access_token"]
-
+    def _build_session(
+        self,
+        request,
+        access_token: str,
+        email: str,
+        request_id: str | None = None,
+    ):
+        """Собирает локального Django-пользователя и сохраняет токен и права в
+        сессию по полученному access_token.
+        Общая часть для обычного входа и для второго шага 2FA-логина.
+        """
         public_key = self._get_public_key()
         if public_key is None:
             return None
@@ -66,8 +141,8 @@ class CustomBackend(BaseBackend):
         user, _ = User.objects.update_or_create(
             id=user_id,
             defaults={
-                "email": username,
-                "phone": "",
+                "email": email,
+                "phone": None,
                 "is_superuser": is_superuser,
                 "is_staff": True,
                 "is_active": True,
@@ -82,12 +157,6 @@ class CustomBackend(BaseBackend):
             request.session.modified = True
 
         return user
-
-    def get_user(self, user_id):
-        try:
-            return User.objects.get(pk=user_id)
-        except User.DoesNotExist:
-            return None
 
     @staticmethod
     @lru_cache(maxsize=1)
