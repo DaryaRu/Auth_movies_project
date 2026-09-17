@@ -1,15 +1,14 @@
 """Функциональные тесты internal-эндпоинта удаления данных пользователя
 (DELETE /internal/users/{user_id}/actions/)."""
 
-from datetime import datetime, timedelta, timezone
 from http import HTTPStatus
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import asyncpg
-import jwt
 import pytest
 from aiohttp import ClientSession
 
+from tests.functional.utils.auth_api import register_and_login
 from tests.functional.utils.check_methods import (
     assert_status,
     assert_status_return_json,
@@ -20,24 +19,6 @@ pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 INTERNAL_URL = "/api/v1/internal"
 TEST_TEXT = "Рецензия для теста."
-
-
-def _make_token(user_id: UUID) -> str:
-    """Создает валидный JWT для произвольного user_id (тестам на удаление нужно несколько разных
-    пользователей, а не общий на всю сессию)."""
-    with open(test_settings.private_key_path, "r", encoding="utf-8") as f:
-        private_key = f.read()
-    payload = {
-        "sub": str(user_id),
-        "roles": ["user"],
-        "exp": datetime.now(timezone.utc) + timedelta(minutes=30),
-    }
-    return jwt.encode(payload, private_key, algorithm="RS256")
-
-
-def _auth_headers(user_id: UUID) -> dict[str, str]:
-    """Собирает заголовок Authorization с токеном для произвольного user_id."""
-    return {"Authorization": f"Bearer {_make_token(user_id)}"}
 
 
 class TestDeleteUserActions:
@@ -71,10 +52,12 @@ class TestDeleteUserActions:
         (включая лайки на чужие рецензии), не трогая данные других
         пользователей. Лайки других пользователей на удаленные рецензии этого
         пользователя удаляются каскадно."""
-        deleted_user_id = uuid4()
-        other_user_id = uuid4()
-        deleted_user_headers = _auth_headers(deleted_user_id)
-        other_user_headers = _auth_headers(other_user_id)
+        deleted_user = await register_and_login()
+        other_user = await register_and_login()
+        deleted_user_id = deleted_user.user_id
+        other_user_id = other_user.user_id
+        deleted_user_headers = deleted_user.headers
+        other_user_headers = other_user.headers
 
         movie_id = uuid4()
         other_movie_id = uuid4()

@@ -37,6 +37,11 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "RS256"
     PUBLIC_KEY_CACHE_TTL: int = 3600
 
+    # Проверка действительности сессии через auth-service:
+    # TTL кэша подтверждённых активных сессий в Redis (сек).
+    # 0 — без кэша, каждый запрос проверяется напрямую (мгновенный отзыв).
+    SESSION_VERIFY_CACHE_TTL: int = 30
+
     # Персональные уведомления
     NOTIFICATIONS_API_URL: str = ""
     NOTIFICATIONS_TEMPLATE_ID_CACHE_TTL: int = 3600

@@ -1,4 +1,3 @@
-from datetime import datetime, timedelta, timezone
 from typing import (
     Any,
     AsyncGenerator,
@@ -11,10 +10,9 @@ from uuid import uuid4
 
 import aiohttp
 import asyncpg
-import jwt
-import pytest
 import pytest_asyncio
 
+from tests.functional.utils.auth_api import register_and_login
 from tests.functional.utils.helpers import (
     create_data,
     delete_data,
@@ -71,17 +69,24 @@ async def pg_write_data(pg_client: asyncpg.Connection) -> AsyncGenerator[WriteDa
         await delete_data(pg_client, table)
 
 
-@pytest.fixture(scope="session")
-def generate_test_token():
-    """Генерирует валидный JWT токен для тестов, подписанный приватным ключом."""
-    with open(test_settings.private_key_path, "r", encoding="utf-8") as f:
-        private_key = f.read()
+@pytest_asyncio.fixture(scope="session")
+async def generate_test_token() -> str:
+    """Access-токен реального пользователя с активной сессией.
 
-    payload = {
-        "sub": str(uuid4()), 
-        "roles": ["user"],
-        "exp": datetime.now(timezone.utc) + timedelta(minutes=30)
-    }
+    Регистрирует и логинит одного пользователя в auth-service на всю сессию.
+    user_actions теперь проверяет сессию через auth-service, поэтому тестам
+    нужен реальный токен с валидным sid, а не самоподписанный фейковый.
+    """
+    session = await register_and_login()
+    return session.access_token
 
-    token = jwt.encode(payload, private_key, algorithm="RS256")
-    return token
+
+@pytest_asyncio.fixture(scope="function")
+async def test_auth_session():
+    """AuthSession реального пользователя (user_id + access + refresh токены).
+
+    Function-scoped: каждый тест получает своего нового пользователя,
+    потому что тесты отзыва (logout, удаление аккаунта) уничтожают
+    сессию/аккаунт и ломают её для следующих тестов.
+    """
+    return await register_and_login()
