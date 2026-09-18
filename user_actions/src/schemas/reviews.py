@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class ReviewBase(BaseModel):
@@ -42,10 +42,22 @@ class ReviewUpdate(BaseModel):
 
 
 class ReviewResponse(ReviewBase):
-    """Схема ответа рецензии."""
+    """Публичная (внешняя) схема ответа рецензии.
+
+    Это публичная схема, по которой рецензия отдаётся клиентам. Она намеренно
+    отделена от внутренней модели (записи в БД): внутри сервиса идентификатор
+    автора `user_id` сохраняется и используется для проверки владельца и
+    обработки голосов (лайков/дизлайков), однако в публичном ответе для
+    анонимных рецензий (`author_visibility='anonymous'`) он скрыт
+    (`user_id=None`), чтобы нельзя было связать анонимную рецензию с другими
+    рецензиями того же автора, опубликованными с ФИО.
+    """
 
     id: UUID = Field(..., description="ID рецензии")
-    user_id: UUID = Field(..., description="ID пользователя")
+    user_id: UUID | None = Field(
+        default=None,
+        description="ID пользователя-автора; для анонимных рецензий (author_visibility='anonymous') скрыт (None)",
+    )
     created_at: datetime = Field(..., description="Дата создания")
     updated_at: datetime = Field(..., description="Дата обновления")
     likes_count: int = Field(default=0, description="Количество лайков рецензии")
@@ -55,6 +67,19 @@ class ReviewResponse(ReviewBase):
     author_visibility: str = Field(default='real_name', description="Видимость имени автора: 'real_name', 'nickname' или 'anonymous'")
 
     model_config = {"from_attributes": True}
+
+    @model_validator(mode="after")
+    def hide_anonymous_author_id(self) -> "ReviewResponse":
+        """Скрыть идентификатор автора в публичном ответе анонимной рецензии.
+
+        `user_id` остаётся внутри сервиса (запись БД, проверка владельца,
+        обработка лайков/дизлайков), но клиенту для анонимных рецензий не
+        передаётся: это исключает возможность связать анонимную рецензию с
+        другими рецензиями того же автора, опубликованными с ФИО.
+        """
+        if self.author_visibility == "anonymous":
+            self.user_id = None
+        return self
 
 
 class ReviewsListResponse(BaseModel):

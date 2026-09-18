@@ -566,6 +566,7 @@ class TestReviewAuthorVisibility:
         assert data["rating"] == 8
         assert data["author_visibility"] == "real_name"
         assert data["author_name"] == self.FULL_NAME
+        assert data["user_id"] is not None
 
     async def test_create_review_with_anonymous_visibility(
         self,
@@ -601,6 +602,7 @@ class TestReviewAuthorVisibility:
         assert data["author_name"] == "Аноним"
         assert data["author_name"] != self.NICKNAME
         assert data["author_name"] != self.FULL_NAME
+        assert data["user_id"] is None
 
     async def test_create_review_with_real_name_visibility(
         self,
@@ -632,6 +634,7 @@ class TestReviewAuthorVisibility:
         assert data["author_visibility"] == "real_name"
         assert isinstance(data["author_name"], str)
         assert data["author_name"] == self.FULL_NAME
+        assert data["user_id"] is not None
 
     async def test_create_review_with_nickname_visibility(
         self,
@@ -664,6 +667,7 @@ class TestReviewAuthorVisibility:
         assert data["author_visibility"] == "nickname"
         assert isinstance(data["author_name"], str)
         assert data["author_name"] == self.NICKNAME
+        assert data["user_id"] is not None
 
     async def test_create_review_invalid_author_visibility(
         self,
@@ -739,3 +743,4 @@ class TestReviewAuthorVisibility:
         assert "author_visibility" in item
         assert item["author_visibility"] == "anonymous"
         assert item["author_name"] == "Аноним"
+        assert item["user_id"] is None

@@ -25,6 +25,7 @@ class TestSettings(BaseSettings):
     api_prefix: str = Field(default="/api/v1/user-actions", alias="API_PREFIX")
     environment: str = Field(default="test", alias="ENVIRONMENT")
     private_key_path: str = Field(alias="PRIVATE_KEY_PATH")
+    jwt_algorithm: str = Field(default="RS256", alias="JWT_ALGORITHM")
     internal_service_secret: str = Field(
         default="", alias="INTERNAL_SERVICE_SECRET"
     )

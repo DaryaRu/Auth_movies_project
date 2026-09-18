@@ -22,7 +22,6 @@ class TestSettings(BaseSettings):
     private_key_path: str = Field(alias="PRIVATE_KEY_PATH")
     kafka_buffer_size: int = Field(alias="KAFKA_BUFFER_SIZE")
 
-
     service_wait_max_attempts: int = Field(
         default=30, alias="SERVICE_WAIT_MAX_ATTEMPTS"
     )

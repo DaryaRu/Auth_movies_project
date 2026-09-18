@@ -2,13 +2,19 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
-from src.api.v1.dependencies import DBDep, InternalServiceDep, get_db_manager
+from src.api.v1.dependencies import (
+    DBDep,
+    InternalServiceDep,
+    SessionServiceDep,
+    get_db_manager,
+)
 from src.core.config import settings
 from src.core.limiter import limiter
 from src.core.notification_defaults import notification_defaults
 from src.exceptions import UserNotFoundHTTPException
+from src.schemas.sessions import SessionInfoScheme
 from src.schemas.user_notification_settings import UserNotificationSettings
 from src.schemas.users import (
     UserContactScheme,
@@ -31,6 +37,48 @@ async def get_user_contact(user_id: UUID, db: DBDep, _: InternalServiceDep):
     if user is None:
         raise UserNotFoundHTTPException()
     return UserContactScheme(user_id=user.id, email=user.email)
+
+
+@router.get(
+    "/internal/sessions/{sid}/",
+    summary="Проверка активности сессии",
+    response_model=SessionInfoScheme,
+)
+async def verify_session(
+    sid: str,
+    session_service: SessionServiceDep,
+    db: DBDep,
+    _: InternalServiceDep,
+):
+    """Проверка активности сессии и существования пользователя.
+
+    Согласованный механизм отзыва доступа: другие сервисы (например,
+    user_actions) после проверки подписи access-токена вызывают этот
+    эндпоинт по claim `sid`, чтобы убедиться, что сессия не отозвана
+    (logout, смена телефона, удаление аккаунта) и пользователь существует
+    и активен.
+
+    Возвращает 404, если сессия отозвана/истекла или пользователь удалён
+    (или деактивирован)."""
+    session = await session_service.get_session(sid)
+    if not session or not session.get("user_id"):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found",
+        )
+    try:
+        session_user_id = UUID(session["user_id"])
+    except (ValueError, TypeError, AttributeError):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found",
+        ) from None
+
+    user = await db.users.get_one_or_none_by_id(id=session_user_id)
+    if user is None or not user.is_active:
+        raise UserNotFoundHTTPException()
+
+    return SessionInfoScheme(sid=sid, user_id=user.id)
 
 
 @router.get(
