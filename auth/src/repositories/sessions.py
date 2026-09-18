@@ -57,7 +57,7 @@ class SessionAbstractRepository(ABC):
 class SessionRedisRepository(SessionAbstractRepository):
     def __init__(self, redis: Redis):
         self._redis = redis
-        
+
     async def add_user_session(
             self,
             user_id: str,
@@ -114,12 +114,17 @@ class SessionRedisRepository(SessionAbstractRepository):
         user_id = session.get("user_id")
         async with self._redis.pipeline(transaction=True) as pipe:
             pipe.delete(key)
+            # user_actions-service и analytics-service читают/кэшируют
+            # валидность сессии в этой же БД Redis — инвалидация в общем
+            # пайплайне с самим удалением сессии, отзыв мгновенный.
+            pipe.delete(f"user_actions:session_valid:{sid}")
+            pipe.delete(f"analytics:session_valid:{sid}")
 
             if user_id:
                 pipe.srem(f"user_sessions:{user_id}", sid)
 
             await pipe.execute()
-            
+
     async def delete_all_user_session(self, user_id: str) -> None:
         user_sessions_key = f"user_sessions:{user_id}"
         sids = await self._redis.smembers(user_sessions_key)  # type: ignore[misc]
@@ -128,6 +133,8 @@ class SessionRedisRepository(SessionAbstractRepository):
         async with self._redis.pipeline(transaction=True) as pipe:
             for sid in sids:
                 pipe.delete(f"session:{sid}")
+                pipe.delete(f"user_actions:session_valid:{sid}")
+                pipe.delete(f"analytics:session_valid:{sid}")
             pipe.delete(user_sessions_key)
             await pipe.execute()
             
