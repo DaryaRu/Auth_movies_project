@@ -30,6 +30,7 @@ class NotificationTemplate(models.Model):
     body = models.TextField(_('body'))  # Основное поле, синхронизируемое с сервисом
     allowed_variables = models.JSONField(_('allowed variables'), default=list)
     is_active = models.BooleanField(_('is active'), default=True)
+    is_mandatory = models.BooleanField(_('is mandatory'), default=False)
     created = models.DateTimeField(_('created'), auto_now_add=True)
     modified = models.DateTimeField(_('modified'), null=True, blank=True)
 
@@ -89,5 +90,3 @@ class ShortLinkSettings(models.Model):
 
     def __str__(self):
         return _('Short Link Settings')
-
-

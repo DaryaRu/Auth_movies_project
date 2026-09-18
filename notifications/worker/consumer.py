@@ -108,6 +108,13 @@ async def _check_deliverable(
     отправитель зарегистрирован и уведомления по каналу разрешены.
     Если нет, notification помечается как failed/skipped, ретраить его нет смысла.
     Если auth-service недоступен, пробрасывает AuthUnavailableError для ретрая.
+
+    Обязательные сообщения безопасности (template.is_mandatory — коды
+    подтверждения, уведомления об изменении контактов/пароля) доставляются
+    независимо от настроек рассылок получателя. Категория определяется на
+    стороне сервера по шаблону, а не вызывающим сервисом: auth-service
+    гарантировать доставку не может — его required=True подтверждает только
+    приём сообщения сервисом уведомлений.
     """
     if template is None or not template["is_active"]:
         error = f"template {message.template_id} not found or inactive"
@@ -124,6 +131,13 @@ async def _check_deliverable(
         )
         logger.error(f"{notification_id}: {error}")
         return False
+
+    if template.get("is_mandatory", False):
+        logger.info(
+            f"{notification_id}: обязательное сообщение ({template.get('code')}), "
+            f"настройки рассылок {message.user_id} не учитываются"
+        )
+        return True
 
     settings = await get_notification_settings(message.user_id)
     if not _is_channel_allowed(settings, message.channel):

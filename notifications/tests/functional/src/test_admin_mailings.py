@@ -352,6 +352,68 @@ class TestAdminMailingTimezoneBucketing:
 class TestAdminMailingNotificationSettings:
     """Рассылка исключает пользователей, отключивших уведомления."""
 
+    async def test_mandatory_template_includes_user_with_disabled_email(
+        self,
+        http_client: ClientSession,
+        auth_client: ClientSession,
+    ):
+        """Регистрация и логин клиента, клиент выставил email_enabled=False,
+        создана рассылка с шаблоном is_mandatory=True. Несмотря на запрет,
+        клиенту придёт уведомление: обязательные сообщения безопасности
+        доставляются независимо от настроек рассылок получателя."""
+        unique_tz = "Pacific/Kiritimati"
+        suffix = uuid4().hex[:8]
+        email = f"mandatory-user-{suffix}@example.com"
+
+        # 1. Регистрация и логин клиента
+        await _register_user(auth_client, email=email, timezone=unique_tz)
+        token = await _login_user(auth_client, email=email, password="TestPass123!")
+
+        # 2. Клиент отключает email-уведомления
+        settings = await auth_client.patch(
+            f"{test_settings.auth_api_url}/users/me/notification-settings/",
+            json={"email_enabled": False},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        settings_data = await assert_status_return_json(settings, HTTPStatus.OK)
+        assert settings_data["email_enabled"] is False
+
+        # 3. Создание шаблона с is_mandatory=True
+        template_payload: dict[str, Any] = {
+            "code": f"functest_mandatory_{uuid4().hex[:8]}",
+            "name": "Mandatory security template",
+            "channel": "email",
+            "subject": "Обязательное уведомление",
+            "body": "Это обязательное сообщение безопасности.",
+            "allowed_variables": [],
+            "is_active": True,
+            "is_mandatory": True,
+        }
+        response = await http_client.post(TEMPLATES_URL, json=template_payload)
+        template = await assert_status_return_json(response, HTTPStatus.CREATED)
+        assert template["is_mandatory"] is True
+
+        # 4. Создание scheduled рассылки с обязательным шаблоном
+        local_datetime = "2099-06-15T09:30:00"
+        response = await http_client.post(
+            MAILINGS_URL,
+            json=_create_mailing_payload(
+                template["template_id"],
+                scheduled_local_datetime=local_datetime,
+            ),
+        )
+        mailings = await assert_status_return_json(response, HTTPStatus.CREATED)
+
+        # 5. Уникальная таймзона клиента присутствует в рассылке —
+        #    воркер доставит уведомление несмотря на email_enabled=False,
+        #    потому что is_mandatory=True.
+        tz_in_mailings = {m["audience_filter"]["timezone"] for m in mailings}
+        assert unique_tz in tz_in_mailings, (
+            f"Бакет для таймзоны {unique_tz} должен присутствовать в рассылке: "
+            f"обязательные сообщения доставляются независимо от настроек "
+            f"рассылок получателя. Полученные таймзоны: {tz_in_mailings}"
+        )
+
     async def test_user_with_disabled_notifications_excluded_from_mailing(
         self, http_client: ClientSession, auth_client: ClientSession
     ):

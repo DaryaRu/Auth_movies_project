@@ -5,6 +5,7 @@ import logging
 import uuid
 from datetime import datetime, timezone
 
+from core.token_manager import get_valid_access_token
 from django.contrib import admin, messages
 from django.db import transaction
 from django.http import HttpResponseRedirect
@@ -32,15 +33,16 @@ def get_auth_token(request) -> str | None:
     """Получить JWT токен из сессии пользователя.
 
     Токен сохраняется в сессии после аутентификации через auth-сервис.
+    Если он истёк, автоматически обновляется по refresh-токену.
     """
-    return request.session.get('jwt_token') or request.session.get('access_token')
+    return get_valid_access_token(request.session)
 
 
 @admin.register(NotificationTemplate)
 class NotificationTemplateAdmin(admin.ModelAdmin):
     """Админ-панель для шаблонов уведомлений (интеграция с API сервиса)."""
 
-    list_display = ('name', 'channel', 'is_active', 'code_display', 'created', 'modified')
+    list_display = ('name', 'channel', 'is_active', 'is_mandatory', 'code_display', 'created', 'modified')
     list_filter = ('is_active', 'channel')
     search_fields = ('name', 'code', 'subject', 'body')
     change_list_template = 'admin/notifications/template_changelist.html'
@@ -124,6 +126,7 @@ class NotificationTemplateAdmin(admin.ModelAdmin):
                                     'body': created_template.get('body', ''),
                                     'allowed_variables': created_template.get('allowed_variables', []),
                                     'is_active': created_template.get('is_active', True),
+                                    'is_mandatory': created_template.get('is_mandatory', False),
                                     'modified': modified_date,
                                     'created': created_date,
                                 }
@@ -258,6 +261,7 @@ class NotificationTemplateAdmin(admin.ModelAdmin):
                         body=template_data.get('body', ''),
                         allowed_variables=template_data.get('allowed_variables', []),
                         is_active=template_data.get('is_active', True),
+                        is_mandatory=template_data.get('is_mandatory', False),
                     )
                 else:
                     base_manager.create(
@@ -269,6 +273,7 @@ class NotificationTemplateAdmin(admin.ModelAdmin):
                         body=template_data.get('body', ''),
                         allowed_variables=template_data.get('allowed_variables', []),
                         is_active=template_data.get('is_active', True),
+                        is_mandatory=template_data.get('is_mandatory', False),
                     )
             
             codes_to_delete = existing_codes - api_codes
@@ -286,7 +291,6 @@ class NotificationTemplateAdmin(admin.ModelAdmin):
         Примечание: Поле code делается readonly при редактировании, так как
         сервис нотификаций не поддерживает изменение кода шаблона.
         """
-        import logging
         logger = logging.getLogger(__name__)
         
         auth_token = get_auth_token(request)
@@ -320,6 +324,7 @@ class NotificationTemplateAdmin(admin.ModelAdmin):
                 'subject': template_data.get('subject') or '',
                 'body': template_data.get('body', ''),
                 'is_active': template_data.get('is_active', True),
+                'is_mandatory': template_data.get('is_mandatory', False),
             }
             allowed_vars = template_data.get('allowed_variables', [])
             if isinstance(allowed_vars, list):
@@ -402,6 +407,7 @@ class NotificationTemplateAdmin(admin.ModelAdmin):
                                 body=fresh_template_data.get('body', ''),
                                 allowed_variables=fresh_template_data.get('allowed_variables', []),
                                 is_active=fresh_template_data.get('is_active', True),
+                                is_mandatory=fresh_template_data.get('is_mandatory', False),
                                 modified=modified_date,
                             )
                     except (TemplateNotFoundError, APIError):
