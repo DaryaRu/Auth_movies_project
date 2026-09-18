@@ -89,6 +89,15 @@
 3. `POST /verify-new-email/` — `EmailChangeService.verify_new_email()` сверяет код с нового адреса. При совпадении удаляет хеш и счетчик, возвращает `new_email`.
 4. `AccountSettingsService.verify_new_email_change()` при успехе обновляет `email` и сразу выставляет `email_verified = True`, отзывает все сессии (`delete_all_sessions()`).
 
+## Ручная проверка сценария: смена email
+
+1. `POST /change-email-request/` с `new_email`+`password`. Требует полного стека (профиль `analytics` — `notifications-service`/`notifications-worker`/`mailpit`).
+2. `make show-email-change-code-by-email email=...` (текущий email) — хеш `email_change:{user_id}` уже содержит `new_email` и `old_email_code`, поля `new_email_code` пока нет.
+3. `POST /verify-old-email/` с `{"code": "<old_email_code>"}`. При успехе генерируется и отправляется код на новый адрес.
+4. `make show-email-change-code-by-email email=...` (email пока старый) — в хеше появилось поле `new_email_code`.
+5. `POST /verify-new-email/` с `{"code": "<new_email_code>"}`, `UserResponseScheme` с новым `email`, `email_verified: true`.
+6. После успешной смены сессия отзывается немедленно `delete_all_sessions()`. Нужен новый `/login/` по новому email.
+
 ## Ручная проверка сценария: логин с 2FA и смена номера
 
 1. `POST /login/` с `email`+`password` пользователя, у которого уже есть `phone` → `200 {"two_fa_required": true}`.

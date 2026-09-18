@@ -101,6 +101,21 @@ show-phone-change-code-by-email:
 	echo "user_id=$$USER_ID"; \
 	docker compose exec -T redis redis-cli HGETALL "phone_change:$$USER_ID"
 
+# Показывает состояние смены email из Redis по user_id: сразу после
+# /change-email-request/ хеш содержит new_email + old_email_code, после
+# /verify-old-email/ добавляется new_email_code.
+# Пример: make show-email-change-code user_id=aad61edd-ba14-4848-8815-6b147515d91a
+show-email-change-code:
+	docker compose exec -T redis redis-cli HGETALL "email_change:$(user_id)"
+
+# Находит user_id через psql по текущему (старому) email.
+# Пример: make show-email-change-code-by-email email=test@example.com
+show-email-change-code-by-email:
+	@USER_ID=$$(docker compose exec -T auth-db psql -U movies -d movies -tAc "SELECT id FROM users WHERE email = '$(email)';"); \
+	if [ -z "$$USER_ID" ]; then echo "Пользователь с email=$(email) не найден"; exit 1; fi; \
+	echo "user_id=$$USER_ID"; \
+	docker compose exec -T redis redis-cli HGETALL "email_change:$$USER_ID"
+
 # Генерирует RSA-ключи для подписи JWT (пропускает, если файлы уже существуют)
 keys:
 	test -f private.pem || openssl genrsa -out private.pem 2048
