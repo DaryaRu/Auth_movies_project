@@ -95,7 +95,7 @@ class CustomBackend(BaseBackend):
             response = requests.post(
                 url,
                 json=payload,
-                timeout=5,
+                timeout=15,
                 headers={"X-Request-Id": request_id or ""},
             )
         except requests.RequestException:
@@ -186,7 +186,7 @@ class CustomBackend(BaseBackend):
         try:
             response = requests.get(
                 settings.AUTH_API_PUBLIC_KEY_URL,
-                timeout=5,
+                timeout=15,
             )
         except requests.RequestException:
             logging.error("Public key API unavailable")
@@ -239,7 +239,7 @@ class CustomBackend(BaseBackend):
                     "Authorization": f"Bearer {access_token}",
                     "X-Request-Id": request_id or "",
                 },
-                timeout=5,
+                timeout=15,
             )
         except requests.RequestException:
             logging.error("Auth API unavailable while checking permissions")
