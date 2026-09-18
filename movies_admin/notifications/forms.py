@@ -89,6 +89,16 @@ class NotificationTemplateForm(forms.Form):
     is_active = forms.BooleanField(
         label=_("Is Active"), required=False, widget=forms.CheckboxInput()
     )
+    is_mandatory = forms.BooleanField(
+        label=_("Is Mandatory"),
+        required=False,
+        widget=forms.CheckboxInput(),
+        help_text=_(
+            "Обязательное сообщение безопасности (код подтверждения, "
+            "уведомление об изменении контактов/пароля). Доставляется "
+            "независимо от настроек рассылок пользователя."
+        ),
+    )
 
     def __init__(self, *args, **kwargs):
         """Инициализация формы с данными из API."""
@@ -106,6 +116,7 @@ class NotificationTemplateForm(forms.Form):
                 "subject": api_data.get("subject", ""),
                 "body": api_data.get("body", ""),
                 "is_active": api_data.get("is_active", True),
+                "is_mandatory": api_data.get("is_mandatory", False),
             }
             allowed_vars = api_data.get("allowed_variables", [])
             if isinstance(allowed_vars, list):
@@ -142,6 +153,7 @@ class NotificationTemplateForm(forms.Form):
                         "allowed_variables", []
                     ),
                     "is_active": self._api_data.get("is_active", True),
+                    "is_mandatory": self._api_data.get("is_mandatory", False),
                 },
             )
             return obj
@@ -174,6 +186,7 @@ class NotificationTemplateForm(forms.Form):
             "body": self.cleaned_data["body"],
             "allowed_variables": self.cleaned_data["allowed_variables"],
             "is_active": self.cleaned_data["is_active"],
+            "is_mandatory": self.cleaned_data["is_mandatory"],
         }
 
         if template_id is None:

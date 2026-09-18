@@ -145,6 +145,16 @@
                     {{ form.is_active }} {% trans 'Is Active' %}
                 </label>
             </div>
+
+            <div class="form-row">
+                {{ form.is_mandatory.errors }}
+                <label for="{{ form.is_mandatory.id_for_label }}">
+                    {{ form.is_mandatory }} {% trans 'Is Mandatory' %}
+                </label>
+                {% if form.is_mandatory.help_text %}
+                    <span class="helptext">{{ form.is_mandatory.help_text }}</span>
+                {% endif %}
+            </div>
         </fieldset>
         
         <!-- Read-only поля отображаются отдельно - данные из API -->

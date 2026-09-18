@@ -44,6 +44,16 @@ class TestTemplateCreate:
         assert data["channel"] == "email"
         assert data["allowed_variables"] == ["movie_title"]
         assert data["is_active"] is True
+        assert data["is_mandatory"] is False
+
+    async def test_create_mandatory_success(self, http_client: ClientSession):
+        """Создание обязательного шаблона безопасности. 201, is_mandatory
+        сохраняется и возвращается."""
+        response = await http_client.post(
+            BASE_URL, json=_template_payload(is_mandatory=True)
+        )
+        data = await assert_status_return_json(response, HTTPStatus.CREATED)
+        assert data["is_mandatory"] is True
 
     async def test_duplicate_code_returns_conflict(
         self, http_client: ClientSession
@@ -153,6 +163,29 @@ class TestTemplateUpdate:
         assert data["is_active"] is False
         assert data["name"] == created["name"]
         assert data["body"] == created["body"]
+        assert data["is_mandatory"] is False
+
+    async def test_update_is_mandatory(self, http_client: ClientSession):
+        """PATCH is_mandatory=True делает шаблон обязательным, повторный
+        PATCH=False снимает отметку."""
+        create_response = await http_client.post(
+            BASE_URL, json=_template_payload()
+        )
+        created = await create_response.json()
+
+        response = await http_client.patch(
+            f"{BASE_URL}{created['template_id']}/",
+            json={"is_mandatory": True},
+        )
+        data = await assert_status_return_json(response, HTTPStatus.OK)
+        assert data["is_mandatory"] is True
+
+        response = await http_client.patch(
+            f"{BASE_URL}{created['template_id']}/",
+            json={"is_mandatory": False},
+        )
+        data = await assert_status_return_json(response, HTTPStatus.OK)
+        assert data["is_mandatory"] is False
 
     async def test_update_not_found(self, http_client: ClientSession):
         """Несуществующий template_id. 404."""

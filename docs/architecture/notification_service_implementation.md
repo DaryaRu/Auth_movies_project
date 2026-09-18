@@ -23,6 +23,7 @@ API генерирует `deduplication_key` (uuid4) и кладет его в �
 3. `_check_deliverable` — производит проверки, помечает `notifications` при отказе:
    - `template.is_active` — шаблона нет или неактивен → `mark_notification_failed`;
    - зарегистрирован ли отправитель для `channel` (сейчас только `email`) → `mark_notification_failed`, если нет;
+   - `template.is_mandatory` — обязательные сообщения безопасности (коды подтверждения, уведомления об изменении контактов/пароля) обходят проверку настроек рассылок и доставляются независимо от отключенных каналов; категория определяется на стороне сервера по шаблону (админка позволяет пометить шаблон), а не вызывающим сервисом;
    - `user_notification_settings` — если нет записи, то трактуется `email`/`push` включены, `sms` — нет; канал выключен → `mark_notification_skipped`.
 4. `_render_and_send` — получает `email` через
    `GET /api/v1/internal/users/{user_id}/` у `auth-service` (если нет email, например, регистрация по телефону, — `mark_notification_failed`),

@@ -36,15 +36,23 @@ async def _fetch_public_key() -> str | None:
 
 async def _cache_public_key(key: str) -> None:
     if Redis.redis is not None:
-        await Redis.redis.set(_PUBLIC_KEY_REDIS_KEY, key, ex=_PUBLIC_KEY_TTL)
+        try:
+            await Redis.redis.set(_PUBLIC_KEY_REDIS_KEY, key, ex=_PUBLIC_KEY_TTL)
+        except Exception as e:
+            logger.warning("Failed to cache public key in Redis: %s", e)
 
 
 async def get_public_key() -> str | None:
     """Вернуть публичный ключ из кэша Redis или от auth-сервиса."""
     if Redis.redis is not None:
-        cached = await Redis.redis.get(_PUBLIC_KEY_REDIS_KEY)
-        if cached:
-            return cached.decode() if isinstance(cached, bytes) else cached
+        try:
+            cached = await Redis.redis.get(_PUBLIC_KEY_REDIS_KEY)
+            if cached:
+                return cached.decode() if isinstance(cached, bytes) else cached
+        except Exception as e:
+            logger.warning(
+                "Redis unavailable, fetching public key from auth-service: %s", e
+            )
 
     key = await _fetch_public_key()
     if key:
@@ -69,7 +77,10 @@ async def decode_token(token: str) -> dict[str, Any] | None:
         return None
     except JWTError:
         if Redis.redis is not None:
-            await Redis.redis.delete(_PUBLIC_KEY_REDIS_KEY)
+            try:
+                await Redis.redis.delete(_PUBLIC_KEY_REDIS_KEY)
+            except Exception:
+                pass
         public_key = await _fetch_public_key()
         if public_key is None:
             return None

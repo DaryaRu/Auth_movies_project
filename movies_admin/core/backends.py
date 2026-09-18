@@ -161,16 +161,31 @@ class CustomBackend(BaseBackend):
     @staticmethod
     @lru_cache(maxsize=1)
     def _get_public_key() -> str | None:
-        response = requests.get(
-            settings.AUTH_API_PUBLIC_KEY_URL,
-            timeout=5,
-        )
+        try:
+            response = requests.get(
+                settings.AUTH_API_PUBLIC_KEY_URL,
+                timeout=5,
+            )
+        except requests.RequestException:
+            logging.error("Public key API unavailable")
+            return None
         if response.status_code != http.HTTPStatus.OK:
             logging.error(f"Public key status code - {response.status_code}")
             logging.error(f"Public key error - {response.text}")
             return None
 
-        return response.text
+        try:
+            data = response.json()
+        except ValueError:
+            logging.error("Public key response is not valid JSON")
+            return None
+
+        public_key = data.get("public_key")
+        if not public_key:
+            logging.error("Public key field missing in response")
+            return None
+
+        return public_key
 
     @staticmethod
     def _get_token_payload(

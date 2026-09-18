@@ -19,12 +19,18 @@ class Template(BaseModel):
     body: str
     allowed_variables: list[str]
     is_active: bool
+    is_mandatory: bool = False
 
     model_config = {"from_attributes": True}
 
 
 class TemplateCreate(BaseModel):
-    """Создание шаблона."""
+    """Создание шаблона.
+
+    is_mandatory — обязательное сообщение безопасности (код подтверждения,
+    уведомление об изменении контактов/пароля): доставляется независимо от
+    настроек рассылок пользователя.
+    """
 
     code: str
     name: str
@@ -33,6 +39,7 @@ class TemplateCreate(BaseModel):
     body: str
     allowed_variables: list[str] = Field(default_factory=list)
     is_active: bool = True
+    is_mandatory: bool = False
 
     model_config = {
         "json_schema_extra": {
@@ -45,6 +52,7 @@ class TemplateCreate(BaseModel):
                     "body": "Пользователь поставил лайк на ваш комментарий.",
                     "allowed_variables": [],
                     "is_active": True,
+                    "is_mandatory": False,
                 }
             ]
         }
@@ -60,6 +68,7 @@ class TemplateUpdate(BaseModel):
     body: str | None = None
     allowed_variables: list[str] | None = None
     is_active: bool | None = None
+    is_mandatory: bool | None = None
 
     model_config = {
         "json_schema_extra": {
