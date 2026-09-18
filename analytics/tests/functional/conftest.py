@@ -4,7 +4,6 @@ from uuid import uuid4
 
 import aiohttp
 import jwt
-import pytest
 import pytest_asyncio
 from redis.asyncio import Redis
 
