@@ -5,6 +5,7 @@ import logging
 import uuid
 from datetime import datetime, timezone
 
+from core.token_manager import get_valid_access_token
 from django.contrib import admin, messages
 from django.db import transaction
 from django.http import HttpResponseRedirect
@@ -32,8 +33,9 @@ def get_auth_token(request) -> str | None:
     """Получить JWT токен из сессии пользователя.
 
     Токен сохраняется в сессии после аутентификации через auth-сервис.
+    Если он истёк, автоматически обновляется по refresh-токену.
     """
-    return request.session.get('jwt_token') or request.session.get('access_token')
+    return get_valid_access_token(request.session)
 
 
 @admin.register(NotificationTemplate)
