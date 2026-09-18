@@ -31,6 +31,10 @@ class Settings(BaseSettings):
     AUTH_API_PUBLIC_KEY_URL: str
     JWT_ALGORITHM: str
 
+    AUTH_API_URL: str = ""
+    INTERNAL_SERVICE_SECRET: str = ""
+    SESSION_VERIFY_CACHE_TTL: int = 30
+
     ALLOWED_HOSTS: str = "*"
     ORIGINS: str = "*"
 

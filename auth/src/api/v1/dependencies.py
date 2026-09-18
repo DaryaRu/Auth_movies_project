@@ -202,12 +202,15 @@ async def get_token_payload(
     token: str = Depends(get_token),
     auth_service: AuthService = Depends(get_auth_service),
 ) -> dict[str, Any]:
+    """Декодирует Bearer-токен, требует`type=access` и проверяет, что сессия не отозвана."""
     try:
         data = auth_service.decode_token(token)
     except DecodeTokenException as exc:
         raise DecodeTokenHTTPException(detail=exc.detail) from exc
     except TokenKeysException as exc:
         raise TokenKeysHTTPException(detail=exc.detail) from exc
+    if data.get("type") != "access":
+        raise InvalidTokenHTTPException(detail="Невалидный токен")
     session = await session_service.get_session(data["sid"])
     if not session:
         raise InvalidTokenHTTPException(detail="Невалидный токен")

@@ -6,6 +6,7 @@ import aiohttp
 import jwt
 import pytest
 import pytest_asyncio
+from redis.asyncio import Redis
 
 from analytics.tests.settings import test_settings
 
@@ -28,17 +29,35 @@ async def http_client() -> AsyncGenerator[aiohttp.ClientSession, None]:
         yield session
 
 
-@pytest.fixture(scope="session")
-def generate_test_token():
-    """Генерирует валидный JWT токен для тестов, подписанный приватным ключом."""
+@pytest_asyncio.fixture(scope="session")
+async def generate_test_token() -> str:
+    """Валидный access-токен для тестов, подписанный приватным ключом.
+
+    get_current_user требует claim `type=access` и проверяет действительность
+    сессии по `sid` (через кэш в Redis / auth-service). Токен самоподписанный,
+    поэтому сразу кладём в Redis отметку о валидной сессии по тому же ключу,
+    что использует analytics-service (`analytics:session_valid:{sid}`), без
+    реальной регистрации/логина в auth-service.
+    """
     with open(test_settings.private_key_path, "r", encoding="utf-8") as f:
         private_key = f.read()
 
+    sid = str(uuid4())
     payload = {
-        "sub": str(uuid4()), 
+        "sub": str(uuid4()),
+        "sid": sid,
+        "type": "access",
         "roles": ["user"],
-        "exp": datetime.now(timezone.utc) + timedelta(minutes=30)
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=30),
     }
-
     token = jwt.encode(payload, private_key, algorithm="RS256")
+
+    redis_client = Redis(
+        host=test_settings.redis_host, port=test_settings.redis_port, db=2
+    )
+    try:
+        await redis_client.set(f"analytics:session_valid:{sid}", "1", ex=1800)
+    finally:
+        await redis_client.aclose()
+
     return token
