@@ -25,7 +25,7 @@
 ## Сценарий входа
 
 1. `POST /login/` (`src/api/v1/auth.py`) принимает email/телефон + пароль (`UserRequestScheme`), вызывает `AuthService.authenticate_user()`.
-2. Пользователь ищется по email/телефону, проверяется `is_active`, наличие `hashed_password` (OAuth-пользователи без пароля получают `PasswordNotSetException`) и сам пароль.
+2. Пользователь ищется по email/телефону, проверяется `is_active`, наличие `hashed_password` (OAuth-пользователи без пароля получают `PasswordNotSetException`) и сам пароль. Хеширование и проверка пароля (Argon2) выполняются через `run_in_threadpool` (ограниченный пул потоков), а не синхронно в event loop, иначе на время подсчета хеша блокировались бы все остальные асинхронные запросы сервиса. `@limiter.limit()` на `/login/` и `/registration/` это не затрагивает.
 3. Если пароль верный и `user.phone` не пуст, `TwoFactorService.send_code(user.id, user.phone)` генерирует код, кладет его в Redis и отправляет через `SMSProviderBase`, после чего `authenticate_user()` бросает `TwoFactorRequiredException`.
 4. Роутер ловит это исключение и возвращает `200 {"two_fa_required": true}` (`TwoFactorRequiredScheme`) без `access_token` и без `refresh_token`-cookie. Если телефона нет, то шаги 3-4 пропускаются, и `/login/` сразу отдает токены тем же путем, что и обычный логин.
 5. Клиент вызывает `POST /login/verify-phone/` с email/телефоном и кодом (`VerifyTwoFactorRequestScheme`).
