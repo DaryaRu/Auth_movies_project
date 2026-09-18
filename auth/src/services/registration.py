@@ -97,7 +97,9 @@ class RegistrationService:
         Returns:
             UserORM: Пользователь.
         """
-        hash_password = self._hash_service.create_hash_password(user.password)
+        hash_password = await self._hash_service.create_hash_password(
+            user.password
+        )
         new_user = await self._db.users.create_user(
             phone=user.phone,
             email=user.email,

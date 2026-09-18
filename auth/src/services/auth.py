@@ -132,7 +132,7 @@ class AuthService(BaseService):
             raise UserNotFoundException()
         if not user.hashed_password:
             raise PasswordNotSetException()
-        if not self._hash_service.verify_password(
+        if not await self._hash_service.verify_password(
             auth_user.password, user.hashed_password
         ):
             raise VerifyPasswordException()

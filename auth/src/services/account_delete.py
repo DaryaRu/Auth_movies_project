@@ -60,7 +60,7 @@ class AccountDeleteService:
 
         if not user.hashed_password:
             raise PasswordNotSetException()
-        if not password or not self._hash_service.verify_password(
+        if not password or not await self._hash_service.verify_password(
             password, user.hashed_password
         ):
             raise VerifyPasswordException()

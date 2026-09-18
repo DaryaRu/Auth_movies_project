@@ -75,7 +75,7 @@ class AccountSettingsService:
 
         if not user.hashed_password:
             raise PasswordNotSetException()
-        if not self._hash_service.verify_password(
+        if not await self._hash_service.verify_password(
             data.password, user.hashed_password
         ):
             raise VerifyPasswordException()
@@ -138,7 +138,7 @@ class AccountSettingsService:
 
         if not user.hashed_password:
             raise PasswordNotSetException()
-        if not self._hash_service.verify_password(
+        if not await self._hash_service.verify_password(
             data.password, user.hashed_password
         ):
             raise VerifyPasswordException()
@@ -200,12 +200,14 @@ class AccountSettingsService:
 
         if not user.hashed_password:
             raise PasswordNotSetException()
-        if not self._hash_service.verify_password(
+        if not await self._hash_service.verify_password(
             data.current_password, user.hashed_password
         ):
             raise VerifyPasswordException()
 
-        new_hash = self._hash_service.create_hash_password(data.new_password)
+        new_hash = await self._hash_service.create_hash_password(
+            data.new_password
+        )
 
         await self._db.users.update_user_credentials(
             user_id=user_id, hashed_password=new_hash
@@ -257,7 +259,9 @@ class AccountSettingsService:
         if user.hashed_password is not None:
             raise PasswordAlreadySetException()
 
-        new_hash = self._hash_service.create_hash_password(data.password)
+        new_hash = await self._hash_service.create_hash_password(
+            data.password
+        )
         await self._db.users.update_user_credentials(
             user_id=user_id,
             hashed_password=new_hash,

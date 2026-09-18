@@ -2,17 +2,18 @@ from abc import ABC, abstractmethod
 
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
+from starlette.concurrency import run_in_threadpool
 
 from src.core.config import settings
 
 
 class BaseHashService(ABC):
     @abstractmethod
-    def create_hash_password(self, password: str) -> str:
+    async def create_hash_password(self, password: str) -> str:
         raise NotImplementedError
 
     @abstractmethod
-    def verify_password(
+    async def verify_password(
         self,
         plain_password: str,
         hashed_password: str,
@@ -23,6 +24,9 @@ class BaseHashService(ABC):
 class HashArgon2Service(BaseHashService):
     """
     Сервис для хеширования паролей с использованием Argon2 (argon2id).
+
+    Выполняются в ограниченном пуле потоков (run_in_threadpool), чтобы не блокировать
+    event loop и обработку остальных асинхронных запросов.
     """
 
     def __init__(self) -> None:
@@ -32,11 +36,15 @@ class HashArgon2Service(BaseHashService):
             parallelism=settings.HASH_PARALLELISM,
         )
 
-    def create_hash_password(self, password: str) -> str:
-        return self.hasher.hash(password)
+    async def create_hash_password(self, password: str) -> str:
+        return await run_in_threadpool(self.hasher.hash, password)
 
-    def verify_password(self, plain_password: str, hashed_password: str) -> bool:
+    async def verify_password(
+        self, plain_password: str, hashed_password: str
+    ) -> bool:
         try:
-            return self.hasher.verify(hashed_password, plain_password)
+            return await run_in_threadpool(
+                self.hasher.verify, hashed_password, plain_password
+            )
         except VerifyMismatchError:
             return False
