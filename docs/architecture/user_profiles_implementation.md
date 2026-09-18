@@ -25,7 +25,7 @@
 ## Сценарий входа
 
 1. `POST /login/` (`src/api/v1/auth.py`) принимает email/телефон + пароль (`UserRequestScheme`), вызывает `AuthService.authenticate_user()`.
-2. Пользователь ищется по email/телефону, проверяется `is_active`, наличие `hashed_password` (OAuth-пользователи без пароля получают `PasswordNotSetException`) и сам пароль.
+2. Пользователь ищется по email/телефону, проверяется `is_active`, наличие `hashed_password` (OAuth-пользователи без пароля получают `PasswordNotSetException`) и сам пароль. Хеширование и проверка пароля (Argon2) выполняются через `run_in_threadpool` (ограниченный пул потоков), а не синхронно в event loop, иначе на время подсчета хеша блокировались бы все остальные асинхронные запросы сервиса. `@limiter.limit()` на `/login/` и `/registration/` это не затрагивает.
 3. Если пароль верный и `user.phone` не пуст, `TwoFactorService.send_code(user.id, user.phone)` генерирует код, кладет его в Redis и отправляет через `SMSProviderBase`, после чего `authenticate_user()` бросает `TwoFactorRequiredException`.
 4. Роутер ловит это исключение и возвращает `200 {"two_fa_required": true}` (`TwoFactorRequiredScheme`) без `access_token` и без `refresh_token`-cookie. Если телефона нет, то шаги 3-4 пропускаются, и `/login/` сразу отдает токены тем же путем, что и обычный логин.
 5. Клиент вызывает `POST /login/verify-phone/` с email/телефоном и кодом (`VerifyTwoFactorRequestScheme`).
@@ -74,6 +74,30 @@
 - Два канала подтверждения (СМС + email) вместо одного — у 2FA-логина только СМС, потому что второй фактор там и так телефон, дублировать его email-кодом незачем.
 - В Redis вместе с кодами хранятся еще и данные самого запроса (`new_phone`) — у 2FA-логина в Redis только код, потому что номер телефона уже есть в БД.
 
+## Смена email
+
+Смена email (`POST /change-email-request/` → `POST /verify-old-email/` → `POST /verify-new-email/`) требует двух независимых кодов: код на текущий (старый) email (доказывает, что это владелец аккаунта) и код на новый адрес (доказывает владение новым адресом). Код на новый адрес генерируется и отправляется только после того, как подтвержден код со старого. Без этого смену телефона можно было обойти: `change_user_email` раньше сразу писал новый email в БД после проверки пароля, не проверяя владение новым адресом, а `request_phone_change` слал email-код уже на подмененный адрес.
+
+Последовательность выбрана вместо одновременной отправки (как у телефона) по двум причинам: не тратить отправку на новый адрес, если код со старого не подошел, и не заставлять пользователя успевать прочитать два письма в одном общем окне TTL — если пользователь потерял доступ к старому email, симметричная схема (оба кода сразу, оба обязательны) завела бы его в тупик.
+
+Отправка кода на новый адрес идет через `notify_address()` (в обход обычного резолва получателя по `user_id`, так как адрес еще не сохранен), которая передает `recipient_email` явно в notifications-service.
+
+### Сценарий смены email
+
+1. `POST /change-email-request/` (авторизация обязательна) — проверяется пароль и уникальность `new_email`, затем `EmailChangeService.request_change()` генерирует `old_email_code`, пишет его вместе с `new_email` в Redis и отправляет на текущий email через `notify_user()`.
+2. `POST /verify-old-email/` — `EmailChangeService.verify_old_email()` проверяет лимит попыток, сверяет код через `secrets.compare_digest()`. При совпадении генерирует `new_email_code`, дописывает его в тот же Redis-хеш (со свежим TTL) и отправляет на новый адрес через `notify_address()`.
+3. `POST /verify-new-email/` — `EmailChangeService.verify_new_email()` сверяет код с нового адреса. При совпадении удаляет хеш и счетчик, возвращает `new_email`.
+4. `AccountSettingsService.verify_new_email_change()` при успехе обновляет `email` и сразу выставляет `email_verified = True`, отзывает все сессии (`delete_all_sessions()`).
+
+## Ручная проверка сценария: смена email
+
+1. `POST /change-email-request/` с `new_email`+`password`. Требует полного стека (профиль `analytics` — `notifications-service`/`notifications-worker`/`mailpit`).
+2. `make show-email-change-code-by-email email=...` (текущий email) — хеш `email_change:{user_id}` уже содержит `new_email` и `old_email_code`, поля `new_email_code` пока нет.
+3. `POST /verify-old-email/` с `{"code": "<old_email_code>"}`. При успехе генерируется и отправляется код на новый адрес.
+4. `make show-email-change-code-by-email email=...` (email пока старый) — в хеше появилось поле `new_email_code`.
+5. `POST /verify-new-email/` с `{"code": "<new_email_code>"}`, `UserResponseScheme` с новым `email`, `email_verified: true`.
+6. После успешной смены сессия отзывается немедленно `delete_all_sessions()`. Нужен новый `/login/` по новому email.
+
 ## Ручная проверка сценария: логин с 2FA и смена номера
 
 1. `POST /login/` с `email`+`password` пользователя, у которого уже есть `phone` → `200 {"two_fa_required": true}`.
@@ -89,8 +113,8 @@
 
 Роли и права существовали и раньше, но реально нигде не проверялись. Был только `StaffUserDep`/`get_current_staff_user`, проверяющий `user.is_superuser`. `require_permission(code: str)` — аналог `StaffUserDep`, но по конкретному коду права, а не по статусу суперпользователя. Будет применяться, чтобы различать админов, которым доступны личные данные в профилях пользователей, от тех, кому нет.
 
-- **`is_superuser`** — читается прямо из JWT payload. Универсальный обход - суперпользователь проходит `require_permission()` для любого кода. При `/refresh/` это поле копируется из старого токена, а не перезапрашивается из БД (`services/auth.py`), отзыв `is_superuser` виден только после полного перелогина, не после `/refresh/`.
-- **Конкретное право**: Redis-кэш `user_permissions:{user_id}` (список кодов) или же `RoleService.get_user_permissions()` из БД, результат кладется в кэш.
+- **`is_superuser`** — читается прямо из JWT payload, дает универсальный обход в `StaffUserDep`/`get_current_staff_user` (управление ролями, правами, подписками) — это отдельная проверка, не связанная с `require_permission()`. Для `require_permission()` нет обхода: право нужно явно назначить через роль, даже суперпользователю, иначе доступ к личным данным расходится с проверкой на стороне movies_admin.
+- **Конкретное право**: Redis-кэш `user_permissions:{user_id}` (список кодов) или же `RoleService.get_user_permissions()` из БД, результат кладется в кэш. Возвращает только права, реально назначенные через роли.
 
 Раньше список кодов прав (`permissions`) клался в JWT при логине/рефреше, но нигде не читался. Сейчас они убраны из JWT полностью. Ушел лишний запрос в базу на каждый логин/рефреш.
 
@@ -101,6 +125,18 @@
 - **Точечная, сразу** — `assign_role_to_user`/`remove_role_from_user`: когда меняется пользователь, удаляем его ключ кэша `user_permissions:{user_id}` сразу после записи в БД (без ожидания TTL).
 - **Только TTL, без инвалидации** — изменение состава прав самой роли (`assign_permission_to_role`/`remove_permission_from_role`) или деактивация роли: задевает потенциально многих пользователей сразу.
 
+## Вход в movies_admin (2FA)
+
+После успешной проверки пароля auth-service для пользователя с телефоном возвращает {"two_fa_required": true}, а Django-backend безусловно читает access_token. В результате возникала KeyError, и просмотр профилей недоступен такому администратору.
+
+Стандартная Django admin login view (`AdminAuthenticationForm` + `authenticate()`) — одношаговая, не рассчитана на промежуточный шаг с введением кода. Поэтому понадобилась отдельная самописная login view.
+
+**`CustomBackend`** разбит на:
+- `_build_session()` — общая часть, переиспользуется в обоих сценариях ниже.
+- `start_login()` — первый шаг. Возвращает `LoginResult`: `user` (вход завершен сразу, если телефона нет), `two_fa_required=True` (нужен СМС-код), либо пустой результат (неверный пароль или auth-service недоступен).
+- `complete_two_factor_login(request, email, code)` — второй шаг, `POST /login/verify-phone/`, возвращает `LoginResult` (`user` или пусто).
+- `authenticate()` (стандартный контракт Django) теперь просто вызывает `start_login()`. Сохранен для совместимости с обычным одношаговым использованием, но реальный вход теперь всегда идет через `start_login`/`complete_two_factor_login`.
+
 ## Просмотр профилей пользователей в movies_admin
 
 Личные данные (email, телефон, ФИО) меняет только сам пользователь, но просмотр профиля админом полезен для следующих целей:
@@ -108,7 +144,7 @@
 - показать, что хранится в профиле (без права это менять);
 - проверить, почему письмо или смс не доходит, проверить реальный email и телефон в системе.
 
-Для просмотра личных данных конкретного пользователя добавлен `GET /admin/users/{user_id}/` (`auth/src/api/v1/admin_users.py`): эндпоинт принимает `user_id`, проверяет право через `require_permission("user:view_personal_data")` и возвращает email, телефон, ФИО и таймзону. Переиспользует имеющуюся схему ответа `UserResponseScheme`.
+Для просмотра личных данных конкретного пользователя добавлен `GET /admin/users/{user_id}/` (`auth/src/api/v1/admin_users.py`): эндпоинт принимает `user_id`, проверяет право через `require_permission("user:view_personal_data")` (без обхода для `is_superuser`) и возвращает email, телефон, ФИО и таймзону. Переиспользует имеющуюся схему ответа `UserResponseScheme`.
 
 Новый эндпоинт `GET /admin/users/?search=&page_number=&page_size=` ищет и отдает пользователей постранично: параметр `search` матчится по email, телефону и ФИО через регистронезависимый `ILIKE`.
 
@@ -123,9 +159,9 @@
 
 ### UserAdmin
 
-Раздел "Пользователи" виден только тем, у кого в сессии есть код `user:view_personal_data`, или суперпользователю. `has_module_permission`, `has_view_permission` переопределяют дефолтную реализацию `ModelAdmin`, которая по умолчанию вызывает `User.has_module_perms()`/`has_perm()` (только суперпользователи).
+Раздел "Пользователи" виден только тем, у кого в сессии есть код `user:view_personal_data` — без обхода для суперпользователя, согласовано с проверкой на стороне auth-service (`require_permission()`). `has_module_permission`, `has_view_permission` переопределяют дефолтную реализацию `ModelAdmin`, которая по умолчанию вызывает `User.has_module_perms()`/`has_perm()` (только суперпользователи).
 
-Но `has_module_permission`, `has_view_permission` управляют только видимостью пункта меню и стандартным Django-путем проверки прав, а `change_view` и `changelist_view` полностью переопределены (не вызывают `super()` и не используют стандартный рендеринг Django, поэтому встроенный вызов `has_view_or_change_permission()` внутри них не происходит). Из-за этого в начале обоих методов добавлена явная проверка `_has_profile_view_permission(request)`, чтобы суперпользователь мог просматривать всегда, а остальные только по наличию права из сессии.
+Но `has_module_permission`, `has_view_permission` управляют только видимостью пункта меню и стандартным Django-путем проверки прав, а `change_view` и `changelist_view` полностью переопределены (не вызывают `super()` и не используют стандартный рендеринг Django, поэтому встроенный вызов `has_view_or_change_permission()` внутри них не происходит). Из-за этого в начале обоих методов добавлена явная проверка `_has_profile_view_permission(request)`.
 
 ### Список и поиск профилей пользователей
 

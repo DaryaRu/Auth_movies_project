@@ -13,7 +13,9 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField(_("email"), max_length=255, blank=True)
-    phone = models.CharField(_("email"), max_length=20, blank=True)
+    phone = models.CharField(
+        _("phone"), max_length=20, null=True, blank=True
+    )
     hashed_password = models.CharField(
         _("password"), max_length=255, blank=True
     )
