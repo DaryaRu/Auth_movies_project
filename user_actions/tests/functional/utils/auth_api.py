@@ -92,7 +92,10 @@ async def register_and_login(
         f"{await login_response.text()}"
     )
     login_data = await login_response.json()
-    refresh_token = login_response.cookies.get("refresh_token")
+    refresh_token_cookie = login_response.cookies.get("refresh_token")
+    refresh_token = (
+        refresh_token_cookie.value if refresh_token_cookie else None
+    )
 
     return AuthSession(
         user_id=UUID(user_data["id"]),
