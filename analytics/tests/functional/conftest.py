@@ -4,7 +4,6 @@ from uuid import uuid4
 
 import aiohttp
 import jwt
-import pytest
 import pytest_asyncio
 from redis.asyncio import Redis
 
@@ -53,7 +52,7 @@ async def generate_test_token() -> str:
     token = jwt.encode(payload, private_key, algorithm="RS256")
 
     redis_client = Redis(
-        host=test_settings.redis_host, port=test_settings.redis_port, db=2
+        host=test_settings.redis_host, port=test_settings.redis_port, db=0
     )
     try:
         await redis_client.set(f"analytics:session_valid:{sid}", "1", ex=1800)
